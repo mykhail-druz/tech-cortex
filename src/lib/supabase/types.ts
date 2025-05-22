@@ -1,0 +1,235 @@
+// TypeScript types for Supabase database tables
+
+// Settings type
+export interface Setting {
+  id: string;
+  key: string;
+  value: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Homepage Content type
+export interface HomepageContent {
+  id: string;
+  section: string;
+  title: string | null;
+  subtitle: string | null;
+  content: string | null;
+  cta_text: string | null;
+  cta_link: string | null;
+  image_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Navigation Link type
+export interface NavigationLink {
+  id: string;
+  title: string;
+  url: string;
+  parent_id: string | null;
+  group_name: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  children?: NavigationLink[];
+}
+
+// Category type
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  image_url: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Product type
+export interface Product {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  price: number;
+  old_price: number | null;
+  discount_percentage: number | null;
+  main_image_url: string | null;
+  category_id: string | null;
+  brand: string | null;
+  rating: number;
+  review_count: number;
+  in_stock: boolean;
+  sku: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Product with related data
+export interface ProductWithDetails extends Product {
+  category?: Category;
+  images?: ProductImage[];
+  specifications?: ProductSpecification[];
+  reviews?: Review[];
+}
+
+// Product Image type
+export interface ProductImage {
+  id: string;
+  product_id: string;
+  image_url: string;
+  alt_text: string | null;
+  is_main: boolean;
+  display_order: number;
+  created_at: string;
+}
+
+// Product Specification type
+export interface ProductSpecification {
+  id: string;
+  product_id: string;
+  name: string;
+  value: string;
+  display_order: number;
+}
+
+// User Role type
+export interface UserRole {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// User Profile type
+export interface UserProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  address_line1: string | null;
+  address_line2: string | null;
+  city: string | null;
+  state: string | null;
+  postal_code: string | null;
+  country: string | null;
+  role_id: string | null;
+  created_at: string;
+  updated_at: string;
+  role?: UserRole;
+}
+
+// Order type
+export interface Order {
+  id: string;
+  user_id: string;
+  status: OrderStatus;
+  total_amount: number;
+  shipping_address: string;
+  billing_address: string | null;
+  payment_method: string | null;
+  payment_status: PaymentStatus;
+  tracking_number: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Order with items
+export interface OrderWithItems extends Order {
+  items: OrderItem[];
+}
+
+// Order Item type
+export interface OrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  quantity: number;
+  price_per_unit: number;
+  total_price: number;
+  created_at: string;
+  product?: Product;
+}
+
+// Cart Item type
+export interface CartItem {
+  id: string;
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  created_at: string;
+  updated_at: string;
+  product?: Product;
+}
+
+// Review type
+export interface Review {
+  id: string;
+  product_id: string;
+  user_id: string;
+  rating: number;
+  title: string | null;
+  content: string | null;
+  is_verified_purchase: boolean;
+  is_approved: boolean;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    first_name: string | null;
+    last_name: string | null;
+  };
+}
+
+// Wishlist Item type
+export interface WishlistItem {
+  id: string;
+  user_id: string;
+  product_id: string;
+  created_at: string;
+  product?: Product;
+}
+
+// Enums
+export enum OrderStatus {
+  PENDING = 'pending',
+  PROCESSING = 'processing',
+  SHIPPED = 'shipped',
+  DELIVERED = 'delivered',
+  CANCELLED = 'cancelled',
+  RETURNED = 'returned',
+}
+
+export enum PaymentStatus {
+  PENDING = 'pending',
+  PAID = 'paid',
+  FAILED = 'failed',
+  REFUNDED = 'refunded',
+}
+
+// Database response types
+export type InsertResponse<T> = {
+  data: T | null;
+  error: Error | null;
+};
+
+export type UpdateResponse<T> = {
+  data: T | null;
+  error: Error | null;
+};
+
+export type DeleteResponse = {
+  error: Error | null;
+};
+
+export type SelectResponse<T> = {
+  data: T[] | null;
+  error: Error | null;
+};
