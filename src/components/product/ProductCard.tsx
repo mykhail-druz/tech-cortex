@@ -85,7 +85,7 @@ export default function ProductCard({
               </span>
             )}
             {!inStock && (
-              <span className="bg-gray-600 text-white text-xs font-medium px-2 py-1 rounded">
+              <span className="bg-gray-600 text-white text-xs font-medium px-4 py-1 rounded">
                 Out of Stock
               </span>
             )}

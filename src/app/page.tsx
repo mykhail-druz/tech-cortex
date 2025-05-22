@@ -48,7 +48,7 @@ function ProductCard({ product }: { product: Product }) {
           )}
 
           {!product.in_stock && (
-            <div className="absolute top-2 left-2 bg-gray-800 text-white text-xs font-bold px-2 py-1 rounded">
+            <div className="absolute top-2 left-2 bg-gray-800 text-white text-xs font-bold px-4 py-1 rounded">
               Out of Stock
             </div>
           )}

@@ -5,31 +5,22 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
-import { getCategories, getNavigationLinks } from '@/lib/supabase/db';
-import { Category, NavigationLink } from '@/lib/supabase/types';
+import { getNavigationLinks } from '@/lib/supabase/db';
+import { NavigationLink } from '@/lib/supabase/types';
 
 export default function Header() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-    const [categories, setCategories] = useState<Category[]>([]);
     const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const { user, profile, signOut } = useAuth();
     const { itemCount } = useCart();
 
-    // Fetch categories and navigation links on component mount
+    // Fetch navigation links on component mount
     useEffect(() => {
         const fetchData = async () => {
             try {
                 setIsLoading(true);
-
-                // Fetch categories
-                const { data: categoriesData, error: categoriesError } = await getCategories();
-                if (categoriesError) {
-                    console.error('Error fetching categories:', categoriesError);
-                } else {
-                    setCategories(categoriesData || []);
-                }
 
                 // Fetch navigation links for main navigation
                 const { data: navLinksData, error: navLinksError } = await getNavigationLinks('main_nav');
@@ -66,17 +57,15 @@ export default function Header() {
 
                     {/* Desktop Navigation */}
                     <nav className="hidden md:flex space-x-6">
-                        {isLoading ? (
-                            <div className="text-gray-400">Loading...</div>
-                        ) : (
+                        {!isLoading && (
                             <>
-                                {categories.map((category) => (
+                                {navLinks.map((link) => (
                                     <Link
-                                        key={category.id}
-                                        href={`/products/${category.slug}`}
+                                        key={link.id}
+                                        href={link.url}
                                         className="text-gray-600 hover:text-primary transition-colors"
                                     >
-                                        {category.name}
+                                        {link.label}
                                     </Link>
                                 ))}
                             </>
@@ -189,18 +178,16 @@ export default function Header() {
                 {/* Mobile menu */}
                 <div className={cn("md:hidden", isMobileMenuOpen ? "block" : "hidden")}>
                     <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                        {isLoading ? (
-                            <div className="text-gray-400 py-2">Loading...</div>
-                        ) : (
+                        {!isLoading && (
                             <>
-                                {categories.map((category) => (
+                                {navLinks.map((link) => (
                                     <Link
-                                        key={category.id}
-                                        href={`/products/${category.slug}`}
+                                        key={link.id}
+                                        href={link.url}
                                         className="block py-2 text-gray-600 hover:text-primary"
                                         onClick={() => setIsMobileMenuOpen(false)}
                                     >
-                                        {category.name}
+                                        {link.label}
                                     </Link>
                                 ))}
                             </>

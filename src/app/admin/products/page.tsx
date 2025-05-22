@@ -98,11 +98,11 @@ export default function ProductsManagement() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Products Management</h1>
         <Link 
           href="/admin/products/new" 
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto text-center"
         >
           Add New Product
         </Link>
@@ -110,27 +110,27 @@ export default function ProductsManagement() {
 
       {/* Filters */}
       <div className="bg-white p-4 rounded-lg shadow-md mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label htmlFor="search" className="block text-sm font-medium text-gray-700">
               Search Products
             </label>
             <input
               type="text"
               id="search"
-              className="w-full p-2 border border-gray-300 rounded-md"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               placeholder="Search by name or description..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
               Filter by Category
             </label>
             <select
               id="category"
-              className="w-full p-2 border border-gray-300 rounded-md"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
             >
@@ -151,19 +151,19 @@ export default function ProductsManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Product
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden sm:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Price
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Stock
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -172,7 +172,7 @@ export default function ProductsManagement() {
               {filteredProducts.length > 0 ? (
                 filteredProducts.map((product) => (
                   <tr key={product.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center">
                         {product.main_image_url && (
                           <div className="flex-shrink-0 h-10 w-10">
@@ -183,26 +183,26 @@ export default function ProductsManagement() {
                             />
                           </div>
                         )}
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900">{product.title}</div>
-                          <div className="text-sm text-gray-500">SKU: {product.sku || 'N/A'}</div>
+                        <div className="ml-2 sm:ml-4">
+                          <div className="text-sm font-medium text-gray-900 line-clamp-1">{product.title}</div>
+                          <div className="text-xs sm:text-sm text-gray-500 hidden xs:block">SKU: {product.sku || 'N/A'}</div>
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-500">
                       {getCategoryName(product.category_id)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-4 sm:px-6 py-4">
                       <div className="text-sm text-gray-900">${product.price.toFixed(2)}</div>
                       {product.old_price && (
-                        <div className="text-sm text-gray-500 line-through">
+                        <div className="text-xs sm:text-sm text-gray-500 line-through">
                           ${product.old_price.toFixed(2)}
                         </div>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden md:table-cell px-6 py-4">
                       <span
-                        className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        className={`px-4 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           product.in_stock
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
@@ -211,8 +211,8 @@ export default function ProductsManagement() {
                         {product.in_stock ? 'In Stock' : 'Out of Stock'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                    <td className="px-4 sm:px-6 py-4 text-sm font-medium">
+                      <div className="flex flex-col xs:flex-row gap-2 xs:space-x-2">
                         <Link
                           href={`/admin/products/edit/${product.id}`}
                           className="text-indigo-600 hover:text-indigo-900"
@@ -238,7 +238,7 @@ export default function ProductsManagement() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500">
+                  <td colSpan={5} className="px-4 sm:px-6 py-4 text-center text-sm text-gray-500">
                     {searchTerm || selectedCategory
                       ? 'No products match your search criteria'
                       : 'No products found'}
