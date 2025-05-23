@@ -13,11 +13,6 @@ export default function Sidebar() {
     const { isOpen, toggleSidebar, closeSidebar } = useSidebar();
     const pathname = usePathname();
 
-    // Don't render sidebar on admin pages
-    if (pathname?.startsWith('/admin')) {
-        return null;
-    }
-
     // Fetch categories on component mount
     useEffect(() => {
         const fetchCategories = async () => {
@@ -39,6 +34,11 @@ export default function Sidebar() {
         fetchCategories();
     }, []);
 
+
+    // Don't render sidebar on admin pages
+    if (pathname?.startsWith('/admin')) {
+        return null;
+    }
 
     return (
         <>

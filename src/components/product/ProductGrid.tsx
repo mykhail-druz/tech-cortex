@@ -11,8 +11,10 @@ interface Product {
   oldPrice?: number;
   image: string;
   category: string;
+  subcategory?: string;
   rating: number;
   inStock: boolean;
+  slug: string;
 }
 
 interface ProductGridProps {
@@ -20,6 +22,7 @@ interface ProductGridProps {
   title?: string;
   filter?: {
     category?: string;
+    subcategory?: string;
     minPrice?: number;
     maxPrice?: number;
   };
@@ -50,6 +53,9 @@ export default function ProductGrid({
     if (filter) {
       if (filter.category) {
         result = result.filter(product => product.category === filter.category);
+      }
+      if (filter.subcategory) {
+        result = result.filter(product => product.subcategory === filter.subcategory);
       }
       if (filter.minPrice !== undefined) {
         result = result.filter(product => product.price >= filter.minPrice!);
@@ -143,8 +149,11 @@ export default function ProductGrid({
             oldPrice={product.oldPrice}
             image={product.image}
             category={product.category}
+            subcategory={product.subcategory}
             rating={product.rating}
             inStock={product.inStock}
+            slug={product.slug}
+            layout={layout}
           />
         ))}
       </div>

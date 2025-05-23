@@ -8,8 +8,9 @@ import ProductGrid from '@/components/product/ProductGrid';
 import { getProductBySlug, getRelatedProducts } from '@/lib/supabase/db';
 import { ProductWithDetails, Product } from '@/lib/supabase/types';
 import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
 
-export default function ProductPage({ params }: { params: { id: string } }) {
+export default function ProductPage({ params }: { params: { slug: string } }) {
   const unwrappedParams = React.use(params);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
@@ -19,6 +20,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const { addItem } = useCart();
+  const toast = useToast();
 
   // Handle quantity changes
   const decrementQuantity = () => {
@@ -37,7 +39,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       setIsLoading(true);
       try {
         // Get product by slug
-        const { data: productData, error } = await getProductBySlug(unwrappedParams.id);
+        const { data: productData, error } = await getProductBySlug(unwrappedParams.slug);
 
         if (error || !productData) {
           console.error('Error fetching product:', error);
@@ -62,7 +64,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
     };
 
     fetchProductData();
-  }, [unwrappedParams.id]);
+  }, [unwrappedParams.slug]);
 
   // Handle adding to cart
   const addToCart = async () => {
@@ -72,9 +74,9 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 
     if (error) {
       console.error('Error adding to cart:', error);
-      alert('Failed to add product to cart');
+      toast.error('Failed to add product to cart');
     } else {
-      alert('Product added to cart!');
+      toast.success(`Product added to cart`);
     }
   };
 
@@ -540,7 +542,17 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       {relatedProducts.length > 0 && (
         <div className="mb-10">
           <h2 className="text-2xl font-bold mb-6">Related Products</h2>
-          <ProductGrid products={relatedProducts} />
+          <ProductGrid products={relatedProducts.map(product => ({
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            oldPrice: product.old_price || undefined,
+            image: product.main_image_url || '/placeholder-product.jpg',
+            category: product.category_id || '',
+            rating: product.rating,
+            inStock: product.in_stock,
+            slug: product.slug,
+          }))} />
         </div>
       )}
 
@@ -548,7 +560,17 @@ export default function ProductPage({ params }: { params: { id: string } }) {
       {relatedProducts.length > 0 && (
         <div>
           <h2 className="text-2xl font-bold mb-6">Recently Viewed</h2>
-          <ProductGrid products={relatedProducts.slice(0, Math.min(3, relatedProducts.length))} />
+          <ProductGrid products={relatedProducts.slice(0, Math.min(3, relatedProducts.length)).map(product => ({
+            id: product.id,
+            title: product.title,
+            price: product.price,
+            oldPrice: product.old_price || undefined,
+            image: product.main_image_url || '/placeholder-product.jpg',
+            category: product.category_id || '',
+            rating: product.rating,
+            inStock: product.in_stock,
+            slug: product.slug,
+          }))} />
         </div>
       )}
     </div>

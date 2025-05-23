@@ -40,8 +40,55 @@ export const updateProduct = async (
 };
 
 export const deleteProduct = async (id: string): Promise<DeleteResponse> => {
-  const response = await supabase.from('products').delete().eq('id', id);
-  return { error: response.error };
+  try {
+    // First, get the product to get its main_image_url
+    const { data: product, error: fetchProductError } = await supabase
+      .from('products')
+      .select('main_image_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchProductError) {
+      console.error('Error fetching product for deletion:', fetchProductError);
+      return { error: fetchProductError };
+    }
+
+    // Get all product images from the product_images table
+    const { data: productImages, error: fetchImagesError } = await supabase
+      .from('product_images')
+      .select('image_url')
+      .eq('product_id', id);
+
+    if (fetchImagesError) {
+      console.error('Error fetching product images for deletion:', fetchImagesError);
+      return { error: fetchImagesError };
+    }
+
+    // Import the deleteFile function
+    const { deleteFile } = await import('./storageService');
+
+    // If the product has a main image, delete it from storage
+    if (product?.main_image_url) {
+      await deleteFile(product.main_image_url, 'products');
+    }
+
+    // Delete all additional product images from storage
+    if (productImages && productImages.length > 0) {
+      for (const image of productImages) {
+        if (image.image_url) {
+          await deleteFile(image.image_url, 'products');
+        }
+      }
+    }
+
+    // Now delete the product from the database
+    // This will cascade delete the product_images records due to the ON DELETE CASCADE constraint
+    const response = await supabase.from('products').delete().eq('id', id);
+    return { error: response.error };
+  } catch (error) {
+    console.error('Error in deleteProduct:', error);
+    return { error: error instanceof Error ? error : new Error('Unknown error in deleteProduct') };
+  }
 };
 
 // Product Images
@@ -72,8 +119,32 @@ export const updateProductImage = async (
 };
 
 export const deleteProductImage = async (id: string): Promise<DeleteResponse> => {
-  const response = await supabase.from('product_images').delete().eq('id', id);
-  return { error: response.error };
+  try {
+    // First, get the product image to get its image_url
+    const { data: productImage, error: fetchError } = await supabase
+      .from('product_images')
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching product image for deletion:', fetchError);
+      return { error: fetchError };
+    }
+
+    // If the product image has an image_url, delete it from storage
+    if (productImage?.image_url) {
+      const { deleteFile } = await import('./storageService');
+      await deleteFile(productImage.image_url, 'products');
+    }
+
+    // Now delete the product image from the database
+    const response = await supabase.from('product_images').delete().eq('id', id);
+    return { error: response.error };
+  } catch (error) {
+    console.error('Error in deleteProductImage:', error);
+    return { error: error instanceof Error ? error : new Error('Unknown error in deleteProductImage') };
+  }
 };
 
 export const getProductImages = async (productId: string): Promise<SelectResponse<ProductImage>> => {
@@ -156,8 +227,91 @@ export const updateCategory = async (
 };
 
 export const deleteCategory = async (id: string): Promise<DeleteResponse> => {
-  const response = await supabase.from('categories').delete().eq('id', id);
-  return { error: response.error };
+  try {
+    // First, get the category to get its image_url and check if it's a subcategory
+    const { data: category, error: fetchError } = await supabase
+      .from('categories')
+      .select('image_url, is_subcategory')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error('Error fetching category for deletion:', fetchError);
+      return { error: fetchError };
+    }
+
+    // If it's a subcategory, check if any products are using it
+    if (category?.is_subcategory) {
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('subcategory_id', id);
+
+      if (productsError) {
+        console.error('Error checking products for subcategory:', productsError);
+        return { error: productsError };
+      }
+
+      // If products are using this subcategory, return a custom error
+      if (products && products.length > 0) {
+        const customError = new Error(
+          `Cannot delete subcategory because it is still being used by ${products.length} product(s). Please reassign or delete these products first.`
+        );
+        return { error: customError };
+      }
+    } else {
+      // If it's a main category, check if any subcategories are using it as a parent
+      const { data: subcategories, error: subcategoriesError } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', id);
+
+      if (subcategoriesError) {
+        console.error('Error checking subcategories:', subcategoriesError);
+        return { error: subcategoriesError };
+      }
+
+      // If subcategories are using this category as a parent, return a custom error
+      if (subcategories && subcategories.length > 0) {
+        const customError = new Error(
+          `Cannot delete category because it has ${subcategories.length} subcategory/subcategories. Please delete these subcategories first.`
+        );
+        return { error: customError };
+      }
+
+      // Check if any products are using this main category
+      const { data: products, error: productsError } = await supabase
+        .from('products')
+        .select('id')
+        .eq('category_id', id);
+
+      if (productsError) {
+        console.error('Error checking products for category:', productsError);
+        return { error: productsError };
+      }
+
+      // If products are using this category, return a custom error
+      if (products && products.length > 0) {
+        const customError = new Error(
+          `Cannot delete category because it is still being used by ${products.length} product(s). Please reassign or delete these products first.`
+        );
+        return { error: customError };
+      }
+    }
+
+    // If the category has an image, delete it from storage
+    if (category?.image_url) {
+      const { deleteFile } = await import('./storageService');
+      await deleteFile(category.image_url, 'categories');
+    }
+
+    // Now delete the category from the database
+    const response = await supabase.from('categories').delete().eq('id', id);
+    return { error: response.error };
+  } catch (error) {
+    console.error('Error in deleteCategory:', error);
+    return { error: error instanceof Error ? error : new Error('Unknown error in deleteCategory') };
+  }
 };
 
 // Orders

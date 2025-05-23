@@ -28,10 +28,14 @@ export default function AddProductPage() {
     discount_percentage: 0,
     main_image_url: '',
     category_id: '',
+    subcategory_id: '',
     brand: '',
     in_stock: true,
     sku: '',
   });
+
+  // Add state to track available subcategories
+  const [availableSubcategories, setAvailableSubcategories] = useState<Category[]>([]);
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -54,6 +58,22 @@ export default function AddProductPage() {
 
     fetchCategories();
   }, []);
+
+  // Update available subcategories when category changes
+  useEffect(() => {
+    if (formData.category_id) {
+      const selectedCategory = categories.find(c => c.id === formData.category_id);
+      setAvailableSubcategories(selectedCategory?.subcategories || []);
+
+      // Reset subcategory if category changes
+      if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
+        setFormData(prev => ({...prev, subcategory_id: ''}));
+      }
+    } else {
+      setAvailableSubcategories([]);
+      setFormData(prev => ({...prev, subcategory_id: ''}));
+    }
+  }, [formData.category_id, categories]);
 
   // Generate slug from title
   const generateSlug = (title: string) => {
@@ -326,7 +346,7 @@ export default function AddProductPage() {
                 }`}
               >
                 <option value="">Select a category</option>
-                {categories.map((category) => (
+                {categories.filter(c => !c.is_subcategory).map((category) => (
                   <option key={category.id} value={category.id}>
                     {category.name}
                   </option>
@@ -336,6 +356,29 @@ export default function AddProductPage() {
                 <p className="mt-1 text-sm text-red-500">{formErrors.category_id}</p>
               )}
             </div>
+
+            {/* Subcategory - only show when a category is selected */}
+            {formData.category_id && (
+              <div>
+                <label htmlFor="subcategory_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Subcategory
+                </label>
+                <select
+                  id="subcategory_id"
+                  name="subcategory_id"
+                  value={formData.subcategory_id}
+                  onChange={handleInputChange}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">Select a subcategory (optional)</option>
+                  {availableSubcategories.map((subcategory) => (
+                    <option key={subcategory.id} value={subcategory.id}>
+                      {subcategory.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Brand */}
             <div>

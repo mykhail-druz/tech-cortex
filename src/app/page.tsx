@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getHomepageContent, getProducts, getCategories } from '@/lib/supabase/db';
+import { getHomepageContent, getProducts, getCategories, getSetting } from '@/lib/supabase/db';
 import { Product } from '@/lib/supabase/types';
 
 // Format price with currency
@@ -98,10 +98,16 @@ async function HomeContent() {
   const { data: heroContent } = await getHomepageContentBySection('hero');
   const { data: featuredCategories } = await getHomepageContentBySection('featured_category');
   const { data: promotions } = await getHomepageContentBySection('promotion');
+  const { data: trustIndicators } = await getHomepageContentBySection('trust_indicator');
+  const { data: newsletter } = await getHomepageContentBySection('newsletter');
 
   // Fetch featured products (newest products with highest rating)
   const { data: allProducts } = await getProducts();
   const { data: categories } = await getCategories();
+
+  // Get the setting for the number of categories to display
+  const { data: categorySetting } = await getSetting('homepage_category_count');
+  const categoryCount = categorySetting ? parseInt(categorySetting.value, 10) : 4; // Default to 4 if setting doesn't exist
 
   // Sort products by created_at (newest first) and take the first 8
   const newArrivals = [...(allProducts || [])].sort(
@@ -147,32 +153,32 @@ async function HomeContent() {
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Shop by Category</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {featuredCategories?.map((category) => (
-              <Link 
-                key={category.id} 
-                href={category.cta_link || '/products'} 
-                className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
-              >
-                {category.image_url && (
-                  <div className="relative h-24 w-24 mx-auto mb-4">
-                    <Image
-                      src={category.image_url}
-                      alt={category.title || ''}
-                      fill
-                      sizes="96px"
-                      className="object-contain"
-                    />
-                  </div>
-                )}
-                <h3 className="text-xl font-semibold mb-2">{category.title}</h3>
-                <p className="text-sm text-gray-500">{category.subtitle}</p>
-              </Link>
-            ))}
-            {categories?.map((category, index) => {
-              // Only show categories if we don't have enough featured categories
-              if (index >= (4 - (featuredCategories?.length || 0))) return null;
-
-              return (
+            {/* Display featured categories if available */}
+            {featuredCategories && featuredCategories.length > 0 ? (
+              featuredCategories.map((category) => (
+                <Link 
+                  key={category.id} 
+                  href={category.cta_link || '/products'} 
+                  className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
+                >
+                  {category.image_url && (
+                    <div className="relative h-24 w-24 mx-auto mb-4">
+                      <Image
+                        src={category.image_url}
+                        alt={category.title || ''}
+                        fill
+                        sizes="96px"
+                        className="object-contain"
+                      />
+                    </div>
+                  )}
+                  <h3 className="text-xl font-semibold mb-2">{category.title}</h3>
+                  <p className="text-sm text-gray-500">{category.subtitle}</p>
+                </Link>
+              ))
+            ) : (
+              /* If no featured categories, display regular categories using the configured count */
+              categories?.slice(0, categoryCount).map((category) => (
                 <Link 
                   key={category.id} 
                   href={`/products?category=${category.slug}`} 
@@ -192,8 +198,8 @@ async function HomeContent() {
                   <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
                   <p className="text-sm text-gray-500">{category.description}</p>
                 </Link>
-              );
-            })}
+              ))
+            )}
           </div>
         </div>
       </section>
@@ -274,77 +280,65 @@ async function HomeContent() {
       )}
 
       {/* Trust Indicators */}
-      <section className="mb-16">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-primary mb-4">
-                <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Free Shipping</h3>
-              <p className="text-gray-500 text-sm">On orders over $100</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-primary mb-4">
-                <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Easy Returns</h3>
-              <p className="text-gray-500 text-sm">30-day return policy</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-primary mb-4">
-                <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">Secure Payments</h3>
-              <p className="text-gray-500 text-sm">Protected by encryption</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-primary mb-4">
-                <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                </svg>
-              </div>
-              <h3 className="text-lg font-semibold mb-2">24/7 Support</h3>
-              <p className="text-gray-500 text-sm">We&apos;re here to help</p>
+      {trustIndicators && trustIndicators.length > 0 && (
+        <section className="mb-16">
+          <div className="container mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
+              {trustIndicators.map((indicator) => (
+                <div key={indicator.id} className="bg-white p-6 rounded-lg shadow-md">
+                  {indicator.image_url ? (
+                    <div className="mb-4">
+                      <Image
+                        src={indicator.image_url}
+                        alt={indicator.title || ''}
+                        width={40}
+                        height={40}
+                        className="mx-auto"
+                      />
+                    </div>
+                  ) : (
+                    <div className="text-primary mb-4">
+                      <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                  )}
+                  <h3 className="text-lg font-semibold mb-2">{indicator.title}</h3>
+                  <p className="text-gray-500 text-sm">{indicator.subtitle}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Newsletter Signup */}
-      <section className="mb-16">
-        <div className="container mx-auto px-4">
-          <div className="bg-gray-100 rounded-lg p-8 md:p-12">
-            <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Subscribe to Our Newsletter</h2>
-              <p className="text-gray-600 mb-6">Stay updated with the latest products, exclusive offers, and tech news.</p>
-              <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
-                <input
-                  type="email"
-                  placeholder="Your email address"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                  required
-                />
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
-                >
-                  Subscribe
-                </button>
-              </form>
+      {newsletter && newsletter.length > 0 && (
+        <section className="mb-16">
+          <div className="container mx-auto px-4">
+            <div className="bg-gray-100 rounded-lg p-8 md:p-12">
+              <div className="max-w-2xl mx-auto text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">{newsletter[0].title || 'Subscribe to Our Newsletter'}</h2>
+                <p className="text-gray-600 mb-6">{newsletter[0].subtitle || 'Stay updated with the latest products, exclusive offers, and tech news.'}</p>
+                <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
+                  <input
+                    type="email"
+                    placeholder="Your email address"
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                    required
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+                  >
+                    {newsletter[0].cta_text || 'Subscribe'}
+                  </button>
+                </form>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

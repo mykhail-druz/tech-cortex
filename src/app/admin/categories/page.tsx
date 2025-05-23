@@ -23,6 +23,8 @@ export default function CategoriesPage() {
     slug: '',
     description: '',
     image_url: '',
+    is_subcategory: false,
+    parent_id: '',
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -34,7 +36,7 @@ export default function CategoriesPage() {
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const { data } = await dbService.getCategories();
+        const { data } = await dbService.getAllCategories();
         if (data) {
           setCategories(data);
         }
@@ -110,9 +112,17 @@ export default function CategoriesPage() {
 
     if (!formData.name.trim()) errors.name = 'Name is required';
     if (!formData.slug.trim()) errors.slug = 'Slug is required';
+    if (formData.is_subcategory && !formData.parent_id) {
+      errors.parent_id = 'Parent category is required for subcategories';
+    }
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Add a function to get main categories (for parent selection)
+  const getMainCategories = () => {
+    return categories.filter(cat => !cat.is_subcategory);
   };
 
   // Open add category modal
@@ -122,6 +132,8 @@ export default function CategoriesPage() {
       slug: '',
       description: '',
       image_url: '',
+      is_subcategory: false,
+      parent_id: '',
     });
     setFormErrors({});
     setSelectedImage(null);
@@ -137,6 +149,8 @@ export default function CategoriesPage() {
       slug: category.slug,
       description: category.description || '',
       image_url: category.image_url || '',
+      is_subcategory: category.is_subcategory || false,
+      parent_id: category.parent_id || '',
     });
     setFormErrors({});
     setSelectedImage(null);
@@ -269,13 +283,18 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error deleting category:', error);
+        toast.error(error.message || 'Failed to delete category. Please try again.');
+        setShowDeleteModal(false);
         return;
       }
 
       setCategories((prev) => prev.filter((c) => c.id !== currentCategory.id));
       setShowDeleteModal(false);
+      toast.success(`${currentCategory.is_subcategory ? 'Subcategory' : 'Category'} deleted successfully.`);
     } catch (error) {
       console.error('Error deleting category:', error);
+      toast.error('An unexpected error occurred. Please try again.');
+      setShowDeleteModal(false);
     }
   };
 
@@ -311,6 +330,12 @@ export default function CategoriesPage() {
                 Name
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Type
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Parent
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Slug
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -342,6 +367,15 @@ export default function CategoriesPage() {
                       )}
                       <div className="text-sm font-medium text-gray-900">{category.name}</div>
                     </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {category.is_subcategory ? 'Subcategory' : 'Main Category'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {category.is_subcategory 
+                      ? categories.find(c => c.id === category.parent_id)?.name || 'Unknown'
+                      : '-'
+                    }
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {category.slug}
@@ -430,6 +464,62 @@ export default function CategoriesPage() {
                 className="w-full p-2 border border-gray-300 rounded"
               ></textarea>
             </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category Type
+              </label>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="is_subcategory"
+                    checked={!formData.is_subcategory}
+                    onChange={() => setFormData({...formData, is_subcategory: false, parent_id: ''})}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2">Main Category</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="is_subcategory"
+                    checked={formData.is_subcategory}
+                    onChange={() => setFormData({...formData, is_subcategory: true})}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2">Subcategory</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Parent Category Selector (only visible for subcategories) */}
+            {formData.is_subcategory && (
+              <div className="mb-4">
+                <label htmlFor="parent_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Parent Category*
+                </label>
+                <select
+                  id="parent_id"
+                  name="parent_id"
+                  value={formData.parent_id}
+                  onChange={handleInputChange}
+                  className={`w-full p-2 border rounded ${
+                    formErrors.parent_id ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select a parent category</option>
+                  {getMainCategories().map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.parent_id && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.parent_id}</p>
+                )}
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -552,6 +642,62 @@ export default function CategoriesPage() {
                 className="w-full p-2 border border-gray-300 rounded"
               ></textarea>
             </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category Type
+              </label>
+              <div className="flex items-center space-x-4">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="is_subcategory"
+                    checked={!formData.is_subcategory}
+                    onChange={() => setFormData({...formData, is_subcategory: false, parent_id: ''})}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2">Main Category</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="is_subcategory"
+                    checked={formData.is_subcategory}
+                    onChange={() => setFormData({...formData, is_subcategory: true})}
+                    className="h-4 w-4 text-blue-600"
+                  />
+                  <span className="ml-2">Subcategory</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Parent Category Selector (only visible for subcategories) */}
+            {formData.is_subcategory && (
+              <div className="mb-4">
+                <label htmlFor="parent_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  Parent Category*
+                </label>
+                <select
+                  id="parent_id"
+                  name="parent_id"
+                  value={formData.parent_id}
+                  onChange={handleInputChange}
+                  className={`w-full p-2 border rounded ${
+                    formErrors.parent_id ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select a parent category</option>
+                  {getMainCategories().map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.parent_id && (
+                  <p className="text-red-500 text-xs mt-1">{formErrors.parent_id}</p>
+                )}
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">

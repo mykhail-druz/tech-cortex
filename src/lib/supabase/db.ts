@@ -33,7 +33,7 @@ export const getProductsByCategory = async (
 ): Promise<SelectResponse<Product>> => {
   const categoryResponse = await supabase
     .from('categories')
-    .select('id')
+    .select('*')
     .eq('slug', categorySlug)
     .single();
 
@@ -41,12 +41,47 @@ export const getProductsByCategory = async (
     return { data: null, error: categoryResponse.error };
   }
 
-  const response = await supabase
-    .from('products')
-    .select('*')
-    .eq('category_id', categoryResponse.data.id);
+  const category = categoryResponse.data as Category;
 
-  return { data: response.data, error: response.error };
+  // If it's a subcategory, get products directly
+  if (category.is_subcategory) {
+    const response = await supabase
+      .from('products')
+      .select('*')
+      .eq('subcategory_id', category.id);
+
+    return { data: response.data, error: response.error };
+  } 
+  // If it's a main category, get all subcategories and then get products for each
+  else {
+    // Get all subcategories for this category
+    const subcategoriesResponse = await supabase
+      .from('categories')
+      .select('id')
+      .eq('parent_id', category.id)
+      .eq('is_subcategory', true);
+
+    if (subcategoriesResponse.error || !subcategoriesResponse.data || subcategoriesResponse.data.length === 0) {
+      // Fallback to old behavior if no subcategories
+      const response = await supabase
+        .from('products')
+        .select('*')
+        .eq('category_id', category.id);
+
+      return { data: response.data, error: response.error };
+    }
+
+    // Get subcategory IDs
+    const subcategoryIds = subcategoriesResponse.data.map(sub => sub.id);
+
+    // Get products for all subcategories
+    const response = await supabase
+      .from('products')
+      .select('*')
+      .in('subcategory_id', subcategoryIds);
+
+    return { data: response.data, error: response.error };
+  }
 };
 
 export const getProductBySlug = async (
@@ -61,12 +96,33 @@ export const getProductBySlug = async (
 
   const product = productResponse.data as Product;
 
-  // Get the category
-  const categoryResponse = await supabase
-    .from('categories')
-    .select('*')
-    .eq('id', product.category_id)
-    .single();
+  // Get the category (if available)
+  let category = undefined;
+  if (product.category_id) {
+    const categoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', product.category_id)
+      .single();
+
+    if (!categoryResponse.error) {
+      category = categoryResponse.data;
+    }
+  }
+
+  // Get the subcategory (if available)
+  let subcategory = undefined;
+  if (product.subcategory_id) {
+    const subcategoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', product.subcategory_id)
+      .single();
+
+    if (!subcategoryResponse.error) {
+      subcategory = subcategoryResponse.data;
+    }
+  }
 
   // Get the images
   const imagesResponse = await supabase
@@ -100,7 +156,8 @@ export const getProductBySlug = async (
 
   const productWithDetails: ProductWithDetails = {
     ...product,
-    category: categoryResponse.data || undefined,
+    category,
+    subcategory,
     images: imagesResponse.data || [],
     specifications: specificationsResponse.data || [],
     reviews: reviewsResponse.data || [],
@@ -135,7 +192,43 @@ export const searchProducts = async (query: string): Promise<SelectResponse<Prod
 
 // Categories
 export const getCategories = async (): Promise<SelectResponse<Category>> => {
-  const response = await supabase.from('categories').select('*');
+  // Get main categories (not subcategories)
+  const response = await supabase
+    .from('categories')
+    .select('*')
+    .eq('is_subcategory', false)
+    .order('name');
+
+  if (response.error || !response.data) {
+    return { data: null, error: response.error };
+  }
+
+  // For each main category, get its subcategories
+  const categoriesWithSubcategories = [...response.data];
+
+  for (let i = 0; i < categoriesWithSubcategories.length; i++) {
+    const subcategoriesResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('parent_id', categoriesWithSubcategories[i].id)
+      .eq('is_subcategory', true)
+      .order('name');
+
+    if (subcategoriesResponse.data && subcategoriesResponse.data.length > 0) {
+      categoriesWithSubcategories[i].subcategories = subcategoriesResponse.data;
+    }
+  }
+
+  return { data: categoriesWithSubcategories, error: null };
+};
+
+// Get all categories (both main and subcategories) in a flat list
+export const getAllCategories = async (): Promise<SelectResponse<Category>> => {
+  const response = await supabase
+    .from('categories')
+    .select('*')
+    .order('name');
+
   return { data: response.data, error: response.error };
 };
 
@@ -145,6 +238,71 @@ export const getCategoryBySlug = async (
   const response = await supabase.from('categories').select('*').eq('slug', slug).single();
 
   return { data: response.data, error: response.error };
+};
+
+export const getCategoryWithGoods = async (
+  categorySlug: string
+): Promise<{ data: CategoryWithGoods | null; error: Error | null }> => {
+  // Get the category
+  const categoryResponse = await supabase
+    .from('categories')
+    .select('*')
+    .eq('slug', categorySlug)
+    .single();
+
+  if (categoryResponse.error) {
+    return { data: null, error: categoryResponse.error };
+  }
+
+  const category = categoryResponse.data as Category;
+
+  // If it's a subcategory, get its goods (products)
+  if (category.is_subcategory) {
+    const productsResponse = await supabase
+      .from('products')
+      .select('*')
+      .eq('subcategory_id', category.id);
+
+    const categoryWithGoods: CategoryWithGoods = {
+      ...category,
+      goods: productsResponse.data || []
+    };
+
+    return { data: categoryWithGoods, error: null };
+  } 
+  // If it's a main category, get its subcategories
+  else {
+    const subcategoriesResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('parent_id', category.id)
+      .eq('is_subcategory', true)
+      .order('name');
+
+    // For each subcategory, get its goods
+    const subcategoriesWithGoods: CategoryWithGoods[] = [];
+
+    if (subcategoriesResponse.data) {
+      for (const subcategory of subcategoriesResponse.data) {
+        const productsResponse = await supabase
+          .from('products')
+          .select('*')
+          .eq('subcategory_id', subcategory.id);
+
+        subcategoriesWithGoods.push({
+          ...subcategory,
+          goods: productsResponse.data || []
+        });
+      }
+    }
+
+    const categoryWithGoods: CategoryWithGoods = {
+      ...category,
+      subcategories: subcategoriesWithGoods
+    };
+
+    return { data: categoryWithGoods, error: null };
+  }
 };
 
 // Cart

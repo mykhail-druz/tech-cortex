@@ -47,8 +47,16 @@ export interface Category {
   slug: string;
   description: string | null;
   image_url: string | null;
+  parent_id: string | null;
+  is_subcategory: boolean;
   created_at: string;
   updated_at: string;
+  subcategories?: Category[];
+}
+
+// Subcategory with goods
+export interface CategoryWithGoods extends Category {
+  goods?: Product[];
 }
 
 // Product type
@@ -61,7 +69,8 @@ export interface Product {
   old_price: number | null;
   discount_percentage: number | null;
   main_image_url: string | null;
-  category_id: string | null;
+  category_id: string | null; // For backward compatibility
+  subcategory_id: string | null;
   brand: string | null;
   rating: number;
   review_count: number;
@@ -74,6 +83,7 @@ export interface Product {
 // Product with related data
 export interface ProductWithDetails extends Product {
   category?: Category;
+  subcategory?: Category;
   images?: ProductImage[];
   specifications?: ProductSpecification[];
   reviews?: Review[];

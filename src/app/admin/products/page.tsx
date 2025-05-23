@@ -16,6 +16,7 @@ export default function ProductsManagement() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,21 +46,46 @@ export default function ProductsManagement() {
     }
   }, [user]);
 
-  // Filter products based on search term and selected category
+  // Filter products based on search term and selected category/subcategory
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
                          (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = selectedCategory ? product.category_id === selectedCategory : true;
 
-    return matchesSearch && matchesCategory;
+    // Add subcategory filter
+    const matchesSubcategory = selectedSubcategory ? product.subcategory_id === selectedSubcategory : true;
+
+    return matchesSearch && matchesCategory && matchesSubcategory;
   });
 
-  // Function to get category name by ID
-  const getCategoryName = (categoryId: string | null) => {
-    if (!categoryId) return 'Uncategorized';
-    const category = categories.find(cat => cat.id === categoryId);
-    return category ? category.name : 'Uncategorized';
+  // Function to get category and subcategory name
+  const getCategoryName = (categoryId: string | null, subcategoryId: string | null) => {
+    if (!categoryId && !subcategoryId) return 'Uncategorized';
+
+    let result = '';
+
+    if (categoryId) {
+      const category = categories.find(cat => cat.id === categoryId);
+      result = category ? category.name : 'Unknown';
+    }
+
+    if (subcategoryId) {
+      // Find the subcategory
+      let subcategory = null;
+      for (const cat of categories) {
+        if (cat.subcategories) {
+          subcategory = cat.subcategories.find(sub => sub.id === subcategoryId);
+          if (subcategory) break;
+        }
+      }
+
+      if (subcategory) {
+        result += result ? ` › ${subcategory.name}` : subcategory.name;
+      }
+    }
+
+    return result || 'Uncategorized';
   };
 
   // Function to handle product deletion
@@ -124,23 +150,53 @@ export default function ProductsManagement() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-              Filter by Category
-            </label>
-            <select
-              id="category"
-              className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-            >
-              <option value="">All Categories</option>
-              {categories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Category filter */}
+            <div className="space-y-2">
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+                Filter by Category
+              </label>
+              <select
+                id="category"
+                className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                value={selectedCategory}
+                onChange={(e) => {
+                  setSelectedCategory(e.target.value);
+                  setSelectedSubcategory(''); // Reset subcategory when category changes
+                }}
+              >
+                <option value="">All Categories</option>
+                {categories.filter(c => !c.is_subcategory).map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Subcategory filter - only show when a category is selected */}
+            {selectedCategory && (
+              <div className="space-y-2">
+                <label htmlFor="subcategory" className="block text-sm font-medium text-gray-700">
+                  Filter by Subcategory
+                </label>
+                <select
+                  id="subcategory"
+                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  value={selectedSubcategory}
+                  onChange={(e) => setSelectedSubcategory(e.target.value)}
+                >
+                  <option value="">All Subcategories</option>
+                  {categories
+                    .find(c => c.id === selectedCategory)
+                    ?.subcategories?.map((subcategory) => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -190,7 +246,7 @@ export default function ProductsManagement() {
                       </div>
                     </td>
                     <td className="hidden sm:table-cell px-6 py-4 text-sm text-gray-500">
-                      {getCategoryName(product.category_id)}
+                      {getCategoryName(product.category_id, product.subcategory_id)}
                     </td>
                     <td className="px-4 sm:px-6 py-4">
                       <div className="text-sm text-gray-900">${product.price.toFixed(2)}</div>

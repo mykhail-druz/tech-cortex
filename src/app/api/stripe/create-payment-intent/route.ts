@@ -15,12 +15,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a payment intent
-    const { paymentIntent, error } = await createPaymentIntent(
-      amount,
-      currency,
-      metadata
-    );
+    // Create payment intent
+    const { paymentIntent, error } = await createPaymentIntent(amount, currency, metadata);
 
     if (error || !paymentIntent) {
       return NextResponse.json(
@@ -36,9 +32,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in create-payment-intent route:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

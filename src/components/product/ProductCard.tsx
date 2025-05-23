@@ -4,6 +4,8 @@ import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useCart } from '@/contexts/CartContext';
+import { useToast } from '@/contexts/ToastContext';
 
 // Тип для данных продукта
 interface ProductProps {
@@ -13,8 +15,11 @@ interface ProductProps {
   oldPrice?: number;
   image: string;
   category: string;
+  subcategory?: string;
   rating: number;
   inStock: boolean;
+  slug: string;
+  layout?: 'grid' | 'list';
 }
 
 export default function ProductCard({
@@ -24,10 +29,32 @@ export default function ProductCard({
   oldPrice,
   image,
   category,
+  subcategory,
   rating,
   inStock,
+  slug,
+  layout = 'grid',
 }: ProductProps) {
   const [isHovering, setIsHovering] = useState(false);
+  const { addItem } = useCart();
+  const toast = useToast();
+
+  // Handle adding to cart
+  const addToCart = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!inStock) return;
+
+    const { error } = await addItem(id, 1);
+
+    if (error) {
+      console.error('Error adding to cart:', error);
+      toast.error('Failed to add product to cart');
+    } else {
+      toast.success(`Product added to cart`);
+    }
+  };
 
   // Преобразование цены в формат с валютой
   const formatPrice = (price: number) => {
@@ -57,12 +84,26 @@ export default function ProductCard({
 
   return (
     <div
-      className="group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md"
+      className={cn(
+        "group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md",
+        layout === 'grid' 
+          ? "flex flex-col h-[400px]" 
+          : "flex flex-row h-[200px]"
+      )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      <Link href={`/products/${id}`}>
-        <div className="relative h-48 w-full overflow-hidden bg-gray-100">
+      <Link 
+        href={`/products/${slug}`} 
+        className={cn(
+          "block", 
+          layout === 'grid' ? "h-48 w-full" : "h-full w-[200px] flex-shrink-0"
+        )}
+      >
+        <div className={cn(
+          "relative overflow-hidden bg-gray-100",
+          layout === 'grid' ? "h-48 w-full" : "h-full w-full"
+        )}>
           {/* Заглушка для изображения с Next.js Image */}
           <div className="relative h-full w-full">
             <Image
@@ -93,43 +134,63 @@ export default function ProductCard({
         </div>
       </Link>
 
-      <div className="p-4">
-        {/* Категория */}
-        <p className="text-xs text-gray-500 mb-1">{category}</p>
+      <div className={cn(
+        "flex flex-col flex-grow",
+        layout === 'grid' ? "p-4" : "p-4 justify-between"
+      )}>
+        <div>
+          {/* Категория и подкатегория */}
+          <p className="text-xs text-gray-500 mb-1">
+            {category}
+            {subcategory && (
+              <>
+                <span className="mx-1">›</span>
+                <span>{subcategory}</span>
+              </>
+            )}
+          </p>
 
-        {/* Название */}
-        <Link href={`/products/${id}`}>
-          <h3 className="font-medium text-gray-900 mb-1 hover:text-primary transition-colors">
-            {title}
-          </h3>
-        </Link>
+          {/* Название */}
+          <Link href={`/products/${slug}`}>
+            <h3 className={cn(
+              "font-medium text-gray-900 hover:text-primary transition-colors line-clamp-2",
+              layout === 'grid' ? "mb-1" : "mb-2"
+            )}>
+              {title}
+            </h3>
+          </Link>
 
-        {/* Рейтинг */}
-        <div className="flex items-center mb-2">
-          {renderRating(rating)}
-          <span className="text-xs text-gray-500 ml-1">({rating.toFixed(1)})</span>
+          {/* Рейтинг */}
+          <div className="flex items-center mb-2">
+            {renderRating(rating)}
+            <span className="text-xs text-gray-500 ml-1">({rating.toFixed(1)})</span>
+          </div>
         </div>
 
-        {/* Цена */}
-        <div className="flex items-center">
-          <span className="font-semibold text-gray-900">{formatPrice(price)}</span>
-          {oldPrice && (
-            <span className="ml-2 text-sm text-gray-500 line-through">{formatPrice(oldPrice)}</span>
-          )}
-        </div>
+        <div className={layout === 'list' ? "flex items-center justify-between" : ""}>
+          {/* Цена */}
+          <div className="flex items-center mb-2">
+            <span className="font-semibold text-gray-900">{formatPrice(price)}</span>
+            {oldPrice && (
+              <span className="ml-2 text-sm text-gray-500 line-through">{formatPrice(oldPrice)}</span>
+            )}
+          </div>
 
-        {/* Кнопка добавления в корзину */}
-        <button
-          disabled={!inStock}
-          className={cn(
-            'mt-3 w-full py-2 px-3 rounded-md text-sm font-medium transition-colors',
-            inStock
-              ? 'bg-primary text-white hover:bg-primary/90'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          )}
-        >
-          {inStock ? 'Add to Cart' : 'Out of Stock'}
-        </button>
+          {/* Кнопка добавления в корзину */}
+          <button
+            onClick={addToCart}
+            disabled={!inStock}
+            className={cn(
+              'py-2 px-3 rounded-md text-sm font-medium transition-colors',
+              layout === 'grid' ? 'w-full' : 'w-auto',
+              inStock
+                ? 'bg-primary text-white hover:bg-primary/90'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            )}
+          >
+            {inStock ? 'Add to Cart' : 'Out of Stock'}
+          </button>
+        </div>
       </div>
     </div>
   );
