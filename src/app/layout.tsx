@@ -6,6 +6,7 @@ import Sidebar from '@/components/layout/Sidebar';
 import MainContent from '@/components/layout/MainContent';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
+import { WishlistProvider } from '@/contexts/WishlistContext';
 import { StripeProvider } from '@/contexts/StripeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
@@ -25,18 +26,20 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col">
         <AuthProvider>
           <CartProvider>
-            <StripeProvider>
-              <ToastProvider>
-                <SidebarProvider>
-                  <Header />
-                  <div className="flex flex-grow">
-                    <Sidebar />
-                    <MainContent>{children}</MainContent>
-                  </div>
-                  <Footer />
-                </SidebarProvider>
-              </ToastProvider>
-            </StripeProvider>
+            <ToastProvider>
+              <WishlistProvider>
+                <StripeProvider>
+                  <SidebarProvider>
+                    <Header />
+                    <div className="flex flex-grow">
+                      <Sidebar />
+                      <MainContent>{children}</MainContent>
+                    </div>
+                    <Footer />
+                  </SidebarProvider>
+                </StripeProvider>
+              </WishlistProvider>
+            </ToastProvider>
           </CartProvider>
         </AuthProvider>
       </body>

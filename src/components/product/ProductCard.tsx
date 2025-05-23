@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
+import AddToWishlistButton from './AddToWishlistButton';
 
 // Тип для данных продукта
 interface ProductProps {
@@ -131,6 +132,14 @@ export default function ProductCard({
               </span>
             )}
           </div>
+
+          {/* Wishlist button in top right */}
+          <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+            <AddToWishlistButton 
+              productId={id} 
+              variant="icon"
+            />
+          </div>
         </div>
       </Link>
 
@@ -176,13 +185,12 @@ export default function ProductCard({
             )}
           </div>
 
-          {/* Кнопка добавления в корзину */}
+          {/* Add to Cart button */}
           <button
             onClick={addToCart}
             disabled={!inStock}
             className={cn(
-              'py-2 px-3 rounded-md text-sm font-medium transition-colors',
-              layout === 'grid' ? 'w-full' : 'w-auto',
+              'py-2 px-3 rounded-md text-sm font-medium transition-colors w-full',
               inStock
                 ? 'bg-primary text-white hover:bg-primary/90'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import { WishlistItem } from '@/lib/supabase/types';
 
@@ -14,6 +15,7 @@ export default function WishlistPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const toast = useToast();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -87,14 +89,16 @@ export default function WishlistPage() {
 
       if (error) {
         setError('Failed to add item to cart. Please try again.');
+        toast.error('Failed to add item to cart');
         console.error(error);
         return;
       }
 
-      // Show success message or redirect to cart
-      router.push('/cart');
+      // Show success message
+      toast.success('Item added to cart');
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
+      toast.error('An unexpected error occurred');
       console.error(err);
     }
   };

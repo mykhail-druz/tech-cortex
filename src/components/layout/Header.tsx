@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
+import { useWishlist } from '@/contexts/WishlistContext';
 import { getNavigationLinks } from '@/lib/supabase/db';
 import { NavigationLink } from '@/lib/supabase/types';
 
@@ -18,6 +19,7 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const { user, profile, signOut } = useAuth();
   const { itemCount } = useCart();
+  const { itemCount: wishlistItemCount } = useWishlist();
 
   // Fetch navigation links on the component mount
   useEffect(() => {
@@ -116,6 +118,29 @@ export default function Header() {
 
           {/* User Action Icons */}
           <div className="flex items-center space-x-4">
+            {/* Wishlist */}
+            <Link href="/account/wishlist" className="text-gray-600 hover:text-primary relative">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                className="h-6 w-6"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                />
+              </svg>
+              {wishlistItemCount > 0 && (
+                <span className="absolute -top-2 -right-2 bg-secondary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                  {wishlistItemCount > 99 ? '99+' : wishlistItemCount}
+                </span>
+              )}
+            </Link>
+
             {/* Cart */}
             <Link href="/cart" className="text-gray-600 hover:text-primary relative">
               <svg
@@ -326,6 +351,20 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   My Account
+                </Link>
+                <Link
+                  href="/account/orders"
+                  className="block py-2 text-gray-600 hover:text-primary"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Orders
+                </Link>
+                <Link
+                  href="/account/wishlist"
+                  className="block py-2 text-gray-600 hover:text-primary"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Wishlist
                 </Link>
                 <button
                   onClick={handleSignOut}

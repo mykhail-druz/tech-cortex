@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import ProductGrid from '@/components/product/ProductGrid';
@@ -9,6 +10,7 @@ import { getProductBySlug, getRelatedProducts } from '@/lib/supabase/db';
 import { ProductWithDetails, Product } from '@/lib/supabase/types';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
+import AddToWishlistButton from '@/components/product/AddToWishlistButton';
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
   const unwrappedParams = React.use(params);
@@ -144,9 +146,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       <nav className="flex text-sm mb-6" aria-label="Breadcrumb">
         <ol className="inline-flex items-center space-x-1 md:space-x-3">
           <li className="inline-flex items-center">
-            <a href="/" className="text-gray-600 hover:text-primary">
+            <Link href="/" className="text-gray-600 hover:text-primary">
               Home
-            </a>
+            </Link>
           </li>
           <li>
             <div className="flex items-center">
@@ -157,28 +159,49 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                   clipRule="evenodd"
                 />
               </svg>
-              <a href="/products" className="ml-1 text-gray-600 hover:text-primary md:ml-2">
+              <Link href="/products" className="ml-1 text-gray-600 hover:text-primary md:ml-2">
                 Products
-              </a>
+              </Link>
             </div>
           </li>
-          <li>
-            <div className="flex items-center">
-              <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <a
-                href={`/products/${product.category?.slug || ''}`}
-                className="ml-1 text-gray-600 hover:text-primary md:ml-2"
-              >
-                {product.category?.name || 'Uncategorized'}
-              </a>
-            </div>
-          </li>
+          {product.category && (
+            <li>
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <Link
+                  href={`/products/category/${product.category.slug}`}
+                  className="ml-1 text-gray-600 hover:text-primary md:ml-2"
+                >
+                  {product.category.name}
+                </Link>
+              </div>
+            </li>
+          )}
+          {product.subcategory && (
+            <li>
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fillRule="evenodd"
+                    d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <Link
+                  href={`/products/category/${product.subcategory.slug}`}
+                  className="ml-1 text-gray-600 hover:text-primary md:ml-2"
+                >
+                  {product.subcategory.name}
+                </Link>
+              </div>
+            </li>
+          )}
           <li aria-current="page">
             <div className="flex items-center">
               <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
@@ -316,7 +339,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               </div>
             </div>
 
-            {/* Add to cart and buy now buttons */}
+            {/* Add to cart, wishlist, and buy now buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <button
                 onClick={addToCart}
@@ -330,6 +353,11 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               >
                 Add to Cart
               </button>
+              <AddToWishlistButton 
+                productId={product.id} 
+                variant="icon-button" 
+                className="flex-1"
+              />
               <button
                 disabled={!product.in_stock}
                 className={cn(
