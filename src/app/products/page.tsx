@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent, Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
 import { cn } from '@/lib/utils';
-import { getProducts, getCategories } from '@/lib/supabase/db';
+import { getProducts, getCategories, searchProducts } from '@/lib/supabase/db';
 import { Product, Category } from '@/lib/supabase/types';
 
 // Define sorting options
@@ -14,7 +15,39 @@ const sortOptions = [
   { label: 'Rating', value: 'rating' },
 ];
 
-export default function ProductsPage() {
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-8">Product Catalog</h1>
+      <div className="flex flex-col lg:flex-row gap-8">
+        <div className="w-full lg:w-64 flex-shrink-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+            <div className="space-y-4">
+              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+              <div className="h-4 bg-gray-200 rounded w-full"></div>
+              <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex-grow">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
+            <p className="mt-4 text-gray-500">Loading products...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Component that uses useSearchParams
+function ProductsContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const query = searchParams.get('q') || '';
+
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [activeCategory, setActiveCategory] = useState('all');
@@ -23,15 +56,33 @@ export default function ProductsPage() {
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState(query);
 
-  // Fetch products and categories on component mount
+  // Fetch products and categories on component mount or when query changes
   useEffect(() => {
     const fetchData = async () => {
       try {
         setIsLoading(true);
 
-        // Fetch products
-        const { data: productsData, error: productsError } = await getProducts();
+        // Fetch products - use search if query is provided
+        let productsData;
+        let productsError;
+
+        if (query) {
+          const searchResult = await searchProducts(
+            query,
+            activeCategory !== 'all' ? activeCategory : undefined,
+            priceRange[0] > 0 ? priceRange[0] : undefined,
+            priceRange[1] < 2000 ? priceRange[1] : undefined
+          );
+          productsData = searchResult.data;
+          productsError = searchResult.error;
+        } else {
+          const productsResult = await getProducts();
+          productsData = productsResult.data;
+          productsError = productsResult.error;
+        }
+
         if (productsError) {
           console.error('Error fetching products:', productsError);
         } else {
@@ -53,22 +104,77 @@ export default function ProductsPage() {
     };
 
     fetchData();
-  }, []);
+  }, [query, activeCategory, priceRange]);
 
   // Helper for slider range inputs
   const handlePriceChange = (min: number, max: number) => {
     setPriceRange([min, max]);
   };
 
+  // Handle search form submission
+  const handleSearch = (e: FormEvent) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      router.push(`/products?q=${encodeURIComponent(searchTerm.trim())}`);
+    } else {
+      router.push('/products');
+    }
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8">Product Catalog</h1>
+      <h1 className="text-3xl font-bold mb-8">
+        {query ? `Search Results for "${query}"` : "Product Catalog"}
+      </h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Filter sidebar */}
         <div className="w-full lg:w-64 flex-shrink-0">
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="font-semibold text-lg mb-4">Filters</h2>
+
+            {/* Search */}
+            <div className="mb-6">
+              <h3 className="font-medium text-gray-900 mb-2">Search</h3>
+              <form onSubmit={handleSearch} className="flex items-center">
+                <div className="relative flex-grow">
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    placeholder="Search products..."
+                    className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                  <button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      className="h-4 w-4"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </form>
+              {query && (
+                <div className="mt-2 flex items-center">
+                  <span className="text-sm text-gray-600 mr-2">Searching for: "{query}"</span>
+                  <button 
+                    onClick={() => router.push('/products')}
+                    className="text-xs text-primary hover:text-primary/80"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Categories */}
             <div className="mb-6">
@@ -311,5 +417,14 @@ export default function ProductsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function ProductsPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ProductsContent />
+    </Suspense>
   );
 }

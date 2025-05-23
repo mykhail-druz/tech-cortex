@@ -155,7 +155,7 @@ export default function AdminDashboard() {
           module => module.getAllOrders()
         );
 
-        // Fetch users
+        // Fetch users - this will create missing profiles first
         const { data: users } = await import('@/lib/supabase/adminDb').then(
           module => module.getAllUsers()
         );
@@ -222,11 +222,16 @@ export default function AdminDashboard() {
           value={stats.totalProducts} 
           icon={<span>🛒</span>} 
         />
-        <StatCard 
-          title="Total Users" 
-          value={stats.totalUsers} 
-          icon={<span>👥</span>} 
-        />
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Users</p>
+              <p className="text-2xl font-semibold mt-1">{stats.totalUsers}</p>
+              <p className="text-xs text-gray-500 mt-1">*Only counts users with profiles</p>
+            </div>
+            <div className="text-blue-500 text-3xl"><span>👥</span></div>
+          </div>
+        </div>
       </div>
 
       {/* Recent Orders */}

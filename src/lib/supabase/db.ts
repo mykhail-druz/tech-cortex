@@ -181,12 +181,65 @@ export const getRelatedProducts = async (
   return { data: response.data, error: response.error };
 };
 
-export const searchProducts = async (query: string): Promise<SelectResponse<Product>> => {
-  const response = await supabase
+export const searchProducts = async (
+  query: string,
+  categorySlug?: string,
+  minPrice?: number,
+  maxPrice?: number
+): Promise<SelectResponse<Product>> => {
+  let dbQuery = supabase
     .from('products')
     .select('*')
     .or(`title.ilike.%${query}%, description.ilike.%${query}%`);
 
+  // Apply category filter if provided
+  if (categorySlug && categorySlug !== 'all') {
+    // First, get the category ID
+    const categoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', categorySlug)
+      .single();
+
+    if (!categoryResponse.error && categoryResponse.data) {
+      const category = categoryResponse.data as Category;
+
+      // If it's a subcategory, filter by subcategory_id
+      if (category.is_subcategory) {
+        dbQuery = dbQuery.eq('subcategory_id', category.id);
+      } 
+      // If it's a main category, get all subcategories and filter by them
+      else {
+        // Get all subcategories for this category
+        const subcategoriesResponse = await supabase
+          .from('categories')
+          .select('id')
+          .eq('parent_id', category.id)
+          .eq('is_subcategory', true);
+
+        if (!subcategoriesResponse.error && subcategoriesResponse.data && subcategoriesResponse.data.length > 0) {
+          // Get subcategory IDs
+          const subcategoryIds = subcategoriesResponse.data.map(sub => sub.id);
+
+          // Filter by subcategory_id
+          dbQuery = dbQuery.in('subcategory_id', subcategoryIds);
+        } else {
+          // Fallback to old behavior if no subcategories
+          dbQuery = dbQuery.eq('category_id', category.id);
+        }
+      }
+    }
+  }
+
+  // Apply price range if provided
+  if (minPrice !== undefined) {
+    dbQuery = dbQuery.gte('price', minPrice);
+  }
+  if (maxPrice !== undefined) {
+    dbQuery = dbQuery.lte('price', maxPrice);
+  }
+
+  const response = await dbQuery;
   return { data: response.data, error: response.error };
 };
 

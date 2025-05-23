@@ -11,37 +11,35 @@ import { ToastProvider } from '@/contexts/ToastContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 
 export const metadata: Metadata = {
-    title: 'TechCortex - Premium Computer Hardware',
-    description: 'High-quality computers and components for the US market',
+  title: 'TechCortex - Premium Computer Hardware',
+  description: 'High-quality computers and components for the US market',
 };
 
 export default function RootLayout({
-                                       children,
-                                   }: Readonly<{
-    children: React.ReactNode;
+  children,
+}: Readonly<{
+  children: React.ReactNode;
 }>) {
-    return (
-        <html lang="en">
-        <body className="min-h-screen flex flex-col">
-            <AuthProvider>
-                <CartProvider>
-                    <StripeProvider>
-                        <ToastProvider>
-                            <SidebarProvider>
-                                <Header />
-                                <div className="flex flex-grow">
-                                    <Sidebar />
-                                    <MainContent>
-                                        {children}
-                                    </MainContent>
-                                </div>
-                                <Footer />
-                            </SidebarProvider>
-                        </ToastProvider>
-                    </StripeProvider>
-                </CartProvider>
-            </AuthProvider>
-        </body>
-        </html>
-    );
+  return (
+    <html lang="en">
+      <body className="min-h-screen flex flex-col">
+        <AuthProvider>
+          <CartProvider>
+            <StripeProvider>
+              <ToastProvider>
+                <SidebarProvider>
+                  <Header />
+                  <div className="flex flex-grow">
+                    <Sidebar />
+                    <MainContent>{children}</MainContent>
+                  </div>
+                  <Footer />
+                </SidebarProvider>
+              </ToastProvider>
+            </StripeProvider>
+          </CartProvider>
+        </AuthProvider>
+      </body>
+    </html>
+  );
 }

@@ -352,14 +352,23 @@ export const updateOrderStatus = async (
 
 // Users
 export const getAllUsers = async (): Promise<SelectResponse<any>> => {
-  const response = await supabase
-    .from('user_profiles')
-    .select(`
-      *,
-      role:role_id (*)
-    `);
+  try {
+    // First, run the function to create missing user profiles
+    await supabase.rpc('create_missing_user_profiles');
 
-  return { data: response.data, error: response.error };
+    // Then fetch all user profiles
+    const response = await supabase
+      .from('user_profiles')
+      .select(`
+        *,
+        role:role_id (*)
+      `);
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Error in getAllUsers:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getAllUsers') };
+  }
 };
 
 export const createUserProfile = async (

@@ -9,7 +9,7 @@ interface MainContentProps {
 }
 
 export default function MainContent({ children }: MainContentProps) {
-  const { isOpen } = useSidebar();
+  const { isOpen, isMobile } = useSidebar();
   const pathname = usePathname();
   const isAdminPage = pathname?.startsWith('/admin');
 
@@ -18,7 +18,7 @@ export default function MainContent({ children }: MainContentProps) {
       className={`
         flex-grow px-4 md:px-8 
         transition-all duration-300 ease-in-out
-        ${!isAdminPage && (isOpen ? 'md:ml-64' : 'md:ml-[25px]')}
+        ${!isAdminPage && !isMobile && (isOpen ? 'md:ml-64' : 'md:ml-[25px]')}
       `}
     >
       {children}

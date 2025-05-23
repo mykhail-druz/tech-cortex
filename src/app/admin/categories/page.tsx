@@ -99,7 +99,7 @@ export default function CategoriesPage() {
 
       // Create a preview URL for the selected image
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = event => {
         setImagePreview(event.target?.result as string);
       };
       reader.readAsDataURL(file);
@@ -164,12 +164,17 @@ export default function CategoriesPage() {
     setShowDeleteModal(true);
   };
 
-  // Add new category
+  // Add the new category
   const addCategory = async () => {
     if (!validateForm()) return;
 
     try {
       const categoryData = { ...formData };
+
+      // Convert empty parent_id to null to avoid UUID type error
+      if (categoryData.parent_id === '') {
+        categoryData.parent_id = null;
+      }
 
       // Upload image if selected
       if (selectedImage) {
@@ -203,7 +208,7 @@ export default function CategoriesPage() {
       }
 
       if (data) {
-        setCategories((prev) => [...prev, data]);
+        setCategories(prev => [...prev, data]);
         setShowAddModal(false);
 
         // Reset image state
@@ -224,6 +229,11 @@ export default function CategoriesPage() {
 
     try {
       const categoryData = { ...formData };
+
+      // Convert empty parent_id to null to avoid UUID type error
+      if (categoryData.parent_id === '') {
+        categoryData.parent_id = null;
+      }
 
       // Upload image if selected
       if (selectedImage) {
@@ -257,9 +267,7 @@ export default function CategoriesPage() {
       }
 
       if (data) {
-        setCategories((prev) => 
-          prev.map((c) => (c.id === data.id ? data : c))
-        );
+        setCategories(prev => prev.map(c => (c.id === data.id ? data : c)));
         setShowEditModal(false);
 
         // Reset image state
@@ -288,9 +296,11 @@ export default function CategoriesPage() {
         return;
       }
 
-      setCategories((prev) => prev.filter((c) => c.id !== currentCategory.id));
+      setCategories(prev => prev.filter(c => c.id !== currentCategory.id));
       setShowDeleteModal(false);
-      toast.success(`${currentCategory.is_subcategory ? 'Subcategory' : 'Category'} deleted successfully.`);
+      toast.success(
+        `${currentCategory.is_subcategory ? 'Subcategory' : 'Category'} deleted successfully.`
+      );
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('An unexpected error occurred. Please try again.');
@@ -348,7 +358,7 @@ export default function CategoriesPage() {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {categories.length > 0 ? (
-              categories.map((category) => (
+              categories.map(category => (
                 <tr key={category.id}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -372,10 +382,9 @@ export default function CategoriesPage() {
                     {category.is_subcategory ? 'Subcategory' : 'Main Category'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.is_subcategory 
+                    {category.is_subcategory
                       ? categories.find(c => c.id === category.parent_id)?.name || 'Unknown'
-                      : '-'
-                    }
+                      : '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {category.slug}
@@ -417,9 +426,7 @@ export default function CategoriesPage() {
             <h2 className="text-xl font-semibold mb-4">Add New Category</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name*
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
               <input
                 type="text"
                 name="name"
@@ -429,15 +436,11 @@ export default function CategoriesPage() {
                   formErrors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.name && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
-              )}
+              {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Slug*
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Slug*</label>
               <input
                 type="text"
                 name="slug"
@@ -447,15 +450,11 @@ export default function CategoriesPage() {
                   formErrors.slug ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.slug && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.slug}</p>
-              )}
+              {formErrors.slug && <p className="text-red-500 text-xs mt-1">{formErrors.slug}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -466,16 +465,16 @@ export default function CategoriesPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Type
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category Type</label>
               <div className="flex items-center space-x-4">
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
                     name="is_subcategory"
                     checked={!formData.is_subcategory}
-                    onChange={() => setFormData({...formData, is_subcategory: false, parent_id: ''})}
+                    onChange={() =>
+                      setFormData({ ...formData, is_subcategory: false, parent_id: '' })
+                    }
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Main Category</span>
@@ -485,7 +484,7 @@ export default function CategoriesPage() {
                     type="radio"
                     name="is_subcategory"
                     checked={formData.is_subcategory}
-                    onChange={() => setFormData({...formData, is_subcategory: true})}
+                    onChange={() => setFormData({ ...formData, is_subcategory: true })}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Subcategory</span>
@@ -509,7 +508,7 @@ export default function CategoriesPage() {
                   }`}
                 >
                   <option value="">Select a parent category</option>
-                  {getMainCategories().map((category) => (
+                  {getMainCategories().map(category => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -522,9 +521,7 @@ export default function CategoriesPage() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Image
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
               <div className="flex flex-col space-y-2">
                 <input
                   type="file"
@@ -540,9 +537,9 @@ export default function CategoriesPage() {
                   <div className="mt-2">
                     <p className="text-sm text-gray-500 mb-1">Preview:</p>
                     <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
                         fill
                         sizes="160px"
                         className="object-cover"
@@ -552,12 +549,7 @@ export default function CategoriesPage() {
                 )}
 
                 {/* Current image URL input (hidden but still part of form data) */}
-                <input
-                  type="hidden"
-                  id="image_url"
-                  name="image_url"
-                  value={formData.image_url}
-                />
+                <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
 
                 {/* Show URL if exists but no preview */}
                 {!imagePreview && formData.image_url && (
@@ -595,9 +587,7 @@ export default function CategoriesPage() {
             <h2 className="text-xl font-semibold mb-4">Edit Category</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name*
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
               <input
                 type="text"
                 name="name"
@@ -607,15 +597,11 @@ export default function CategoriesPage() {
                   formErrors.name ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.name && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>
-              )}
+              {formErrors.name && <p className="text-red-500 text-xs mt-1">{formErrors.name}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Slug*
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Slug*</label>
               <input
                 type="text"
                 name="slug"
@@ -625,15 +611,11 @@ export default function CategoriesPage() {
                   formErrors.slug ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.slug && (
-                <p className="text-red-500 text-xs mt-1">{formErrors.slug}</p>
-              )}
+              {formErrors.slug && <p className="text-red-500 text-xs mt-1">{formErrors.slug}</p>}
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
               <textarea
                 name="description"
                 value={formData.description}
@@ -644,16 +626,16 @@ export default function CategoriesPage() {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Type
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category Type</label>
               <div className="flex items-center space-x-4">
                 <label className="inline-flex items-center">
                   <input
                     type="radio"
                     name="is_subcategory"
                     checked={!formData.is_subcategory}
-                    onChange={() => setFormData({...formData, is_subcategory: false, parent_id: ''})}
+                    onChange={() =>
+                      setFormData({ ...formData, is_subcategory: false, parent_id: '' })
+                    }
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Main Category</span>
@@ -663,7 +645,7 @@ export default function CategoriesPage() {
                     type="radio"
                     name="is_subcategory"
                     checked={formData.is_subcategory}
-                    onChange={() => setFormData({...formData, is_subcategory: true})}
+                    onChange={() => setFormData({ ...formData, is_subcategory: true })}
                     className="h-4 w-4 text-blue-600"
                   />
                   <span className="ml-2">Subcategory</span>
@@ -687,7 +669,7 @@ export default function CategoriesPage() {
                   }`}
                 >
                   <option value="">Select a parent category</option>
-                  {getMainCategories().map((category) => (
+                  {getMainCategories().map(category => (
                     <option key={category.id} value={category.id}>
                       {category.name}
                     </option>
@@ -700,9 +682,7 @@ export default function CategoriesPage() {
             )}
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category Image
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
               <div className="flex flex-col space-y-2">
                 <input
                   type="file"
@@ -718,9 +698,9 @@ export default function CategoriesPage() {
                   <div className="mt-2">
                     <p className="text-sm text-gray-500 mb-1">Preview:</p>
                     <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <Image
+                        src={imagePreview}
+                        alt="Preview"
                         fill
                         sizes="160px"
                         className="object-cover"
@@ -730,21 +710,16 @@ export default function CategoriesPage() {
                 )}
 
                 {/* Current image URL input (hidden but still part of form data) */}
-                <input
-                  type="hidden"
-                  id="image_url"
-                  name="image_url"
-                  value={formData.image_url}
-                />
+                <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
 
                 {/* Show current image if exists */}
                 {!imagePreview && formData.image_url && (
                   <div className="mt-2">
                     <p className="text-sm text-gray-500 mb-1">Current image:</p>
                     <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image 
-                        src={formData.image_url} 
-                        alt={formData.name} 
+                      <Image
+                        src={formData.image_url}
+                        alt={formData.name}
                         fill
                         sizes="160px"
                         className="object-cover"
@@ -780,7 +755,8 @@ export default function CategoriesPage() {
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
             <h2 className="text-xl font-semibold mb-4">Confirm Delete</h2>
             <p className="mb-4">
-              Are you sure you want to delete the category &quot;{currentCategory.name}&quot;? This action cannot be undone.
+              Are you sure you want to delete the category &quot;{currentCategory.name}&quot;? This
+              action cannot be undone.
             </p>
             <div className="flex justify-end space-x-3">
               <button
