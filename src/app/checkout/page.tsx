@@ -8,7 +8,6 @@ import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as dbService from '@/lib/supabase/db';
 import { OrderStatus, PaymentStatus } from '@/lib/supabase/types';
-import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentElement from '@/components/checkout/StripePaymentElement';
 
@@ -30,7 +29,7 @@ type CheckoutFormData = {
   billingState: string;
   billingZipCode: string;
   billingCountry: string;
-  paymentMethod: 'credit_card' | 'paypal';
+  paymentMethod: 'credit_card' | 'paypal' | 'apple_pay' | 'google_pay';
   // Card details are handled by Stripe Elements
 };
 
@@ -181,7 +180,7 @@ export default function CheckoutPage() {
         total_amount: subtotal,
         shipping_address: shippingAddress,
         billing_address: billingAddress,
-        payment_method: 'stripe',
+        payment_method: formData.paymentMethod === 'paypal' ? 'paypal' : 'stripe',
         payment_status: PaymentStatus.PENDING,
         payment_intent_id: paymentIntentId,
       };
@@ -211,6 +210,9 @@ export default function CheckoutPage() {
         await clearCart();
         router.push(`/account/orders/${createdOrder?.id}?success=true`);
       }
+
+      // For credit_card, apple_pay, and google_pay, the payment is handled by Stripe
+      // The StripePaymentElement component will handle the payment and call onPaymentSuccess or onPaymentError
     } catch (err) {
       console.error('Checkout error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
@@ -571,6 +573,43 @@ export default function CheckoutPage() {
                   <div className="flex items-center">
                     <input
                       type="radio"
+                      id="apple_pay"
+                      name="paymentMethod"
+                      value="apple_pay"
+                      checked={formData.paymentMethod === 'apple_pay'}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    />
+                    <label htmlFor="apple_pay" className="ml-2 flex items-center text-sm text-gray-700">
+                      <span>Apple Pay</span>
+                      <svg className="ml-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17.6 12.9c-.1-1.2.5-2.4 1.4-3.1-.5-.7-1.3-1.3-2.2-1.6-1-.3-2.1-.3-3.1 0-.8.2-1.4.5-1.8.5-.5 0-1.1-.3-1.8-.5-1-.3-2-.2-2.9.1-1 .4-1.8 1.1-2.3 2-.8 1.4-1.2 3.5-.5 5.4.3.9.8 1.8 1.5 2.5.6.6 1.4 1.2 2.3 1.2.8 0 1.3-.3 1.9-.5.6-.2 1.1-.5 1.9-.5.8 0 1.3.3 1.9.5.6.2 1.1.5 1.9.5.9 0 1.7-.5 2.3-1.2.5-.5.9-1.1 1.2-1.8-1.1-.5-1.8-1.6-1.7-2.9zM14.9 5.5c.7-.8 1-1.9.9-3-.9.1-1.7.5-2.3 1.2-.6.7-.9 1.7-.8 2.7 1 0 1.7-.4 2.2-.9z" />
+                      </svg>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      id="google_pay"
+                      name="paymentMethod"
+                      value="google_pay"
+                      checked={formData.paymentMethod === 'google_pay'}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300"
+                    />
+                    <label htmlFor="google_pay" className="ml-2 flex items-center text-sm text-gray-700">
+                      <span>Google Pay</span>
+                      <svg className="ml-2 h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 24c6.6 0 12-5.4 12-12S18.6 0 12 0 0 5.4 0 12s5.4 12 12 12z" fill="#4285F4" />
+                        <path d="M12 9.5v3h4.2c-.2 1.1-1.1 3.1-4.2 3.1-2.5 0-4.6-2.1-4.6-4.6 0-2.5 2.1-4.6 4.6-4.6 1.4 0 2.4.6 2.9 1.1l2-1.9C15.4 4.2 13.8 3.5 12 3.5c-4.7 0-8.5 3.8-8.5 8.5s3.8 8.5 8.5 8.5c4.9 0 8.2-3.4 8.2-8.3 0-.6-.1-1-.1-1.5H12z" fill="#fff" />
+                      </svg>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
                       id="paypal"
                       name="paymentMethod"
                       value="paypal"
@@ -583,18 +622,18 @@ export default function CheckoutPage() {
                     </label>
                   </div>
 
-                  {formData.paymentMethod === 'credit_card' && (
+                  {(formData.paymentMethod === 'credit_card' || 
+                    formData.paymentMethod === 'apple_pay' || 
+                    formData.paymentMethod === 'google_pay') && (
                     <div className="mt-4">
                       {clientSecret ? (
                         <>
-                          <Elements stripe={stripePromise} options={{ clientSecret }}>
-                            <StripePaymentElement
-                              clientSecret={clientSecret}
-                              onPaymentSuccess={handlePaymentSuccess}
-                              onPaymentError={handlePaymentError}
-                              isSubmitting={isSubmitting}
-                            />
-                          </Elements>
+                          <StripePaymentElement
+                            clientSecret={clientSecret}
+                            onPaymentSuccess={handlePaymentSuccess}
+                            onPaymentError={handlePaymentError}
+                            isSubmitting={isSubmitting}
+                          />
                           <p className="mt-2 text-xs text-gray-500">
                             Your payment information is secured by Stripe. We do not store your card details.
                           </p>

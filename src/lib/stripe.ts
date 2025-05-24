@@ -26,9 +26,7 @@ export async function createPaymentIntent(
       metadata,
       // In a production environment, you might want to capture the payment later
       // capture_method: 'manual',
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      payment_method_types: ['card', 'apple_pay', 'google_pay'],
     });
 
     return { paymentIntent, error: null };
