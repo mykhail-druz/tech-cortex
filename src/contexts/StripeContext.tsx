@@ -7,13 +7,6 @@ import { Elements } from '@stripe/react-stripe-js';
 // Initialize Stripe with the publishable key
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '');
 
-// Default options for Elements
-const defaultOptions = {
-  appearance: {
-    theme: 'stripe',
-  },
-};
-
 // Define the context type
 type StripeContextType = {
   stripe: Stripe | null;
@@ -71,9 +64,7 @@ export function StripeProvider({ children }: StripeProviderProps) {
 
   return (
     <StripeContext.Provider value={value}>
-      <Elements stripe={stripePromise} options={defaultOptions}>
-        {children}
-      </Elements>
+      <Elements stripe={stripePromise}>{children}</Elements>
     </StripeContext.Provider>
   );
 }
