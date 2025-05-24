@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
@@ -9,6 +9,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useWishlist } from '@/contexts/WishlistContext';
 import { getNavigationLinks } from '@/lib/supabase/db';
 import { NavigationLink } from '@/lib/supabase/types';
+import SearchSuggestions from '@/components/search/SearchSuggestions';
 
 export default function Header() {
   const router = useRouter();
@@ -17,6 +18,8 @@ export default function Header() {
   const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const { user, profile, signOut } = useAuth();
   const { itemCount } = useCart();
   const { itemCount: wishlistItemCount } = useWishlist();
@@ -44,6 +47,29 @@ export default function Header() {
     fetchData();
   }, []);
 
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+
+      // Check if the click is inside the search input
+      const isClickInSearchInput = searchInputRef.current && searchInputRef.current.contains(target);
+
+      // Check if the click is inside the suggestions dropdown
+      const isClickInSuggestions = target.closest('.search-suggestions-dropdown') !== null;
+
+      // Only close suggestions if the click is outside both the search input and suggestions
+      if (!isClickInSearchInput && !isClickInSuggestions) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
   const handleSignOut = async () => {
     await signOut();
     setIsUserMenuOpen(false);
@@ -54,7 +80,26 @@ export default function Header() {
     if (searchQuery.trim()) {
       router.push(`/products?q=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery('');
+      setShowSuggestions(false);
     }
+  };
+
+  const handleSearchFocus = () => {
+    if (searchQuery.trim().length >= 2) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    // Only show suggestions if there's at least 2 characters
+    setShowSuggestions(value.trim().length >= 2);
+  };
+
+  const handleSelectSuggestion = () => {
+    setShowSuggestions(false);
+    setSearchQuery('');
   };
 
   return (
@@ -90,9 +135,11 @@ export default function Header() {
             <form onSubmit={handleSearch} className="flex items-center">
               <div className="relative flex items-center">
                 <input
+                  ref={searchInputRef}
                   type="text"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
+                  onFocus={handleSearchFocus}
                   placeholder="Search products..."
                   className="border border-gray-300 rounded-full py-2 px-4 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent w-96 shadow-sm"
                 />
@@ -112,6 +159,12 @@ export default function Header() {
                     />
                   </svg>
                 </button>
+                {/* Search Suggestions */}
+                <SearchSuggestions
+                  query={searchQuery}
+                  isVisible={showSuggestions}
+                  onSelectSuggestion={handleSelectSuggestion}
+                />
               </div>
             </form>
           </div>
@@ -287,7 +340,8 @@ export default function Header() {
                 <input
                   type="text"
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={handleSearchChange}
+                  onFocus={handleSearchFocus}
                   placeholder="Search products..."
                   className="w-full border border-gray-300 rounded-full py-2 px-4 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent shadow-sm"
                 />
@@ -307,6 +361,12 @@ export default function Header() {
                     />
                   </svg>
                 </button>
+                {/* Search Suggestions for Mobile */}
+                <SearchSuggestions
+                  query={searchQuery}
+                  isVisible={showSuggestions && isMobileMenuOpen}
+                  onSelectSuggestion={handleSelectSuggestion}
+                />
               </div>
             </form>
 
