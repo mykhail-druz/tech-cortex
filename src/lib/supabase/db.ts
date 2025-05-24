@@ -23,8 +23,104 @@ import {
 } from './types';
 
 // Products
-export const getProducts = async (): Promise<SelectResponse<Product>> => {
-  const response = await supabase.from('products').select('*');
+export const getProducts = async (
+  categorySlug?: string,
+  subcategorySlug?: string,
+  minPrice?: number,
+  maxPrice?: number,
+  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
+  inStockOnly?: boolean
+): Promise<SelectResponse<Product>> => {
+  let dbQuery = supabase.from('products').select('*');
+
+  // Apply category filter if provided
+  if (categorySlug && categorySlug !== 'all') {
+    // First, get the category ID
+    const categoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', categorySlug)
+      .single();
+
+    if (!categoryResponse.error && categoryResponse.data) {
+      const category = categoryResponse.data as Category;
+
+      // If it's a subcategory, filter by subcategory_id
+      if (category.is_subcategory) {
+        dbQuery = dbQuery.eq('subcategory_id', category.id);
+      } 
+      // If it's a main category, get all subcategories and filter by them
+      else {
+        // Get all subcategories for this category
+        const subcategoriesResponse = await supabase
+          .from('categories')
+          .select('id')
+          .eq('parent_id', category.id)
+          .eq('is_subcategory', true);
+
+        if (!subcategoriesResponse.error && subcategoriesResponse.data && subcategoriesResponse.data.length > 0) {
+          // Get subcategory IDs
+          const subcategoryIds = subcategoriesResponse.data.map(sub => sub.id);
+
+          // Filter by subcategory_id
+          dbQuery = dbQuery.in('subcategory_id', subcategoryIds);
+        } else {
+          // Fallback to old behavior if no subcategories
+          dbQuery = dbQuery.eq('category_id', category.id);
+        }
+      }
+    }
+  }
+
+  // Apply subcategory filter if provided
+  if (subcategorySlug) {
+    const subcategoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', subcategorySlug)
+      .eq('is_subcategory', true)
+      .single();
+
+    if (!subcategoryResponse.error && subcategoryResponse.data) {
+      dbQuery = dbQuery.eq('subcategory_id', subcategoryResponse.data.id);
+    }
+  }
+
+  // Apply price range if provided
+  if (minPrice !== undefined) {
+    dbQuery = dbQuery.gte('price', minPrice);
+  }
+  if (maxPrice !== undefined) {
+    dbQuery = dbQuery.lte('price', maxPrice);
+  }
+
+  // Apply in-stock filter if provided
+  if (inStockOnly) {
+    dbQuery = dbQuery.eq('in_stock', true);
+  }
+
+  // Apply sorting
+  if (sortBy) {
+    switch (sortBy) {
+      case 'price-asc':
+        dbQuery = dbQuery.order('price', { ascending: true });
+        break;
+      case 'price-desc':
+        dbQuery = dbQuery.order('price', { ascending: false });
+        break;
+      case 'rating':
+        dbQuery = dbQuery.order('rating', { ascending: false });
+        break;
+      case 'newest':
+        dbQuery = dbQuery.order('created_at', { ascending: false });
+        break;
+    }
+  } else {
+    // Default sorting by newest
+    dbQuery = dbQuery.order('created_at', { ascending: false });
+  }
+
+  const response = await dbQuery;
   return { data: response.data, error: response.error };
 };
 
@@ -184,8 +280,11 @@ export const getRelatedProducts = async (
 export const searchProducts = async (
   query: string,
   categorySlug?: string,
+  subcategorySlug?: string,
   minPrice?: number,
-  maxPrice?: number
+  maxPrice?: number,
+  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
+  inStockOnly?: boolean
 ): Promise<SelectResponse<Product>> => {
   let dbQuery = supabase
     .from('products')
@@ -231,12 +330,52 @@ export const searchProducts = async (
     }
   }
 
+  // Apply subcategory filter if provided
+  if (subcategorySlug) {
+    const subcategoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('slug', subcategorySlug)
+      .eq('is_subcategory', true)
+      .single();
+
+    if (!subcategoryResponse.error && subcategoryResponse.data) {
+      dbQuery = dbQuery.eq('subcategory_id', subcategoryResponse.data.id);
+    }
+  }
+
   // Apply price range if provided
   if (minPrice !== undefined) {
     dbQuery = dbQuery.gte('price', minPrice);
   }
   if (maxPrice !== undefined) {
     dbQuery = dbQuery.lte('price', maxPrice);
+  }
+
+  // Apply in-stock filter if provided
+  if (inStockOnly) {
+    dbQuery = dbQuery.eq('in_stock', true);
+  }
+
+  // Apply sorting
+  if (sortBy) {
+    switch (sortBy) {
+      case 'price-asc':
+        dbQuery = dbQuery.order('price', { ascending: true });
+        break;
+      case 'price-desc':
+        dbQuery = dbQuery.order('price', { ascending: false });
+        break;
+      case 'rating':
+        dbQuery = dbQuery.order('rating', { ascending: false });
+        break;
+      case 'newest':
+        dbQuery = dbQuery.order('created_at', { ascending: false });
+        break;
+    }
+  } else {
+    // Default sorting by newest
+    dbQuery = dbQuery.order('created_at', { ascending: false });
   }
 
   const response = await dbQuery;

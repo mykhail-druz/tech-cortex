@@ -39,58 +39,22 @@ export default function ProductGrid({
   layout = 'grid',
   limit,
 }: ProductGridProps) {
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [displayProducts, setDisplayProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Apply filtering and sorting
+  // Apply limit if provided
   useEffect(() => {
     setIsLoading(true);
 
-    // Start with all products
-    let result = [...products];
-
-    // Apply filters if provided
-    if (filter) {
-      if (filter.category) {
-        result = result.filter(product => product.category === filter.category);
-      }
-      if (filter.subcategory) {
-        result = result.filter(product => product.subcategory === filter.subcategory);
-      }
-      if (filter.minPrice !== undefined) {
-        result = result.filter(product => product.price >= filter.minPrice!);
-      }
-      if (filter.maxPrice !== undefined) {
-        result = result.filter(product => product.price <= filter.maxPrice!);
-      }
-    }
-
-    // Apply sorting
-    switch (sorting) {
-      case 'price-asc':
-        result.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-desc':
-        result.sort((a, b) => b.price - a.price);
-        break;
-      case 'rating':
-        result.sort((a, b) => b.rating - a.rating);
-        break;
-      case 'newest':
-        // Assuming newest is the default order
-        break;
-      default:
-        break;
-    }
-
     // Apply limit if provided
+    let result = [...products];
     if (limit) {
       result = result.slice(0, limit);
     }
 
-    setFilteredProducts(result);
+    setDisplayProducts(result);
     setIsLoading(false);
-  }, [products, filter, sorting, limit]);
+  }, [products, limit]);
 
   // Show a loading state while filtering/sorting
   if (isLoading) {
@@ -118,7 +82,7 @@ export default function ProductGrid({
   }
 
   // Show a message if no products match the filters
-  if (filteredProducts.length === 0) {
+  if (displayProducts.length === 0) {
     return (
       <div className="w-full">
         <h2 className="text-2xl font-bold mb-6">{title}</h2>
@@ -140,7 +104,7 @@ export default function ProductGrid({
             : 'grid-cols-1'
         }`}
       >
-        {filteredProducts.map(product => (
+        {displayProducts.map(product => (
           <ProductCard
             key={product.id}
             id={product.id}

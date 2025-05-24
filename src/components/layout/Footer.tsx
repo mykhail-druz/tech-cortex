@@ -2,16 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { getCategories, getNavigationLinks, getSettings } from '@/lib/supabase/db';
-import { Category, NavigationLink, Setting } from '@/lib/supabase/types';
+import { getCategories } from '@/lib/supabase/db';
+import { Category } from '@/lib/supabase/types';
 
 export default function Footer() {
     const [categories, setCategories] = useState<Category[]>([]);
-    const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
-    const [settings, setSettings] = useState<Record<string, string>>({});
     const [isLoading, setIsLoading] = useState(true);
 
-    // Fetch data on component mount
+    // Fetch only categories data on component mount
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -23,34 +21,6 @@ export default function Footer() {
                     console.error('Error fetching categories:', categoriesError);
                 } else {
                     setCategories(categoriesData || []);
-                }
-
-                // Fetch navigation links for footer
-                const { data: navLinksData, error: navLinksError } = await getNavigationLinks('footer_nav');
-                if (navLinksError) {
-                    console.error('Error fetching navigation links:', navLinksError);
-                } else {
-                    setNavLinks(navLinksData || []);
-                }
-
-                // Fetch settings
-                const { data: settingsData, error: settingsError } = await getSettings([
-                    'company_name',
-                    'company_description',
-                    'contact_email',
-                    'contact_phone',
-                    'contact_address'
-                ]);
-
-                if (settingsError) {
-                    console.error('Error fetching settings:', settingsError);
-                } else if (settingsData) {
-                    // Convert settings array to object for easier access
-                    const settingsObj: Record<string, string> = {};
-                    settingsData.forEach(setting => {
-                        settingsObj[setting.key] = setting.value;
-                    });
-                    setSettings(settingsObj);
                 }
             } catch (error) {
                 console.error('Error fetching data:', error);
@@ -68,10 +38,10 @@ export default function Footer() {
                     {/* About Company */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                            About {settings.company_name || 'TechCortex'}
+                            About TechCortex
                         </h3>
                         <p className="text-gray-600 mb-4">
-                            {settings.company_description || 'Your trusted provider of high-quality computer hardware. We offer a wide range of products at competitive prices.'}
+                            Your trusted provider of high-quality computer hardware. We offer a wide range of products at competitive prices.
                         </p>
                         <div className="flex space-x-4">
                             <a href="#" className="text-gray-500 hover:text-primary">
@@ -96,40 +66,26 @@ export default function Footer() {
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Navigation</h3>
                         <ul className="space-y-2">
-                            {isLoading ? (
-                                <li className="text-gray-400">Loading...</li>
-                            ) : navLinks.length > 0 ? (
-                                navLinks.map(link => (
-                                    <li key={link.id}>
-                                        <Link href={link.url} className="text-gray-600 hover:text-primary">
-                                            {link.title}
-                                        </Link>
-                                    </li>
-                                ))
-                            ) : (
-                                <>
-                                    <li>
-                                        <Link href="/" className="text-gray-600 hover:text-primary">
-                                            Home
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href="/products" className="text-gray-600 hover:text-primary">
-                                            Products
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href="/about" className="text-gray-600 hover:text-primary">
-                                            About Us
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href="/contact" className="text-gray-600 hover:text-primary">
-                                            Contact
-                                        </Link>
-                                    </li>
-                                </>
-                            )}
+                            <li>
+                                <Link href="/" className="text-gray-600 hover:text-primary">
+                                    Home
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="/products" className="text-gray-600 hover:text-primary">
+                                    Products
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="/about" className="text-gray-600 hover:text-primary">
+                                    About Us
+                                </Link>
+                            </li>
+                            <li>
+                                <Link href="/contact" className="text-gray-600 hover:text-primary">
+                                    Contact
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
@@ -142,7 +98,7 @@ export default function Footer() {
                             ) : categories.length > 0 ? (
                                 categories.map(category => (
                                     <li key={category.id}>
-                                        <Link href={`/products/${category.slug}`} className="text-gray-600 hover:text-primary">
+                                        <Link href={`/products?category=${category.slug}`} className="text-gray-600 hover:text-primary">
                                             {category.name}
                                         </Link>
                                     </li>
@@ -150,22 +106,22 @@ export default function Footer() {
                             ) : (
                                 <>
                                     <li>
-                                        <Link href="/products/laptops" className="text-gray-600 hover:text-primary">
+                                        <Link href="/products?category=laptops" className="text-gray-600 hover:text-primary">
                                             Laptops
                                         </Link>
                                     </li>
                                     <li>
-                                        <Link href="/products/desktops" className="text-gray-600 hover:text-primary">
+                                        <Link href="/products?category=desktops" className="text-gray-600 hover:text-primary">
                                             Desktops
                                         </Link>
                                     </li>
                                     <li>
-                                        <Link href="/products/components" className="text-gray-600 hover:text-primary">
+                                        <Link href="/products?category=components" className="text-gray-600 hover:text-primary">
                                             Components
                                         </Link>
                                     </li>
                                     <li>
-                                        <Link href="/products/peripherals" className="text-gray-600 hover:text-primary">
+                                        <Link href="/products?category=peripherals" className="text-gray-600 hover:text-primary">
                                             Peripherals
                                         </Link>
                                     </li>
@@ -177,38 +133,34 @@ export default function Footer() {
                     {/* Contact */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact</h3>
-                        {isLoading ? (
-                            <div className="text-gray-400">Loading...</div>
-                        ) : (
-                            <ul className="space-y-2">
-                                <li className="flex items-start">
-                                    <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                                    </svg>
-                                    <span className="text-gray-600">{settings.contact_address || 'Silicon Valley, CA, USA'}</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                                    </svg>
-                                    <span className="text-gray-600">{settings.contact_email || 'support@techcortex.com'}</span>
-                                </li>
-                                <li className="flex items-start">
-                                    <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z" />
-                                    </svg>
-                                    <span className="text-gray-600">{settings.contact_phone || '+1 (555) 123-4567'}</span>
-                                </li>
-                            </ul>
-                        )}
+                        <ul className="space-y-2">
+                            <li className="flex items-start">
+                                <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                </svg>
+                                <span className="text-gray-600">St.Petersburg, FL, USA</span>
+                            </li>
+                            <li className="flex items-start">
+                                <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <span className="text-gray-600">support@tech-cortex.com</span>
+                            </li>
+                            <li className="flex items-start">
+                                <svg className="h-6 w-6 text-gray-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z" />
+                                </svg>
+                                <span className="text-gray-600">+1 (727) 558-9452</span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
 
                 <div className="border-t border-gray-200 mt-8 pt-8">
                     <div className="flex flex-col md:flex-row justify-between items-center">
                         <p className="text-gray-500 text-sm">
-                            &copy; {new Date().getFullYear()} {settings.company_name || 'TechCortex'}. All rights reserved.
+                            &copy; {new Date().getFullYear()} TechCortex. All rights reserved.
                         </p>
                         <div className="mt-4 md:mt-0">
                             <ul className="flex space-x-6">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { getCategories } from '@/lib/supabase/db';
 import { Category } from '@/lib/supabase/types';
 import { useSidebar } from '@/contexts/SidebarContext';
@@ -10,9 +10,14 @@ import { useSidebar } from '@/contexts/SidebarContext';
 export default function Sidebar() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const { isOpen, toggleSidebar, closeSidebar, isMobile } = useSidebar();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // Get active category and subcategory from URL parameters
+  const activeCategory = searchParams.get('category') || null;
+  const activeSubcategory = searchParams.get('subcategory') || null;
 
   // Fetch categories on component mount
   useEffect(() => {
@@ -35,15 +40,37 @@ export default function Sidebar() {
     fetchCategories();
   }, []);
 
-  // Set active category based on current path
-  useEffect(() => {
-    if (pathname?.includes('/products/category/')) {
-      const slug = pathname.split('/').pop();
-      setActiveCategory(slug || null);
+  // Handle navigation to products page with category filter
+  const handleCategoryClick = (categorySlug: string, subcategorySlug?: string) => {
+    // Build the URL with appropriate parameters
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (categorySlug === 'all') {
+      // Clear category and subcategory parameters
+      params.delete('category');
+      params.delete('subcategory');
     } else {
-      setActiveCategory(null);
+      // Set category parameter
+      params.set('category', categorySlug);
+
+      if (subcategorySlug) {
+        // Set subcategory parameter
+        params.set('subcategory', subcategorySlug);
+      } else {
+        // Clear subcategory parameter if only category is selected
+        params.delete('subcategory');
+      }
     }
-  }, [pathname]);
+
+    // Navigate to the products page with the parameters
+    const url = `/products${params.toString() ? `?${params.toString()}` : ''}`;
+    router.push(url);
+
+    // Close sidebar on mobile
+    if (isMobile) {
+      closeSidebar();
+    }
+  };
 
   // Don't render sidebar on admin pages
   if (pathname?.startsWith('/admin')) {
@@ -163,19 +190,48 @@ export default function Sidebar() {
               <div className="text-gray-400 p-2">No categories found</div>
             ) : (
               <ul className="space-y-1" role="menu">
+                <li role="menuitem">
+                  <button
+                    onClick={() => handleCategoryClick('all')}
+                    className={`
+                      w-full flex items-center py-2 px-3 rounded-md transition-all duration-200
+                      ${
+                        !activeCategory || activeCategory === 'all'
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'text-gray-600 hover:bg-gray-100 hover:text-primary'
+                      }
+                    `}
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-5 w-5 mr-2 ${!activeCategory || activeCategory === 'all' ? 'text-primary' : 'text-gray-400'}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M4 6h16M4 12h16M4 18h16"
+                      />
+                    </svg>
+                    <span>All Products</span>
+                  </button>
+                </li>
                 {categories.map(category => (
-                  <li key={category.id} role="menuitem">
-                    <Link
-                      href={`/products/category/${category.slug}`}
+                  <li key={category.id} role="menuitem" className="space-y-1">
+                    <button
+                      onClick={() => handleCategoryClick(category.slug)}
                       className={`
-                                                flex items-center py-2 px-3 rounded-md transition-all duration-200
-                                                ${
-                                                  activeCategory === category.slug
-                                                    ? 'bg-primary/10 text-primary font-medium'
-                                                    : 'text-gray-600 hover:bg-gray-100 hover:text-primary'
-                                                }
-                                            `}
-                      onClick={isMobile ? closeSidebar : undefined}
+                        w-full flex items-center py-2 px-3 rounded-md transition-all duration-200
+                        ${
+                          activeCategory === category.slug
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'text-gray-600 hover:bg-gray-100 hover:text-primary'
+                        }
+                      `}
                       aria-current={activeCategory === category.slug ? 'page' : undefined}
                     >
                       {category.image_url ? (
@@ -205,7 +261,30 @@ export default function Sidebar() {
                         </svg>
                       )}
                       <span>{category.name}</span>
-                    </Link>
+                    </button>
+
+                    {/* Subcategories */}
+                    {activeCategory === category.slug && category.subcategories && category.subcategories.length > 0 && (
+                      <ul className="pl-4 space-y-1 mt-1">
+                        {category.subcategories.map(subcategory => (
+                          <li key={subcategory.id}>
+                            <button
+                              onClick={() => handleCategoryClick(category.slug, subcategory.slug)}
+                              className={`
+                                w-full text-left py-1 px-2 rounded-md text-sm transition-colors
+                                ${
+                                  activeSubcategory === subcategory.slug
+                                    ? 'bg-primary/10 text-primary'
+                                    : 'text-gray-600 hover:bg-gray-100'
+                                }
+                              `}
+                            >
+                              {subcategory.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </li>
                 ))}
               </ul>
