@@ -11,6 +11,7 @@ import { ProductWithDetails, Product } from '@/lib/supabase/types';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from '@/components/product/AddToWishlistButton';
+import ReviewSection from '@/components/review/ReviewSection';
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
   const unwrappedParams = React.use(params);
@@ -504,64 +505,12 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           )}
 
           {activeTab === 'reviews' && (
-            <div>
-              <div className="flex items-center mb-6">
-                <div className="flex mr-4">{renderRating(product.rating || 0)}</div>
-                <span className="text-2xl font-bold">{(product.rating || 0).toFixed(1)}</span>
-                <span className="text-gray-500 ml-2">based on {product.review_count || 0} reviews</span>
-              </div>
-
-              {/* Mock reviews */}
-              <div className="space-y-6">
-                <div className="border-b border-gray-200 pb-6">
-                  <div className="flex justify-between mb-2">
-                    <h3 className="font-bold">Michael D.</h3>
-                    <span className="text-gray-500 text-sm">3 days ago</span>
-                  </div>
-                  <div className="flex mb-2">{renderRating(5)}</div>
-                  <h4 className="font-medium mb-2">Exceeded my expectations!</h4>
-                  <p className="text-gray-600">
-                    This laptop is incredibly fast and the display quality is outstanding. I use it
-                    primarily for video editing and it handles 4K footage without any lag. Battery
-                    life is better than advertised - I'm getting about 11 hours of regular use.
-                  </p>
-                </div>
-
-                <div className="border-b border-gray-200 pb-6">
-                  <div className="flex justify-between mb-2">
-                    <h3 className="font-bold">Sarah T.</h3>
-                    <span className="text-gray-500 text-sm">1 week ago</span>
-                  </div>
-                  <div className="flex mb-2">{renderRating(4)}</div>
-                  <h4 className="font-medium mb-2">Great performance, runs a bit hot</h4>
-                  <p className="text-gray-600">
-                    The performance is stellar for both work and gaming. I'm very impressed with how
-                    quickly it boots up and loads applications. My only complaint is that it does
-                    get quite warm during intensive tasks. I'd recommend a cooling pad if you plan
-                    to use it for gaming.
-                  </p>
-                </div>
-
-                <div>
-                  <div className="flex justify-between mb-2">
-                    <h3 className="font-bold">Alex K.</h3>
-                    <span className="text-gray-500 text-sm">2 weeks ago</span>
-                  </div>
-                  <div className="flex mb-2">{renderRating(5)}</div>
-                  <h4 className="font-medium mb-2">Perfect for developers</h4>
-                  <p className="text-gray-600">
-                    As a software developer, I need a machine that can handle multiple IDEs, docker
-                    containers, and virtual machines simultaneously. This laptop does it all without
-                    breaking a sweat. The keyboard is comfortable for long coding sessions and the
-                    screen is easy on the eyes. Highly recommended for any developer!
-                  </p>
-                </div>
-              </div>
-
-              <button className="mt-6 w-full py-3 border border-gray-300 rounded-md text-gray-700 font-medium hover:bg-gray-50 transition-colors">
-                Load More Reviews
-              </button>
-            </div>
+            <ReviewSection
+              productId={product.id}
+              initialReviews={product.reviews}
+              reviewCount={product.review_count || 0}
+              averageRating={product.rating || 0}
+            />
           )}
         </div>
       </div>

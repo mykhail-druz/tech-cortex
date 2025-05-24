@@ -48,7 +48,7 @@ export const getProducts = async (
       // If it's a subcategory, filter by subcategory_id
       if (category.is_subcategory) {
         dbQuery = dbQuery.eq('subcategory_id', category.id);
-      } 
+      }
       // If it's a main category, get all subcategories and filter by them
       else {
         // Get all subcategories for this category
@@ -58,7 +58,11 @@ export const getProducts = async (
           .eq('parent_id', category.id)
           .eq('is_subcategory', true);
 
-        if (!subcategoriesResponse.error && subcategoriesResponse.data && subcategoriesResponse.data.length > 0) {
+        if (
+          !subcategoriesResponse.error &&
+          subcategoriesResponse.data &&
+          subcategoriesResponse.data.length > 0
+        ) {
           // Get subcategory IDs
           const subcategoryIds = subcategoriesResponse.data.map(sub => sub.id);
 
@@ -141,13 +145,10 @@ export const getProductsByCategory = async (
 
   // If it's a subcategory, get products directly
   if (category.is_subcategory) {
-    const response = await supabase
-      .from('products')
-      .select('*')
-      .eq('subcategory_id', category.id);
+    const response = await supabase.from('products').select('*').eq('subcategory_id', category.id);
 
     return { data: response.data, error: response.error };
-  } 
+  }
   // If it's a main category, get all subcategories and then get products for each
   else {
     // Get all subcategories for this category
@@ -157,12 +158,13 @@ export const getProductsByCategory = async (
       .eq('parent_id', category.id)
       .eq('is_subcategory', true);
 
-    if (subcategoriesResponse.error || !subcategoriesResponse.data || subcategoriesResponse.data.length === 0) {
+    if (
+      subcategoriesResponse.error ||
+      !subcategoriesResponse.data ||
+      subcategoriesResponse.data.length === 0
+    ) {
       // Fallback to old behavior if no subcategories
-      const response = await supabase
-        .from('products')
-        .select('*')
-        .eq('category_id', category.id);
+      const response = await supabase.from('products').select('*').eq('category_id', category.id);
 
       return { data: response.data, error: response.error };
     }
@@ -240,7 +242,7 @@ export const getProductBySlug = async (
     .select(
       `
       *,
-      user:user_id (
+      user:user_profiles (
         first_name,
         last_name
       )
@@ -306,7 +308,7 @@ export const searchProducts = async (
       // If it's a subcategory, filter by subcategory_id
       if (category.is_subcategory) {
         dbQuery = dbQuery.eq('subcategory_id', category.id);
-      } 
+      }
       // If it's a main category, get all subcategories and filter by them
       else {
         // Get all subcategories for this category
@@ -316,7 +318,11 @@ export const searchProducts = async (
           .eq('parent_id', category.id)
           .eq('is_subcategory', true);
 
-        if (!subcategoriesResponse.error && subcategoriesResponse.data && subcategoriesResponse.data.length > 0) {
+        if (
+          !subcategoriesResponse.error &&
+          subcategoriesResponse.data &&
+          subcategoriesResponse.data.length > 0
+        ) {
           // Get subcategory IDs
           const subcategoryIds = subcategoriesResponse.data.map(sub => sub.id);
 
@@ -416,10 +422,7 @@ export const getCategories = async (): Promise<SelectResponse<Category>> => {
 
 // Get all categories (both main and subcategories) in a flat list
 export const getAllCategories = async (): Promise<SelectResponse<Category>> => {
-  const response = await supabase
-    .from('categories')
-    .select('*')
-    .order('name');
+  const response = await supabase.from('categories').select('*').order('name');
 
   return { data: response.data, error: response.error };
 };
@@ -457,11 +460,11 @@ export const getCategoryWithGoods = async (
 
     const categoryWithGoods: CategoryWithGoods = {
       ...category,
-      goods: productsResponse.data || []
+      goods: productsResponse.data || [],
     };
 
     return { data: categoryWithGoods, error: null };
-  } 
+  }
   // If it's a main category, get its subcategories
   else {
     const subcategoriesResponse = await supabase
@@ -483,14 +486,14 @@ export const getCategoryWithGoods = async (
 
         subcategoriesWithGoods.push({
           ...subcategory,
-          goods: productsResponse.data || []
+          goods: productsResponse.data || [],
         });
       }
     }
 
     const categoryWithGoods: CategoryWithGoods = {
       ...category,
-      subcategories: subcategoriesWithGoods
+      subcategories: subcategoriesWithGoods,
     };
 
     return { data: categoryWithGoods, error: null };
@@ -700,6 +703,11 @@ export const addReview = async (
 ): Promise<InsertResponse<Review>> => {
   const response = await supabase.from('reviews').insert(review).select().single();
 
+  if (!response.error && review.is_approved) {
+    // Update product rating and review count
+    await updateProductRating(review.product_id);
+  }
+
   return { data: response.data, error: response.error };
 };
 
@@ -719,6 +727,123 @@ export const getUserReviews = async (userId: string): Promise<SelectResponse<Rev
     .order('created_at', { ascending: false });
 
   return { data: response.data, error: response.error };
+};
+
+export const getProductReviews = async (productId: string): Promise<SelectResponse<Review>> => {
+  const response = await supabase
+    .from('reviews')
+    .select(
+      `
+      *,
+      user:user_profiles (
+        first_name,
+        last_name
+      )
+    `
+    )
+    .eq('product_id', productId)
+    .eq('is_approved', true)
+    .order('created_at', { ascending: false });
+
+  return { data: response.data, error: response.error };
+};
+
+export const updateReview = async (
+  reviewId: string,
+  updates: Partial<Omit<Review, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'product_id'>>
+): Promise<UpdateResponse<Review>> => {
+  // First get the review to know which product to update
+  const getResponse = await supabase
+    .from('reviews')
+    .select('product_id, is_approved')
+    .eq('id', reviewId)
+    .single();
+
+  if (getResponse.error) {
+    return { data: null, error: getResponse.error };
+  }
+
+  const productId = getResponse.data.product_id;
+  const wasApproved = getResponse.data.is_approved;
+
+  // Update the review
+  const response = await supabase
+    .from('reviews')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', reviewId)
+    .select()
+    .single();
+
+  // If the review was updated successfully and is approved (or was approved)
+  if (!response.error && (updates.is_approved || wasApproved)) {
+    // Update product rating and review count
+    await updateProductRating(productId);
+  }
+
+  return { data: response.data, error: response.error };
+};
+
+export const deleteReview = async (reviewId: string): Promise<DeleteResponse> => {
+  // First get the review to know which product to update
+  const getResponse = await supabase
+    .from('reviews')
+    .select('product_id')
+    .eq('id', reviewId)
+    .single();
+
+  if (getResponse.error) {
+    return { error: getResponse.error };
+  }
+
+  const productId = getResponse.data.product_id;
+
+  // Delete the review
+  const response = await supabase.from('reviews').delete().eq('id', reviewId);
+
+  if (!response.error) {
+    // Update product rating and review count
+    await updateProductRating(productId);
+  }
+
+  return { error: response.error };
+};
+
+// Helper function to update product rating and review count
+export const updateProductRating = async (productId: string): Promise<void> => {
+  try {
+    // Get all approved reviews for the product
+    const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('product_id', productId)
+      .eq('is_approved', true);
+
+    if (error) {
+      console.error('Error fetching reviews for rating update:', error);
+      return;
+    }
+
+    // Calculate new rating
+    const reviewCount = reviews.length;
+    let rating = 0;
+
+    if (reviewCount > 0) {
+      const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+      rating = sum / reviewCount;
+    }
+
+    // Update product
+    await supabase
+      .from('products')
+      .update({
+        rating,
+        review_count: reviewCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', productId);
+  } catch (error) {
+    console.error('Error updating product rating:', error);
+  }
 };
 
 // Wishlist
