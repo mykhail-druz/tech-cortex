@@ -452,40 +452,11 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
         <div className="p-6">
           {activeTab === 'description' && (
             <div className="prose max-w-none">
-              <p>
-                The {product.title} is designed for those who demand exceptional performance in a
-                sleek package. This premium laptop delivers lightning-fast responsiveness for even
-                the most demanding tasks, from professional content creation to immersive gaming.
-              </p>
-              <p>
-                Featuring the latest{' '}
-                {product.specifications?.find(spec => spec.name === 'Processor')?.value || 'high-performance'} processor
-                with advanced multi-core architecture, this laptop handles complex workflows with
-                ease. The generous {product.specifications?.find(spec => spec.name === 'RAM')?.value || '16GB'}{' '}
-                ensures smooth multitasking, while the ultrafast{' '}
-                {product.specifications?.find(spec => spec.name === 'Storage')?.value || 'SSD'} provides ample
-                space for all your files with quick access times.
-              </p>
-              <p>
-                Visuals come to life on the stunning{' '}
-                {product.specifications?.find(spec => spec.name === 'Display')?.value || 'high-resolution'} display,
-                offering vibrant colors and incredible detail whether you're editing photos,
-                watching movies, or working on detailed projects. The powerful{' '}
-                {product.specifications?.find(spec => spec.name === 'Graphics')?.value || 'dedicated'} graphics card
-                delivers smooth framerates for modern games and accelerates creative applications.
-              </p>
-              <p>
-                Despite its impressive performance, this laptop maintains excellent battery life
-                with its {product.specifications?.find(spec => spec.name === 'Battery')?.value || 'long-lasting battery'},
-                allowing you to work or play on the go without constantly searching for a power
-                outlet.
-              </p>
-              <p>
-                Pre-installed with{' '}
-                {product.specifications?.find(spec => spec.name === 'Operating System')?.value || 'the latest OS'}, you
-                get access to the latest features and security updates. The sleek design and premium
-                build quality make this laptop as beautiful as it is powerful.
-              </p>
+              {product.description ? (
+                <div dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, '<br />') }} />
+              ) : (
+                <p>No detailed description available for this product.</p>
+              )}
             </div>
           )}
 
