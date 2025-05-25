@@ -490,17 +490,166 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           )}
 
           {activeTab === 'specifications' && (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <tbody className="divide-y divide-gray-200">
-                  {product.specifications && product.specifications.map((spec, index) => (
-                    <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="py-3 px-4 text-sm font-medium text-gray-900">{spec.name}</td>
-                      <td className="py-3 px-4 text-sm text-gray-500">{spec.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div>
+              {product.specifications && product.specifications.length > 0 ? (
+                <div className="specifications-container">
+                  {/* Copy to clipboard button */}
+                  <div className="flex justify-end mb-4">
+                    <button
+                      onClick={() => {
+                        // Create a formatted string of all specifications
+                        const specsText = product.specifications
+                          .map(spec => `${spec.name}: ${spec.value}`)
+                          .join('\n');
+
+                        // Copy to clipboard
+                        navigator.clipboard.writeText(specsText)
+                          .then(() => {
+                            toast.success('Specifications copied to clipboard');
+                          })
+                          .catch(err => {
+                            console.error('Failed to copy specifications: ', err);
+                            toast.error('Failed to copy specifications');
+                          });
+                      }}
+                      className="flex items-center text-sm text-primary hover:text-primary-dark transition-colors"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      </svg>
+                      Copy Specifications
+                    </button>
+                  </div>
+
+                  {/* Group specifications by category */}
+                  {(() => {
+                    // Group specifications by category (first word of the name as a simple approach)
+                    const groupedSpecs = product.specifications.reduce((groups, spec) => {
+                      // Use first word as category or "General" if no clear category
+                      const categoryMatch = spec.name.match(/^([A-Za-z]+)/);
+                      const category = categoryMatch ? categoryMatch[1] : 'General';
+
+                      if (!groups[category]) {
+                        groups[category] = [];
+                      }
+                      groups[category].push(spec);
+                      return groups;
+                    }, {} as Record<string, typeof product.specifications>);
+
+                    // Convert to array for rendering
+                    return Object.entries(groupedSpecs).map(([category, specs], groupIndex) => (
+                      <div key={category} className="mb-6 last:mb-0">
+                        <h3 className="text-lg font-medium text-gray-900 mb-3 flex items-center">
+                          {/* Add icons based on category */}
+                          <span className="inline-flex items-center justify-center w-8 h-8 mr-2 bg-primary/10 text-primary rounded-full">
+                            {category === 'Processor' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M13 7H7v6h6V7z" />
+                                <path fillRule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2zM5 5h10v10H5V5z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {category === 'RAM' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                              </svg>
+                            )}
+                            {category === 'Storage' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {category === 'Display' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm5.771 7H5V5h10v7H8.771z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {category === 'Graphics' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {category === 'Battery' && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M13 7H7v6h6V7z" />
+                                <path fillRule="evenodd" d="M7 2a1 1 0 012 0v1h2V2a1 1 0 112 0v1h2a2 2 0 012 2v2h1a1 1 0 110 2h-1v2h1a1 1 0 110 2h-1v2a2 2 0 01-2 2h-2v1a1 1 0 11-2 0v-1H9v1a1 1 0 11-2 0v-1H5a2 2 0 01-2-2v-2H2a1 1 0 110-2h1V9H2a1 1 0 010-2h1V5a2 2 0 012-2h2V2zM5 5h10v10H5V5z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                            {/* Default icon for other categories */}
+                            {!['Processor', 'RAM', 'Storage', 'Display', 'Graphics', 'Battery'].includes(category) && (
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                                <path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </span>
+                          {category}
+                        </h3>
+                        <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+                          <table className="w-full specifications-table">
+                            <tbody>
+                              {specs.map((spec, index) => (
+                                <tr 
+                                  key={index} 
+                                  className={`border-b last:border-b-0 border-gray-200 hover:bg-blue-50 transition-colors duration-150 ease-in-out`}
+                                >
+                                  <th className="py-4 px-6 text-left w-2/5">
+                                    <div className="flex items-center">
+                                      <span className="text-sm font-medium text-gray-900">{spec.name.replace(/^[A-Za-z]+\s/, '')}</span>
+                                    </div>
+                                  </th>
+                                  <td className="py-4 px-6 text-gray-700">
+                                    <div className="flex items-center">
+                                      {/* Format values based on content */}
+                                      {spec.name.toLowerCase().includes('color') ? (
+                                        <div className="flex items-center">
+                                          <span 
+                                            className="inline-block w-4 h-4 mr-2 rounded-full border border-gray-300" 
+                                            style={{ 
+                                              backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
+                                                              spec.value.toLowerCase().includes('white') ? 'white' :
+                                                              spec.value.toLowerCase().includes('silver') ? 'silver' :
+                                                              spec.value.toLowerCase().includes('gold') ? 'gold' :
+                                                              spec.value.toLowerCase().includes('blue') ? 'blue' :
+                                                              spec.value.toLowerCase().includes('red') ? 'red' : 
+                                                              'transparent'
+                                            }}
+                                          ></span>
+                                          <span className="font-medium">{spec.value}</span>
+                                        </div>
+                                      ) : spec.name.toLowerCase().includes('capacity') || 
+                                         spec.name.toLowerCase().includes('memory') || 
+                                         spec.name.toLowerCase().includes('storage') || 
+                                         spec.name.toLowerCase().includes('ram') ? (
+                                        <span className="font-medium">
+                                          <span className="text-primary">{spec.value.replace(/(\d+)/, '$1')}</span>
+                                        </span>
+                                      ) : spec.name.toLowerCase().includes('resolution') ? (
+                                        <span className="font-medium">
+                                          <span className="px-2 py-1 bg-gray-100 rounded text-sm">{spec.value}</span>
+                                        </span>
+                                      ) : spec.name.toLowerCase().includes('processor') || 
+                                         spec.name.toLowerCase().includes('cpu') ? (
+                                        <span className="font-medium">
+                                          <span className="text-primary font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
+                                        </span>
+                                      ) : (
+                                        <span className="font-medium">{spec.value}</span>
+                                      )}
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No specifications available for this product.</p>
+                </div>
+              )}
             </div>
           )}
 

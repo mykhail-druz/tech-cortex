@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Category } from '@/lib/supabase/types';
+import { Category, ProductSpecification } from '@/lib/supabase/types';
 import Link from 'next/link';
 
 export default function AddProductPage() {
@@ -40,6 +40,10 @@ export default function AddProductPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Add state for product specifications
+  const [specifications, setSpecifications] = useState<Omit<ProductSpecification, 'id' | 'product_id'>[]>([]);
+  const [newSpecification, setNewSpecification] = useState({ name: '', value: '' });
 
   // Fetch categories
   useEffect(() => {
@@ -115,6 +119,41 @@ export default function AddProductPage() {
       ...formData,
       [name]: checked,
     });
+  };
+
+  // Handle specification input changes
+  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewSpecification(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Add a new specification
+  const addSpecification = () => {
+    if (!newSpecification.name.trim() || !newSpecification.value.trim()) return;
+
+    setSpecifications([
+      ...specifications,
+      { 
+        name: newSpecification.name, 
+        value: newSpecification.value, 
+        display_order: specifications.length 
+      }
+    ]);
+    setNewSpecification({ name: '', value: '' });
+  };
+
+  // Remove a specification
+  const removeSpecification = (index: number) => {
+    const updatedSpecs = [...specifications];
+    updatedSpecs.splice(index, 1);
+
+    // Update display_order for remaining specifications
+    const reorderedSpecs = updatedSpecs.map((spec, idx) => ({
+      ...spec,
+      display_order: idx
+    }));
+
+    setSpecifications(reorderedSpecs);
   };
 
   // Handle image file selection
@@ -197,6 +236,27 @@ export default function AddProductPage() {
 
       if (error) {
         throw error;
+      }
+
+      // If product was created successfully and there are specifications to add
+      if (data && specifications.length > 0) {
+        const productId = data.id;
+
+        // Add specifications
+        for (const spec of specifications) {
+          const { error: specError } = await adminDbService.addProductSpecification({
+            product_id: productId,
+            name: spec.name,
+            value: spec.value,
+            display_order: spec.display_order
+          });
+
+          if (specError) {
+            console.error('Error adding specification:', specError);
+            toast.warning(`Product created but some specifications could not be added.`);
+            break;
+          }
+        }
       }
 
       // Redirect to products page
@@ -486,6 +546,91 @@ export default function AddProductPage() {
               onChange={handleInputChange}
               className="w-full p-2 border border-gray-300 rounded-md"
             ></textarea>
+          </div>
+
+          {/* Product Specifications */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Product Specifications</h3>
+
+            {/* Specifications List */}
+            <div className="bg-gray-50 p-4 rounded-md mb-4">
+              {specifications.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Name</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Value</th>
+                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {specifications.map((spec, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="py-3 px-4 text-sm text-gray-900">{spec.name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-500">{spec.value}</td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => removeSpecification(index)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No specifications added yet.</p>
+              )}
+            </div>
+
+            {/* Add Specification Form */}
+            <div className="bg-white p-4 border border-gray-200 rounded-md">
+              <h4 className="font-medium text-gray-900 mb-3">Add New Specification</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label htmlFor="spec-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    id="spec-name"
+                    name="name"
+                    value={newSpecification.name}
+                    onChange={handleSpecificationChange}
+                    placeholder="e.g., Processor, RAM, Storage"
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700 mb-1">
+                    Value
+                  </label>
+                  <input
+                    type="text"
+                    id="spec-value"
+                    name="value"
+                    value={newSpecification.value}
+                    onChange={handleSpecificationChange}
+                    placeholder="e.g., Intel Core i7, 16GB, 512GB SSD"
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={addSpecification}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  Add Specification
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}

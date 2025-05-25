@@ -9,12 +9,13 @@ import * as dbService from '@/lib/supabase/db';
 import { OrderWithItems, OrderStatus, PaymentStatus } from '@/lib/supabase/types';
 
 export default function OrderDetailsPage({ params }: { params: { id: string } }) {
+  const unwrappedParams = React.use(params);
   const { user, isLoading: authLoading } = useAuth();
   const [order, setOrder] = useState<OrderWithItems | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const orderId = params.id;
+  const orderId = unwrappedParams.id;
 
   // Redirect if not authenticated
   useEffect(() => {

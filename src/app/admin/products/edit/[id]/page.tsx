@@ -6,11 +6,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
-import { Product, Category } from '@/lib/supabase/types';
+import { Product, Category, ProductSpecification } from '@/lib/supabase/types';
 import Link from 'next/link';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
-  const productId = params.id;
+  const unwrappedParams = React.use(params);
+  const productId = unwrappedParams.id;
   const router = useRouter();
   // const { user, isAdmin, isManager } = useAuth(); // Commented out as these variables are not being used
   const toast = useToast();
@@ -37,6 +38,11 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
   // Add state to track available subcategories
   const [availableSubcategories, setAvailableSubcategories] = useState<Category[]>([]);
+
+  // Add state for product specifications
+  const [specifications, setSpecifications] = useState<ProductSpecification[]>([]);
+  const [newSpecification, setNewSpecification] = useState({ name: '', value: '' });
+  const [editingSpecIndex, setEditingSpecIndex] = useState<number | null>(null);
 
   // Fetch product and categories
   useEffect(() => {
@@ -72,6 +78,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         const categoriesResponse = await dbService.getCategories();
         if (categoriesResponse.data) {
           setCategories(categoriesResponse.data);
+        }
+
+        // Fetch product specifications
+        const specificationsResponse = await adminDbService.getProductSpecifications(productId);
+        if (specificationsResponse.data) {
+          setSpecifications(specificationsResponse.data);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -161,6 +173,104 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
+  };
+
+  // Handle specification input changes
+  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setNewSpecification(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Add a new specification
+  const addSpecification = async () => {
+    if (!newSpecification.name.trim() || !newSpecification.value.trim() || !product) return;
+
+    try {
+      const { data, error } = await adminDbService.addProductSpecification({
+        product_id: product.id,
+        name: newSpecification.name,
+        value: newSpecification.value,
+        display_order: specifications.length
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setSpecifications([...specifications, data]);
+        setNewSpecification({ name: '', value: '' });
+        toast.success('Specification added successfully');
+      }
+    } catch (error) {
+      console.error('Error adding specification:', error);
+      toast.error('Failed to add specification');
+    }
+  };
+
+  // Start editing a specification
+  const startEditingSpec = (index: number) => {
+    setEditingSpecIndex(index);
+    setNewSpecification({
+      name: specifications[index].name,
+      value: specifications[index].value
+    });
+  };
+
+  // Cancel editing a specification
+  const cancelEditingSpec = () => {
+    setEditingSpecIndex(null);
+    setNewSpecification({ name: '', value: '' });
+  };
+
+  // Update a specification
+  const updateSpecification = async () => {
+    if (editingSpecIndex === null || !newSpecification.name.trim() || !newSpecification.value.trim()) return;
+
+    const specToUpdate = specifications[editingSpecIndex];
+
+    try {
+      const { data, error } = await adminDbService.updateProductSpecification(
+        specToUpdate.id,
+        {
+          name: newSpecification.name,
+          value: newSpecification.value
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        const updatedSpecs = [...specifications];
+        updatedSpecs[editingSpecIndex] = data;
+        setSpecifications(updatedSpecs);
+        setEditingSpecIndex(null);
+        setNewSpecification({ name: '', value: '' });
+        toast.success('Specification updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating specification:', error);
+      toast.error('Failed to update specification');
+    }
+  };
+
+  // Delete a specification
+  const deleteSpecification = async (id: string) => {
+    try {
+      const { error } = await adminDbService.deleteProductSpecification(id);
+
+      if (error) {
+        throw error;
+      }
+
+      setSpecifications(specifications.filter(spec => spec.id !== id));
+      toast.success('Specification deleted successfully');
+    } catch (error) {
+      console.error('Error deleting specification:', error);
+      toast.error('Failed to delete specification');
+    }
   };
 
   // Handle form submission
@@ -448,6 +558,119 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               onChange={handleInputChange}
               className="w-full p-2 border border-gray-300 rounded-md"
             ></textarea>
+          </div>
+
+          {/* Product Specifications */}
+          <div className="mb-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-3">Product Specifications</h3>
+
+            {/* Specifications List */}
+            <div className="bg-gray-50 p-4 rounded-md mb-4">
+              {specifications.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Name</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Value</th>
+                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {specifications.map((spec, index) => (
+                        <tr key={spec.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="py-3 px-4 text-sm text-gray-900">{spec.name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-500">{spec.value}</td>
+                          <td className="py-3 px-4 text-right">
+                            <button
+                              type="button"
+                              onClick={() => startEditingSpec(index)}
+                              className="text-blue-600 hover:text-blue-800 mr-3"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteSpecification(spec.id)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No specifications added yet.</p>
+              )}
+            </div>
+
+            {/* Add/Edit Specification Form */}
+            <div className="bg-white p-4 border border-gray-200 rounded-md">
+              <h4 className="font-medium text-gray-900 mb-3">
+                {editingSpecIndex !== null ? 'Edit Specification' : 'Add New Specification'}
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label htmlFor="spec-name" className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
+                  <input
+                    type="text"
+                    id="spec-name"
+                    name="name"
+                    value={newSpecification.name}
+                    onChange={handleSpecificationChange}
+                    placeholder="e.g., Processor, RAM, Storage"
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700 mb-1">
+                    Value
+                  </label>
+                  <input
+                    type="text"
+                    id="spec-value"
+                    name="value"
+                    value={newSpecification.value}
+                    onChange={handleSpecificationChange}
+                    placeholder="e.g., Intel Core i7, 16GB, 512GB SSD"
+                    className="w-full p-2 border border-gray-300 rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                {editingSpecIndex !== null ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={cancelEditingSpec}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors mr-2"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={updateSpecification}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    >
+                      Update Specification
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={addSpecification}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Add Specification
+                  </button>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Submit Button */}

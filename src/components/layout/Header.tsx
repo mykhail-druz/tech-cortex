@@ -2,6 +2,7 @@
 
 import { useState, useEffect, FormEvent, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -53,7 +54,8 @@ export default function Header() {
       const target = event.target as HTMLElement;
 
       // Check if the click is inside the search input
-      const isClickInSearchInput = searchInputRef.current && searchInputRef.current.contains(target);
+      const isClickInSearchInput =
+        searchInputRef.current && searchInputRef.current.contains(target);
 
       // Check if the click is inside the suggestions dropdown
       const isClickInSuggestions = target.closest('.search-suggestions-dropdown') !== null;
@@ -107,9 +109,20 @@ export default function Header() {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="flex items-center">
-              <span className="text-2xl font-bold text-primary">TechCortex</span>
+          <div className="flex-shrink-0 mr-2 sm:mr-4 md:mr-6 flex items-center">
+            <Link href="/" className="flex items-center" aria-label="Go to homepage">
+              <div className="relative flex items-center h-16 py-2">
+                <Image
+                  src="/header-logo.svg"
+                  alt="TechCortex Logo"
+                  width={120}
+                  height={40}
+                  className="h-8 sm:h-9 md:h-10 lg:h-11 w-auto object-contain transition-all duration-300"
+                  style={{ maxWidth: '100%', objectPosition: 'left center' }}
+                  priority
+                  quality={90}
+                />
+              </div>
             </Link>
           </div>
 
