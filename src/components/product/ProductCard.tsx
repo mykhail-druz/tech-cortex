@@ -121,7 +121,7 @@ export default function ProductCard({
 
           {/* Бейджи */}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {oldPrice && (
+            {oldPrice > 0 && (
               <span className="bg-red-500 text-white text-xs font-medium px-2 py-1 rounded">
                 Sale
               </span>
@@ -180,7 +180,7 @@ export default function ProductCard({
           {/* Цена */}
           <div className="flex items-center mb-2">
             <span className="font-semibold text-gray-900">{formatPrice(price)}</span>
-            {oldPrice && (
+            {oldPrice > 0 && (
               <span className="ml-2 text-sm text-gray-500 line-through">{formatPrice(oldPrice)}</span>
             )}
           </div>

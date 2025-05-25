@@ -64,7 +64,7 @@ function ProductCard({ product }: { product: Product }) {
           <div className="flex items-center justify-between mt-2">
             <div>
               <span className="text-gray-900 font-bold">{formatPrice(product.price)}</span>
-              {product.old_price && (
+              {product.old_price > 0 && (
                 <span className="text-gray-500 text-sm line-through ml-2">
                   {formatPrice(product.old_price)}
                 </span>

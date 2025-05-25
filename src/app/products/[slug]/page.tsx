@@ -303,7 +303,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                 <span className="text-2xl font-bold text-gray-900">
                   {formatPrice(product.price)}
                 </span>
-                {product.old_price && (
+                {product.old_price > 0 && (
                   <span className="ml-2 text-gray-500 line-through">
                     {formatPrice(product.old_price)}
                   </span>
