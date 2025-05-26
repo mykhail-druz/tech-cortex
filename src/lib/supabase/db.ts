@@ -5,6 +5,7 @@ import {
   Category,
   ProductImage,
   ProductSpecification,
+  CategorySpecificationTemplate,
   CartItem,
   Order,
   OrderItem,
@@ -229,10 +230,98 @@ export const getProductBySlug = async (
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
-  // Get the specifications
+  // Get the specifications with template information
   const specificationsResponse = await supabase
     .from('product_specifications')
+    .select(`
+      *,
+      template:template_id (*)
+    `)
+    .eq('product_id', product.id)
+    .order('display_order', { ascending: true });
+
+  // Get approved reviews
+  const reviewsResponse = await supabase
+    .from('reviews')
+    .select(
+      `
+      *,
+      user:user_profiles (
+        first_name,
+        last_name
+      )
+    `
+    )
+    .eq('product_id', product.id)
+    .eq('is_approved', true)
+    .order('created_at', { ascending: false });
+
+  const productWithDetails: ProductWithDetails = {
+    ...product,
+    category,
+    subcategory,
+    images: imagesResponse.data || [],
+    specifications: specificationsResponse.data || [],
+    reviews: reviewsResponse.data || [],
+  };
+
+  return { data: productWithDetails, error: null };
+};
+
+export const getProductById = async (
+  id: string
+): Promise<{ data: ProductWithDetails | null; error: Error | null }> => {
+  // Get the product
+  const productResponse = await supabase.from('products').select('*').eq('id', id).single();
+
+  if (productResponse.error) {
+    return { data: null, error: productResponse.error };
+  }
+
+  const product = productResponse.data as Product;
+
+  // Get the category (if available)
+  let category = undefined;
+  if (product.category_id) {
+    const categoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', product.category_id)
+      .single();
+
+    if (!categoryResponse.error) {
+      category = categoryResponse.data;
+    }
+  }
+
+  // Get the subcategory (if available)
+  let subcategory = undefined;
+  if (product.subcategory_id) {
+    const subcategoryResponse = await supabase
+      .from('categories')
+      .select('*')
+      .eq('id', product.subcategory_id)
+      .single();
+
+    if (!subcategoryResponse.error) {
+      subcategory = subcategoryResponse.data;
+    }
+  }
+
+  // Get the images
+  const imagesResponse = await supabase
+    .from('product_images')
     .select('*')
+    .eq('product_id', product.id)
+    .order('display_order', { ascending: true });
+
+  // Get the specifications with template information
+  const specificationsResponse = await supabase
+    .from('product_specifications')
+    .select(`
+      *,
+      template:template_id (*)
+    `)
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
@@ -435,6 +524,14 @@ export const getCategoryBySlug = async (
   return { data: response.data, error: response.error };
 };
 
+export const getCategoryById = async (
+  id: string
+): Promise<{ data: Category | null; error: Error | null }> => {
+  const response = await supabase.from('categories').select('*').eq('id', id).single();
+
+  return { data: response.data, error: response.error };
+};
+
 export const getCategoryWithGoods = async (
   categorySlug: string
 ): Promise<{ data: CategoryWithGoods | null; error: Error | null }> => {
@@ -498,6 +595,82 @@ export const getCategoryWithGoods = async (
 
     return { data: categoryWithGoods, error: null };
   }
+};
+
+// Category Specification Templates
+export const createCategorySpecificationTemplate = async (
+  template: Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>
+): Promise<InsertResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .insert(template)
+    .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const updateCategorySpecificationTemplate = async (
+  id: string,
+  template: Partial<Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>>
+): Promise<UpdateResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .update({ ...template, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const deleteCategorySpecificationTemplate = async (id: string): Promise<DeleteResponse> => {
+  // Check if any product specifications are using this template
+  const { data: specs, error: checkError } = await supabase
+    .from('product_specifications')
+    .select('id')
+    .eq('template_id', id);
+
+  if (checkError) {
+    return { error: checkError };
+  }
+
+  // If specifications are using this template, return an error
+  if (specs && specs.length > 0) {
+    return {
+      error: new Error(
+        `Cannot delete template because it is being used by ${specs.length} product specifications`
+      ),
+    };
+  }
+
+  // If no specifications are using this template, delete it
+  const response = await supabase.from('category_specification_templates').delete().eq('id', id);
+  return { error: response.error };
+};
+
+export const getCategorySpecificationTemplates = async (
+  categoryId: string
+): Promise<SelectResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select('*')
+    .eq('category_id', categoryId)
+    .order('display_order', { ascending: true });
+
+  return { data: response.data, error: response.error };
+};
+
+export const getCategorySpecificationTemplateById = async (
+  id: string
+): Promise<{ data: CategorySpecificationTemplate | null; error: Error | null }> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  return { data: response.data, error: response.error };
 };
 
 // Cart

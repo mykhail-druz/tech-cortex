@@ -1,34 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useWishlist } from '@/contexts/WishlistContext';
+import { useCompare } from '@/contexts/CompareContext';
 import { cn } from '@/lib/utils';
 
-interface AddToWishlistButtonProps {
+interface AddToCompareButtonProps {
   productId: string;
   className?: string;
   variant?: 'icon' | 'button' | 'icon-button';
 }
 
-const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
+const AddToCompareButton: React.FC<AddToCompareButtonProps> = ({
   productId,
   className = '',
   variant = 'icon',
 }) => {
-  const { addItem, removeItem, isInWishlist, items } = useWishlist();
-  const isInList = isInWishlist(productId);
+  const { addItem, removeItem, isInCompareList } = useCompare();
+  const isInList = isInCompareList(productId);
   const [isAnimating, setIsAnimating] = useState(false);
 
-  const handleToggleWishlist = async () => {
+  const handleToggleCompare = async () => {
     setIsAnimating(true);
     setTimeout(() => setIsAnimating(false), 300);
 
     if (isInList) {
-      // Find the wishlist item to remove
-      const wishlistItem = items.find(item => item.product_id === productId);
-      if (wishlistItem) {
-        await removeItem(wishlistItem.id);
-      }
+      await removeItem(productId);
     } else {
       await addItem(productId);
     }
@@ -42,15 +38,15 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            handleToggleWishlist();
+            handleToggleCompare();
           }}
           className={cn(
             'text-gray-500 hover:text-primary transition-all duration-300 bg-white rounded-full p-2 shadow-md hover:shadow-lg',
-            isInList ? 'text-red-500 bg-red-50 hover:text-red-600' : 'hover:bg-gray-50',
+            isInList ? 'text-primary bg-primary-50' : 'hover:bg-gray-50',
             isAnimating && 'scale-90',
             className
           )}
-          aria-label={isInList ? 'Remove from wishlist' : 'Add to wishlist'}
+          aria-label={isInList ? 'Remove from compare' : 'Add to compare'}
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -58,15 +54,15 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
               "h-5 w-5 transition-transform duration-300",
               isInList ? "scale-110" : "scale-100"
             )}
-            fill={isInList ? 'currentColor' : 'none'}
+            fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            strokeWidth={isInList ? 0 : 1.5}
+            strokeWidth={1.5}
           >
             <path
               strokeLinecap="round"
               strokeLinejoin="round"
-              d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+              d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
             />
           </svg>
         </button>
@@ -78,17 +74,17 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
   if (variant === 'button') {
     return (
       <button
-        onClick={handleToggleWishlist}
+        onClick={handleToggleCompare}
         className={cn(
           'px-4 py-2 border rounded-md font-medium transition-all duration-300 shadow-sm hover:shadow-md',
           isInList
-            ? 'bg-red-50 border-red-500 text-red-500 hover:bg-red-100'
+            ? 'bg-primary-50 border-primary text-primary hover:bg-primary-100'
             : 'border-gray-300 text-gray-700 hover:bg-gray-50',
           isAnimating && 'scale-95',
           className
         )}
       >
-        {isInList ? 'Remove from Wishlist' : 'Add to Wishlist'}
+        {isInList ? 'Remove from Compare' : 'Add to Compare'}
       </button>
     );
   }
@@ -96,11 +92,11 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
   // Icon + text button variant
   return (
     <button
-      onClick={handleToggleWishlist}
+      onClick={handleToggleCompare}
       className={cn(
         'px-4 py-2 border rounded-md font-medium flex items-center justify-center gap-2 transition-all duration-300 shadow-sm hover:shadow-md',
         isInList
-          ? 'bg-red-50 border-red-500 text-red-500 hover:bg-red-100'
+          ? 'bg-primary-50 border-primary text-primary hover:bg-primary-100'
           : 'border-gray-300 text-gray-700 hover:bg-gray-50',
         isAnimating && 'scale-95',
         className
@@ -112,20 +108,20 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
           "h-5 w-5 transition-transform duration-300",
           isInList ? "scale-110" : "scale-100"
         )}
-        fill={isInList ? 'currentColor' : 'none'}
+        fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
-        strokeWidth={isInList ? 0 : 1.5}
+        strokeWidth={1.5}
       >
         <path
           strokeLinecap="round"
           strokeLinejoin="round"
-          d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+          d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"
         />
       </svg>
-      {isInList ? 'Remove from Wishlist' : 'Add to Wishlist'}
+      {isInList ? 'Remove from Compare' : 'Add to Compare'}
     </button>
   );
 };
 
-export default AddToWishlistButton;
+export default AddToCompareButton;

@@ -11,6 +11,7 @@ import { ProductWithDetails, Product } from '@/lib/supabase/types';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from '@/components/product/AddToWishlistButton';
+import AddToCompareButton from '@/components/product/AddToCompareButton';
 import ReviewSection from '@/components/review/ReviewSection';
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
@@ -340,36 +341,35 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               </div>
             </div>
 
-            {/* Add to cart, wishlist, and buy now buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            {/* Add to cart button and action buttons */}
+            <div className="flex gap-3 mb-6">
               <button
                 onClick={addToCart}
                 disabled={!product.in_stock}
                 className={cn(
-                  'px-6 py-3 rounded-md font-medium flex-1 transition-colors',
+                  'px-4 py-3 rounded-md font-medium w-1/2 transition-all duration-300 shadow-md hover:shadow-lg',
                   product.in_stock
-                    ? 'bg-primary text-white hover:bg-primary-dark'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 )}
               >
-                Add to Cart
+                <span className="flex items-center justify-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                  Add to Cart
+                </span>
               </button>
               <AddToWishlistButton 
                 productId={product.id} 
-                variant="icon-button" 
-                className="flex-1"
+                variant="icon-button"
+                className="flex-1 py-3 hover:scale-[1.02] active:scale-[0.98]"
               />
-              <button
-                disabled={!product.in_stock}
-                className={cn(
-                  'px-6 py-3 rounded-md font-medium flex-1 border transition-colors',
-                  product.in_stock
-                    ? 'border-primary text-primary hover:bg-primary hover:text-white'
-                    : 'border-gray-300 text-gray-500 cursor-not-allowed'
-                )}
-              >
-                Buy Now
-              </button>
+              <AddToCompareButton
+                productId={product.id}
+                variant="icon-button"
+                className="flex-1 py-3 hover:scale-[1.02] active:scale-[0.98]"
+              />
             </div>
 
             {/* Additional product details */}
@@ -499,46 +499,61 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                       className="py-2 flex items-baseline"
                     >
                       <div className="flex items-baseline" style={{ width: '40%' }}>
-                        <span className="text-sm font-medium text-gray-900 min-w-[120px]">{spec.name}</span>
+                        <span className="text-sm font-medium text-gray-900 min-w-[120px]">
+                          {spec.template ? spec.template.display_name : spec.name}
+                        </span>
                         <div className="mx-1 flex-grow border-b border-dotted border-gray-300"></div>
                       </div>
                       <div className="text-gray-700 flex-1">
                         {/* Format values based on content */}
-                        {spec.name.toLowerCase().includes('color') ? (
-                          <div className="flex items-center">
-                            <span 
-                              className="inline-block w-4 h-4 mr-2 rounded-full border border-gray-300" 
-                              style={{ 
-                                backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
-                                                spec.value.toLowerCase().includes('white') ? 'white' :
-                                                spec.value.toLowerCase().includes('silver') ? 'silver' :
-                                                spec.value.toLowerCase().includes('gold') ? 'gold' :
-                                                spec.value.toLowerCase().includes('blue') ? 'blue' :
-                                                spec.value.toLowerCase().includes('red') ? 'red' : 
-                                                'transparent'
-                              }}
-                            ></span>
-                            <span className="font-medium">{spec.value}</span>
-                          </div>
-                        ) : spec.name.toLowerCase().includes('capacity') || 
-                           spec.name.toLowerCase().includes('memory') || 
-                           spec.name.toLowerCase().includes('storage') || 
-                           spec.name.toLowerCase().includes('ram') ? (
-                          <span className="font-medium">
-                            {spec.value.replace(/(\d+)/, '$1')}
-                          </span>
-                        ) : spec.name.toLowerCase().includes('resolution') ? (
-                          <span className="font-medium">
-                            <span className="px-2 py-1 bg-gray-100 rounded text-sm">{spec.value}</span>
-                          </span>
-                        ) : spec.name.toLowerCase().includes('processor') || 
-                           spec.name.toLowerCase().includes('cpu') ? (
-                          <span className="font-medium">
-                            <span className="font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
-                          </span>
-                        ) : (
-                          <span className="font-medium">{spec.value}</span>
-                        )}
+                        {(() => {
+                          // Use the same name source for both display and formatting
+                          const specName = (spec.template ? spec.template.name : spec.name).toLowerCase();
+
+                          if (specName.includes('color')) {
+                            return (
+                              <div className="flex items-center">
+                                <span 
+                                  className="inline-block w-4 h-4 mr-2 rounded-full border border-gray-300" 
+                                  style={{ 
+                                    backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
+                                                    spec.value.toLowerCase().includes('white') ? 'white' :
+                                                    spec.value.toLowerCase().includes('silver') ? 'silver' :
+                                                    spec.value.toLowerCase().includes('gold') ? 'gold' :
+                                                    spec.value.toLowerCase().includes('blue') ? 'blue' :
+                                                    spec.value.toLowerCase().includes('red') ? 'red' : 
+                                                    'transparent'
+                                  }}
+                                ></span>
+                                <span className="font-medium">{spec.value}</span>
+                              </div>
+                            );
+                          } else if (specName.includes('capacity') || 
+                                    specName.includes('memory') || 
+                                    specName.includes('storage') || 
+                                    specName.includes('ram')) {
+                            return (
+                              <span className="font-medium">
+                                {spec.value.replace(/(\d+)/, '$1')}
+                              </span>
+                            );
+                          } else if (specName.includes('resolution')) {
+                            return (
+                              <span className="font-medium">
+                                <span className="px-2 py-1 bg-gray-100 rounded text-sm">{spec.value}</span>
+                              </span>
+                            );
+                          } else if (specName.includes('processor') || 
+                                    specName.includes('cpu')) {
+                            return (
+                              <span className="font-medium">
+                                <span className="font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
+                              </span>
+                            );
+                          } else {
+                            return <span className="font-medium">{spec.value}</span>;
+                          }
+                        })()}
                       </div>
                     </div>
                   ))}

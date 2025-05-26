@@ -47,14 +47,17 @@ export default function ProductsManagement() {
   }, [user]);
 
   // Filter products based on search term and selected category/subcategory
-  const filteredProducts = products.filter((product) => {
-    const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                         (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredProducts = products.filter(product => {
+    const matchesSearch =
+      product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (product.description && product.description.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = selectedCategory ? product.category_id === selectedCategory : true;
 
     // Add subcategory filter
-    const matchesSubcategory = selectedSubcategory ? product.subcategory_id === selectedSubcategory : true;
+    const matchesSubcategory = selectedSubcategory
+      ? product.subcategory_id === selectedSubcategory
+      : true;
 
     return matchesSearch && matchesCategory && matchesSubcategory;
   });
@@ -93,8 +96,8 @@ export default function ProductsManagement() {
     if (window.confirm('Are you sure you want to delete this product?')) {
       try {
         // Use the admin database service to delete the product
-        const { error } = await import('@/lib/supabase/adminDb').then(
-          module => module.deleteProduct(productId)
+        const { error } = await import('@/lib/supabase/adminDb').then(module =>
+          module.deleteProduct(productId)
         );
 
         if (error) {
@@ -126,8 +129,8 @@ export default function ProductsManagement() {
     <div>
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 className="text-2xl font-bold">Products Management</h1>
-        <Link 
-          href="/admin/products/new" 
+        <Link
+          href="/admin/products/new"
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full sm:w-auto text-center"
         >
           Add New Product
@@ -147,7 +150,7 @@ export default function ProductsManagement() {
               className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
               placeholder="Search by name or description..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -160,17 +163,19 @@ export default function ProductsManagement() {
                 id="category"
                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                 value={selectedCategory}
-                onChange={(e) => {
+                onChange={e => {
                   setSelectedCategory(e.target.value);
                   setSelectedSubcategory(''); // Reset subcategory when category changes
                 }}
               >
                 <option value="">All Categories</option>
-                {categories.filter(c => !c.is_subcategory).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {categories
+                  .filter(c => !c.is_subcategory)
+                  .map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -184,12 +189,12 @@ export default function ProductsManagement() {
                   id="subcategory"
                   className="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
                   value={selectedSubcategory}
-                  onChange={(e) => setSelectedSubcategory(e.target.value)}
+                  onChange={e => setSelectedSubcategory(e.target.value)}
                 >
                   <option value="">All Subcategories</option>
                   {categories
                     .find(c => c.id === selectedCategory)
-                    ?.subcategories?.map((subcategory) => (
+                    ?.subcategories?.map(subcategory => (
                       <option key={subcategory.id} value={subcategory.id}>
                         {subcategory.name}
                       </option>
@@ -226,7 +231,7 @@ export default function ProductsManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredProducts.length > 0 ? (
-                filteredProducts.map((product) => (
+                filteredProducts.map(product => (
                   <tr key={product.id}>
                     <td className="px-4 sm:px-6 py-4">
                       <div className="flex items-center">
@@ -240,8 +245,12 @@ export default function ProductsManagement() {
                           </div>
                         )}
                         <div className="ml-2 sm:ml-4">
-                          <div className="text-sm font-medium text-gray-900 line-clamp-1">{product.title}</div>
-                          <div className="text-xs sm:text-sm text-gray-500 hidden xs:block">SKU: {product.sku || 'N/A'}</div>
+                          <div className="text-sm font-medium text-gray-900 line-clamp-1">
+                            {product.title}
+                          </div>
+                          <div className="text-xs sm:text-sm text-gray-500 hidden xs:block">
+                            SKU: {product.sku || 'N/A'}
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -250,7 +259,7 @@ export default function ProductsManagement() {
                     </td>
                     <td className="px-4 sm:px-6 py-4">
                       <div className="text-sm text-gray-900">${product.price.toFixed(2)}</div>
-                      {product.old_price && (
+                      {product.old_price && product.old_price > 0 && (
                         <div className="text-xs sm:text-sm text-gray-500 line-through">
                           ${product.old_price.toFixed(2)}
                         </div>

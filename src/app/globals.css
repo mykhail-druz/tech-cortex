@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+    .animate-pulse-once {
+        animation: pulse-once 1s ease-in-out;
+    }
+}
+
 @layer base {
     :root {
         --background: 0 0% 100%;
@@ -11,6 +17,9 @@
         --popover: 0 0% 100%;
         --popover-foreground: 222.2 84% 4.9%;
         --primary: 201 100% 45%;
+        --primary-dark: 201 100% 35%;
+        --primary-50: 201 100% 95%;
+        --primary-100: 201 100% 90%;
         --primary-foreground: 210 40% 98%;
         --secondary: 261 100% 50%;
         --secondary-foreground: 222.2 47.4% 11.2%;
@@ -34,6 +43,9 @@
         --popover: 222.2 84% 4.9%;
         --popover-foreground: 210 40% 98%;
         --primary: 201 100% 45%;
+        --primary-dark: 201 100% 35%;
+        --primary-50: 201 100% 20%;
+        --primary-100: 201 100% 25%;
         --primary-foreground: 210 40% 98%;
         --secondary: 261 100% 50%;
         --secondary-foreground: 210 40% 98%;
@@ -55,6 +67,16 @@
     }
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* Custom animations */
+    @keyframes pulse-once {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
     }
 
     /* Custom scrollbar styles */

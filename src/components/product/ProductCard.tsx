@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from './AddToWishlistButton';
+import AddToCompareButton from './AddToCompareButton';
 
 // Тип для данных продукта
 interface ProductProps {
@@ -133,10 +134,14 @@ export default function ProductCard({
             )}
           </div>
 
-          {/* Wishlist button in top right */}
-          <div className="absolute top-2 right-2 z-10" onClick={(e) => e.stopPropagation()}>
+          {/* Action buttons in top right */}
+          <div className="absolute top-2 right-2 z-10 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
             <AddToWishlistButton 
               productId={id} 
+              variant="icon"
+            />
+            <AddToCompareButton
+              productId={id}
               variant="icon"
             />
           </div>

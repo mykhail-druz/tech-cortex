@@ -4,6 +4,7 @@ import {
   Category,
   ProductImage,
   ProductSpecification,
+  CategorySpecificationTemplate,
   InsertResponse,
   UpdateResponse,
   DeleteResponse,
@@ -199,6 +200,19 @@ export const getProductSpecifications = async (productId: string): Promise<Selec
   return { data: response.data, error: response.error };
 };
 
+export const getProductSpecificationsWithTemplates = async (productId: string): Promise<SelectResponse<any>> => {
+  const response = await supabase
+    .from('product_specifications')
+    .select(`
+      *,
+      template:template_id (*)
+    `)
+    .eq('product_id', productId)
+    .order('display_order', { ascending: true });
+
+  return { data: response.data, error: response.error };
+};
+
 // Categories
 export const createCategory = async (
   category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
@@ -312,6 +326,91 @@ export const deleteCategory = async (id: string): Promise<DeleteResponse> => {
     console.error('Error in deleteCategory:', error);
     return { error: error instanceof Error ? error : new Error('Unknown error in deleteCategory') };
   }
+};
+
+// Category Specification Templates
+export const createCategorySpecificationTemplate = async (
+  template: Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>
+): Promise<InsertResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .insert(template)
+    .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const updateCategorySpecificationTemplate = async (
+  id: string,
+  template: Partial<Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>>
+): Promise<UpdateResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .update({ ...template, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const deleteCategorySpecificationTemplate = async (id: string): Promise<DeleteResponse> => {
+  try {
+    // Check if any product specifications are using this template
+    const { data: specs, error: checkError } = await supabase
+      .from('product_specifications')
+      .select('id')
+      .eq('template_id', id);
+
+    if (checkError) {
+      return { error: checkError };
+    }
+
+    // If specifications are using this template, return an error
+    if (specs && specs.length > 0) {
+      return {
+        error: new Error(
+          `Cannot delete template because it is being used by ${specs.length} product specifications`
+        ),
+      };
+    }
+
+    // If no specifications are using this template, delete it
+    const response = await supabase.from('category_specification_templates').delete().eq('id', id);
+    return { error: response.error };
+  } catch (error) {
+    console.error('Error in deleteCategorySpecificationTemplate:', error);
+    return { 
+      error: error instanceof Error 
+        ? error 
+        : new Error('Unknown error in deleteCategorySpecificationTemplate') 
+    };
+  }
+};
+
+export const getCategorySpecificationTemplates = async (
+  categoryId: string
+): Promise<SelectResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select('*')
+    .eq('category_id', categoryId)
+    .order('display_order', { ascending: true });
+
+  return { data: response.data, error: response.error };
+};
+
+export const getCategorySpecificationTemplateById = async (
+  id: string
+): Promise<{ data: CategorySpecificationTemplate | null; error: Error | null }> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  return { data: response.data, error: response.error };
 };
 
 // Orders

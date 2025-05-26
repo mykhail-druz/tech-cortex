@@ -85,7 +85,9 @@ export interface ProductWithDetails extends Product {
   category?: Category;
   subcategory?: Category;
   images?: ProductImage[];
-  specifications?: ProductSpecification[];
+  specifications?: (ProductSpecification & {
+    template?: CategorySpecificationTemplate;
+  })[];
   reviews?: Review[];
 }
 
@@ -100,10 +102,25 @@ export interface ProductImage {
   created_at: string;
 }
 
+// Category Specification Template type
+export interface CategorySpecificationTemplate {
+  id: string;
+  category_id: string;
+  name: string;
+  display_name: string;
+  description: string | null;
+  is_required: boolean;
+  data_type: string;
+  display_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // Product Specification type
 export interface ProductSpecification {
   id: string;
   product_id: string;
+  template_id: string | null;
   name: string;
   value: string;
   display_order: number;

@@ -11,19 +11,25 @@ import { useWishlist } from '@/contexts/WishlistContext';
 import { getNavigationLinks } from '@/lib/supabase/db';
 import { NavigationLink } from '@/lib/supabase/types';
 import SearchSuggestions from '@/components/search/SearchSuggestions';
+import CompareIndicator from '@/components/compare/CompareIndicator';
+import WishlistIndicator from '@/components/wishlist/WishlistIndicator';
+import CartIndicator from '@/components/cart/CartIndicator';
+import UserProfileIndicator from '@/components/user/UserProfileIndicator';
 
 export default function Header() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const { user, profile, signOut } = useAuth();
-  const { itemCount } = useCart();
-  const { itemCount: wishlistItemCount } = useWishlist();
+  const { user, signOut } = useAuth();
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMobileMenuOpen(false);
+  };
 
   // Fetch navigation links on the component mount
   useEffect(() => {
@@ -71,11 +77,6 @@ export default function Header() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
-
-  const handleSignOut = async () => {
-    await signOut();
-    setIsUserMenuOpen(false);
-  };
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -183,130 +184,18 @@ export default function Header() {
           </div>
 
           {/* User Action Icons */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
             {/* Wishlist */}
-            <Link href="/account/wishlist" className="text-gray-600 hover:text-primary relative">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                className="h-6 w-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                />
-              </svg>
-              {wishlistItemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-secondary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                  {wishlistItemCount > 99 ? '99+' : wishlistItemCount}
-                </span>
-              )}
-            </Link>
+            <WishlistIndicator />
+
+            {/* Compare */}
+            <CompareIndicator />
 
             {/* Cart */}
-            <Link href="/cart" className="text-gray-600 hover:text-primary relative">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                className="h-6 w-6"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              {itemCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-secondary text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
-                  {itemCount > 99 ? '99+' : itemCount}
-                </span>
-              )}
-            </Link>
+            <CartIndicator />
 
             {/* User Profile / Login */}
-            <div className="relative">
-              {user ? (
-                <button
-                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className="text-gray-600 hover:text-primary flex items-center"
-                >
-                  <span className="hidden sm:block mr-2 text-sm font-medium">
-                    {profile?.first_name || user.email?.split('@')[0]}
-                  </span>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="h-6 w-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </button>
-              ) : (
-                <Link href="/auth/login" className="text-gray-600 hover:text-primary">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    className="h-6 w-6"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </Link>
-              )}
-
-              {/* User dropdown menu */}
-              {isUserMenuOpen && user && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
-                  <Link
-                    href="/account"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    My Account
-                  </Link>
-                  <Link
-                    href="/account/orders"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Orders
-                  </Link>
-                  <Link
-                    href="/account/wishlist"
-                    className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                    onClick={() => setIsUserMenuOpen(false)}
-                  >
-                    Wishlist
-                  </Link>
-                  <button
-                    onClick={handleSignOut}
-                    className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
+            <UserProfileIndicator />
           </div>
 
           {/* Mobile menu button */}
@@ -438,6 +327,13 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Wishlist
+                </Link>
+                <Link
+                  href="/compare"
+                  className="block py-2 text-gray-600 hover:text-primary"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Compare Products
                 </Link>
                 <button
                   onClick={handleSignOut}

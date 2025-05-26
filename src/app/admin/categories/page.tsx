@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Category } from '@/lib/supabase/types';
+import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types';
 
 export default function CategoriesPage() {
   // const { user } = useAuth(); // Commented out as it's not being used
@@ -31,6 +31,20 @@ export default function CategoriesPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Specification templates state
+  const [specTemplates, setSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [newTemplate, setNewTemplate] = useState({
+    name: '',
+    display_name: '',
+    description: '',
+    is_required: false,
+    data_type: 'text',
+  });
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+  const [templateFormErrors, setTemplateFormErrors] = useState<Record<string, string>>({});
 
   // Fetch categories
   useEffect(() => {
@@ -162,6 +176,186 @@ export default function CategoriesPage() {
   const openDeleteModal = (category: Category) => {
     setCurrentCategory(category);
     setShowDeleteModal(true);
+  };
+
+  // Open specification templates modal
+  const openTemplatesModal = async (category: Category) => {
+    // Check if the category is a root category
+    if (category.is_subcategory) {
+      toast.error('Specification templates can only be created for root categories');
+      return;
+    }
+
+    setCurrentCategory(category);
+    setLoadingTemplates(true);
+    setShowTemplatesModal(true);
+
+    try {
+      const { data, error } = await adminDbService.getCategorySpecificationTemplates(category.id);
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setSpecTemplates(data);
+      }
+    } catch (error) {
+      console.error('Error fetching specification templates:', error);
+      toast.error('Failed to load specification templates');
+    } finally {
+      setLoadingTemplates(false);
+    }
+
+    // Reset template form
+    setNewTemplate({
+      name: '',
+      display_name: '',
+      description: '',
+      is_required: false,
+      data_type: 'text',
+    });
+    setEditingTemplateId(null);
+    setTemplateFormErrors({});
+  };
+
+  // Handle template form input changes
+  const handleTemplateInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setNewTemplate(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle template checkbox changes
+  const handleTemplateCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
+    setNewTemplate(prev => ({ ...prev, [name]: checked }));
+  };
+
+  // Validate template form
+  const validateTemplateForm = () => {
+    const errors: Record<string, string> = {};
+
+    if (!newTemplate.name.trim()) errors.name = 'Name is required';
+    if (!newTemplate.display_name.trim()) errors.display_name = 'Display name is required';
+
+    setTemplateFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Add a new template
+  const addTemplate = async () => {
+    if (!currentCategory || !validateTemplateForm()) return;
+
+    try {
+      const templateData = {
+        ...newTemplate,
+        category_id: currentCategory.id,
+        display_order: specTemplates.length,
+      };
+
+      const { data, error } = await adminDbService.createCategorySpecificationTemplate(templateData);
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setSpecTemplates(prev => [...prev, data]);
+        setNewTemplate({
+          name: '',
+          display_name: '',
+          description: '',
+          is_required: false,
+          data_type: 'text',
+        });
+        toast.success('Specification template added successfully');
+      }
+    } catch (error) {
+      console.error('Error adding specification template:', error);
+      toast.error('Failed to add specification template');
+    }
+  };
+
+  // Start editing a template
+  const startEditingTemplate = (template: CategorySpecificationTemplate) => {
+    setEditingTemplateId(template.id);
+    setNewTemplate({
+      name: template.name,
+      display_name: template.display_name,
+      description: template.description || '',
+      is_required: template.is_required,
+      data_type: template.data_type,
+    });
+  };
+
+  // Cancel editing a template
+  const cancelEditingTemplate = () => {
+    setEditingTemplateId(null);
+    setNewTemplate({
+      name: '',
+      display_name: '',
+      description: '',
+      is_required: false,
+      data_type: 'text',
+    });
+    setTemplateFormErrors({});
+  };
+
+  // Update a template
+  const updateTemplate = async () => {
+    if (!editingTemplateId || !validateTemplateForm()) return;
+
+    try {
+      const templateData = {
+        ...newTemplate,
+      };
+
+      const { data, error } = await adminDbService.updateCategorySpecificationTemplate(
+        editingTemplateId,
+        templateData
+      );
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        setSpecTemplates(prev => 
+          prev.map(template => (template.id === editingTemplateId ? data : template))
+        );
+        setEditingTemplateId(null);
+        setNewTemplate({
+          name: '',
+          display_name: '',
+          description: '',
+          is_required: false,
+          data_type: 'text',
+        });
+        toast.success('Specification template updated successfully');
+      }
+    } catch (error) {
+      console.error('Error updating specification template:', error);
+      toast.error('Failed to update specification template');
+    }
+  };
+
+  // Delete a template
+  const deleteTemplate = async (id: string) => {
+    try {
+      const { error } = await adminDbService.deleteCategorySpecificationTemplate(id);
+
+      if (error) {
+        throw error;
+      }
+
+      setSpecTemplates(prev => prev.filter(template => template.id !== id));
+      toast.success('Specification template deleted successfully');
+    } catch (error) {
+      console.error('Error deleting specification template:', error);
+      toast.error('Failed to delete specification template');
+    }
   };
 
   // Add the new category
@@ -395,10 +589,19 @@ export default function CategoriesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => openEditModal(category)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      className="text-indigo-600 hover:text-indigo-900 mr-3"
                     >
                       Edit
                     </button>
+                    {/* Only show Spec Templates button for root categories */}
+                    {!category.is_subcategory && (
+                      <button
+                        onClick={() => openTemplatesModal(category)}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                      >
+                        Spec Templates
+                      </button>
+                    )}
                     <button
                       onClick={() => openDeleteModal(category)}
                       className="text-red-600 hover:text-red-900"
@@ -772,6 +975,228 @@ export default function CategoriesPage() {
                 Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Specification Templates Modal */}
+      {showTemplatesModal && currentCategory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">
+                Specification Templates for &quot;{currentCategory.name}&quot;
+              </h2>
+              <button
+                onClick={() => setShowTemplatesModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+                aria-label="Close"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {loadingTemplates ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="text-center">
+                  <div className="w-12 h-12 border-4 border-t-blue-500 border-b-blue-500 rounded-full animate-spin mx-auto"></div>
+                  <p className="mt-4">Loading templates...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Templates List */}
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">Existing Templates</h3>
+                  {specTemplates.length > 0 ? (
+                    <div className="bg-gray-50 rounded-md overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-100">
+                          <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Name
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Display Name
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Data Type
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Required
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Description
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {specTemplates.map((template) => (
+                            <tr key={template.id}>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {template.name}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {template.display_name}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {template.data_type}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                                {template.is_required ? 'Yes' : 'No'}
+                              </td>
+                              <td className="px-4 py-3 text-sm text-gray-500 max-w-xs truncate">
+                                {template.description || 'No description'}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-right text-sm font-medium">
+                                <button
+                                  onClick={() => startEditingTemplate(template)}
+                                  className="text-indigo-600 hover:text-indigo-900 mr-3"
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  onClick={() => deleteTemplate(template.id)}
+                                  className="text-red-600 hover:text-red-900"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 bg-gray-50 p-4 rounded-md">
+                      No specification templates defined for this category yet.
+                    </p>
+                  )}
+                </div>
+
+                {/* Add/Edit Template Form */}
+                <div className="bg-white border border-gray-200 rounded-md p-4">
+                  <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    {editingTemplateId ? 'Edit Template' : 'Add New Template'}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    {/* Name */}
+                    <div>
+                      <label htmlFor="template-name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Name* (internal identifier)
+                      </label>
+                      <input
+                        type="text"
+                        id="template-name"
+                        name="name"
+                        value={newTemplate.name}
+                        onChange={handleTemplateInputChange}
+                        placeholder="e.g., processor_speed"
+                        className={`w-full p-2 border rounded-md ${
+                          templateFormErrors.name ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
+                      {templateFormErrors.name && (
+                        <p className="mt-1 text-sm text-red-500">{templateFormErrors.name}</p>
+                      )}
+                    </div>
+
+                    {/* Display Name */}
+                    <div>
+                      <label htmlFor="template-display-name" className="block text-sm font-medium text-gray-700 mb-1">
+                        Display Name* (shown to users)
+                      </label>
+                      <input
+                        type="text"
+                        id="template-display-name"
+                        name="display_name"
+                        value={newTemplate.display_name}
+                        onChange={handleTemplateInputChange}
+                        placeholder="e.g., Processor Speed"
+                        className={`w-full p-2 border rounded-md ${
+                          templateFormErrors.display_name ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                      />
+                      {templateFormErrors.display_name && (
+                        <p className="mt-1 text-sm text-red-500">{templateFormErrors.display_name}</p>
+                      )}
+                    </div>
+
+                    {/* Data Type */}
+                    <div>
+                      <label htmlFor="template-data-type" className="block text-sm font-medium text-gray-700 mb-1">
+                        Data Type
+                      </label>
+                      <select
+                        id="template-data-type"
+                        name="data_type"
+                        value={newTemplate.data_type}
+                        onChange={handleTemplateInputChange}
+                        className="w-full p-2 border border-gray-300 rounded-md"
+                      >
+                        <option value="text">Text</option>
+                        <option value="number">Number</option>
+                        <option value="boolean">Boolean</option>
+                        <option value="date">Date</option>
+                      </select>
+                    </div>
+
+                    {/* Required */}
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="template-is-required"
+                        name="is_required"
+                        checked={newTemplate.is_required}
+                        onChange={handleTemplateCheckboxChange}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="template-is-required" className="ml-2 block text-sm text-gray-900">
+                        Required Field
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="mb-4">
+                    <label htmlFor="template-description" className="block text-sm font-medium text-gray-700 mb-1">
+                      Description
+                    </label>
+                    <textarea
+                      id="template-description"
+                      name="description"
+                      rows={2}
+                      value={newTemplate.description}
+                      onChange={handleTemplateInputChange}
+                      placeholder="Optional description of this specification"
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    ></textarea>
+                  </div>
+
+                  <div className="flex justify-end space-x-3">
+                    {editingTemplateId && (
+                      <button
+                        onClick={cancelEditingTemplate}
+                        className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                    <button
+                      onClick={editingTemplateId ? updateTemplate : addTemplate}
+                      className="px-4 py-2 bg-blue-500 text-white rounded text-sm font-medium hover:bg-blue-600"
+                    >
+                      {editingTemplateId ? 'Update Template' : 'Add Template'}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

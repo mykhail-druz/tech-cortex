@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
-import { Product, Category, ProductSpecification } from '@/lib/supabase/types';
+import { Product, Category, ProductSpecification, CategorySpecificationTemplate } from '@/lib/supabase/types';
 import Link from 'next/link';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
@@ -41,8 +41,16 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
   // Add state for product specifications
   const [specifications, setSpecifications] = useState<ProductSpecification[]>([]);
-  const [newSpecification, setNewSpecification] = useState({ name: '', value: '' });
+  const [newSpecification, setNewSpecification] = useState({ 
+    name: '', 
+    value: '',
+    template_id: '' 
+  });
   const [editingSpecIndex, setEditingSpecIndex] = useState<number | null>(null);
+
+  // Add state for specification templates
+  const [specTemplates, setSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Fetch product and categories
   useEffect(() => {
@@ -80,8 +88,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           setCategories(categoriesResponse.data);
         }
 
-        // Fetch product specifications
-        const specificationsResponse = await adminDbService.getProductSpecifications(productId);
+        // Fetch product specifications with template information
+        const specificationsResponse = await adminDbService.getProductSpecificationsWithTemplates(productId);
         if (specificationsResponse.data) {
           setSpecifications(specificationsResponse.data);
         }
@@ -107,11 +115,38 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
         setFormData(prev => ({...prev, subcategory_id: ''}));
       }
+
+      // Fetch specification templates for the selected category
+      const fetchTemplates = async () => {
+        setLoadingTemplates(true);
+        try {
+          const { data, error } = await adminDbService.getCategorySpecificationTemplates(formData.category_id);
+
+          if (error) {
+            throw error;
+          }
+
+          if (data) {
+            setSpecTemplates(data);
+          } else {
+            setSpecTemplates([]);
+          }
+        } catch (error) {
+          console.error('Error fetching specification templates:', error);
+          toast.error('Failed to load specification templates');
+          setSpecTemplates([]);
+        } finally {
+          setLoadingTemplates(false);
+        }
+      };
+
+      fetchTemplates();
     } else {
       setAvailableSubcategories([]);
       setFormData(prev => ({...prev, subcategory_id: ''}));
+      setSpecTemplates([]);
     }
-  }, [formData.category_id, categories]);
+  }, [formData.category_id, categories, toast]);
 
   // Generate slug from title
   const generateSlug = (title: string) => {
@@ -176,18 +211,40 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   };
 
   // Handle specification input changes
-  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setNewSpecification(prev => ({ ...prev, [name]: value }));
+
+    // If template_id changes, update the name field with the template name
+    if (name === 'template_id' && value) {
+      const selectedTemplate = specTemplates.find(t => t.id === value);
+      if (selectedTemplate) {
+        setNewSpecification(prev => ({ 
+          ...prev, 
+          [name]: value,
+          name: selectedTemplate.name
+        }));
+      } else {
+        setNewSpecification(prev => ({ ...prev, [name]: value }));
+      }
+    } else {
+      setNewSpecification(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   // Add a new specification
   const addSpecification = async () => {
-    if (!newSpecification.name.trim() || !newSpecification.value.trim() || !product) return;
+    if (!newSpecification.value.trim() || !product) return;
+
+    // Either template_id or name must be provided
+    if (!newSpecification.template_id && !newSpecification.name.trim()) {
+      toast.error('Either select a template or provide a specification name');
+      return;
+    }
 
     try {
       const { data, error } = await adminDbService.addProductSpecification({
         product_id: product.id,
+        template_id: newSpecification.template_id || null,
         name: newSpecification.name,
         value: newSpecification.value,
         display_order: specifications.length
@@ -199,7 +256,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       if (data) {
         setSpecifications([...specifications, data]);
-        setNewSpecification({ name: '', value: '' });
+        setNewSpecification({ name: '', value: '', template_id: '' });
         toast.success('Specification added successfully');
       }
     } catch (error) {
@@ -213,19 +270,26 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     setEditingSpecIndex(index);
     setNewSpecification({
       name: specifications[index].name,
-      value: specifications[index].value
+      value: specifications[index].value,
+      template_id: specifications[index].template_id || ''
     });
   };
 
   // Cancel editing a specification
   const cancelEditingSpec = () => {
     setEditingSpecIndex(null);
-    setNewSpecification({ name: '', value: '' });
+    setNewSpecification({ name: '', value: '', template_id: '' });
   };
 
   // Update a specification
   const updateSpecification = async () => {
-    if (editingSpecIndex === null || !newSpecification.name.trim() || !newSpecification.value.trim()) return;
+    if (editingSpecIndex === null || !newSpecification.value.trim()) return;
+
+    // Either template_id or name must be provided
+    if (!newSpecification.template_id && !newSpecification.name.trim()) {
+      toast.error('Either select a template or provide a specification name');
+      return;
+    }
 
     const specToUpdate = specifications[editingSpecIndex];
 
@@ -233,6 +297,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       const { data, error } = await adminDbService.updateProductSpecification(
         specToUpdate.id,
         {
+          template_id: newSpecification.template_id || null,
           name: newSpecification.name,
           value: newSpecification.value
         }
@@ -247,7 +312,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         updatedSpecs[editingSpecIndex] = data;
         setSpecifications(updatedSpecs);
         setEditingSpecIndex(null);
-        setNewSpecification({ name: '', value: '' });
+        setNewSpecification({ name: '', value: '', template_id: '' });
         toast.success('Specification updated successfully');
       }
     } catch (error) {
@@ -573,14 +638,32 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                       <tr className="bg-gray-100">
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Name</th>
                         <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Value</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Template</th>
                         <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {specifications.map((spec, index) => (
                         <tr key={spec.id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="py-3 px-4 text-sm text-gray-900">{spec.name}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {spec.template ? (
+                              <span title={spec.name}>{spec.template.display_name}</span>
+                            ) : (
+                              spec.name
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-sm text-gray-500">{spec.value}</td>
+                          <td className="py-3 px-4 text-sm text-gray-500">
+                            {spec.template ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                Templated
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                Custom
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 text-right">
                             <button
                               type="button"
@@ -612,10 +695,46 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               <h4 className="font-medium text-gray-900 mb-3">
                 {editingSpecIndex !== null ? 'Edit Specification' : 'Add New Specification'}
               </h4>
+
+              {/* Template Selector */}
+              {formData.category_id && (
+                <div className="mb-4">
+                  <label htmlFor="template_id" className="block text-sm font-medium text-gray-700 mb-1">
+                    Specification Template
+                  </label>
+                  <div className="flex items-center">
+                    <select
+                      id="template_id"
+                      name="template_id"
+                      value={newSpecification.template_id}
+                      onChange={handleSpecificationChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    >
+                      <option value="">Select a template (optional)</option>
+                      {specTemplates.map((template) => (
+                        <option key={template.id} value={template.id}>
+                          {template.display_name}
+                        </option>
+                      ))}
+                    </select>
+                    {loadingTemplates && (
+                      <div className="ml-2">
+                        <div className="w-5 h-5 border-2 border-t-blue-500 border-b-blue-500 rounded-full animate-spin"></div>
+                      </div>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {specTemplates.length === 0 && !loadingTemplates
+                      ? 'No templates available for this category. You can still add custom specifications.'
+                      : 'Select a template or enter a custom specification name below.'}
+                  </p>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label htmlFor="spec-name" className="block text-sm font-medium text-gray-700 mb-1">
-                    Name
+                    Name {!newSpecification.template_id && '*'}
                   </label>
                   <input
                     type="text"
@@ -625,11 +744,17 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     onChange={handleSpecificationChange}
                     placeholder="e.g., Processor, RAM, Storage"
                     className="w-full p-2 border border-gray-300 rounded-md"
+                    disabled={!!newSpecification.template_id}
                   />
+                  {newSpecification.template_id && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Name is automatically set from the selected template
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700 mb-1">
-                    Value
+                    Value*
                   </label>
                   <input
                     type="text"

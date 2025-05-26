@@ -47,7 +47,7 @@ export default function UsersManagement() {
             ...userData,
             email: userData.user?.email || '',
             created_at_auth: userData.created_at,
-            last_sign_in: null // We don't have this information from the database
+            last_sign_in: null, // We don't have this information from the database
           }));
 
           setUsers(transformedUsers);
@@ -65,12 +65,12 @@ export default function UsersManagement() {
   }, [user]);
 
   // Filter users based on search term and role
-  const filteredUsers = users.filter((user) => {
+  const filteredUsers = users.filter(user => {
     const fullName = `${user.first_name || ''} ${user.last_name || ''}`.toLowerCase();
-    const matchesSearch = 
-      fullName.includes(searchTerm.toLowerCase()) || 
+    const matchesSearch =
+      fullName.includes(searchTerm.toLowerCase()) ||
       (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (user.id.toLowerCase().includes(searchTerm.toLowerCase()));
+      user.id.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesRole = roleFilter ? user.role_id === roleFilter : true;
 
@@ -80,9 +80,9 @@ export default function UsersManagement() {
   // Function to update user role
   const handleUpdateRole = async (userId: string, newRoleId: string) => {
     try {
-      // Update user role in the database
-      const { data, error } = await import('@/lib/supabase/adminDb').then(
-        module => module.updateUserRole(userId, newRoleId)
+      // Update a user role in the database
+      const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.updateUserRole(userId, newRoleId)
       );
 
       if (error) {
@@ -90,16 +90,18 @@ export default function UsersManagement() {
       }
 
       // Update it in the state
-      setUsers(users.map(user => 
-        user.id === userId 
-          ? { 
-              ...user, 
-              role_id: newRoleId,
-              role: roles.find(r => r.id === newRoleId) || null,
-              updated_at: new Date().toISOString() 
-            } 
-          : user
-      ));
+      setUsers(
+        users.map(user =>
+          user.id === userId
+            ? {
+                ...user,
+                role_id: newRoleId,
+                role: roles.find(r => r.id === newRoleId) || null,
+                updated_at: new Date().toISOString(),
+              }
+            : user
+        )
+      );
 
       alert(`User ${userId} role updated successfully`);
     } catch (error) {
@@ -123,8 +125,8 @@ export default function UsersManagement() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Users Management</h1>
-        <Link 
-          href="/admin/users/new" 
+        <Link
+          href="/admin/users/new"
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
         >
           Add New User
@@ -144,7 +146,7 @@ export default function UsersManagement() {
               className="w-full p-2 border border-gray-300 rounded-md"
               placeholder="Search by name, email, or ID..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div>
@@ -155,10 +157,10 @@ export default function UsersManagement() {
               id="role"
               className="w-full p-2 border border-gray-300 rounded-md"
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
+              onChange={e => setRoleFilter(e.target.value)}
             >
               <option value="">All Roles</option>
-              {roles.map((role) => (
+              {roles.map(role => (
                 <option key={role.id} value={role.id}>
                   {role.name.charAt(0).toUpperCase() + role.name.slice(1)}
                 </option>
@@ -196,20 +198,23 @@ export default function UsersManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+                filteredUsers.map(user => (
                   <tr key={user.id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600">
-                            {user.first_name?.[0]}{user.last_name?.[0]}
+                            {user.first_name?.[0]}
+                            {user.last_name?.[0]}
                           </div>
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
                             {user.first_name} {user.last_name}
                           </div>
-                          <div className="text-sm text-gray-500">ID: {user.id.substring(0, 8)}...</div>
+                          <div className="text-sm text-gray-500">
+                            ID: {user.id.substring(0, 8)}...
+                          </div>
                         </div>
                       </div>
                     </td>
@@ -222,8 +227,8 @@ export default function UsersManagement() {
                           user.role?.name === 'admin'
                             ? 'bg-purple-100 text-purple-800'
                             : user.role?.name === 'manager'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-green-100 text-green-800'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
                         }`}
                       >
                         {user.role?.name || 'Unknown'}
@@ -233,7 +238,9 @@ export default function UsersManagement() {
                       {new Date(user.created_at_auth || user.created_at).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.last_sign_in ? new Date(user.last_sign_in).toLocaleDateString() : 'Never'}
+                      {user.last_sign_in
+                        ? new Date(user.last_sign_in).toLocaleDateString()
+                        : 'Never'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-2">
@@ -244,12 +251,10 @@ export default function UsersManagement() {
                           View
                         </Link>
                         <div className="relative group">
-                          <button className="text-gray-600 hover:text-gray-900">
-                            Change Role
-                          </button>
+                          <button className="text-gray-600 hover:text-gray-900">Change Role</button>
                           <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden group-hover:block z-10">
                             <div className="py-1">
-                              {roles.map((role) => (
+                              {roles.map(role => (
                                 <button
                                   key={role.id}
                                   onClick={() => handleUpdateRole(user.id, role.id)}

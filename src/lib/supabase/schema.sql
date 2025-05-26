@@ -81,10 +81,25 @@ CREATE TABLE product_images (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Category Specification Templates Table
+CREATE TABLE category_specification_templates (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  display_name VARCHAR(100) NOT NULL,
+  description TEXT,
+  is_required BOOLEAN DEFAULT FALSE,
+  data_type VARCHAR(50) DEFAULT 'text',
+  display_order INT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Product Specifications Table
 CREATE TABLE product_specifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+  template_id UUID REFERENCES category_specification_templates(id),
   name VARCHAR(100) NOT NULL,
   value TEXT NOT NULL,
   display_order INT DEFAULT 0

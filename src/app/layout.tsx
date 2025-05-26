@@ -8,6 +8,7 @@ import MainContent from '@/components/layout/MainContent';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
 import { WishlistProvider } from '@/contexts/WishlistContext';
+import { CompareProvider } from '@/contexts/CompareContext';
 import { StripeProvider } from '@/contexts/StripeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
@@ -94,20 +95,22 @@ export default function RootLayout({
           <CartProvider>
             <ToastProvider>
               <WishlistProvider>
-                <StripeProvider>
-                  <SidebarProvider>
-                    <Header />
-                    <div className="flex flex-grow">
-                      <Suspense
-                        fallback={<div className="w-0 md:w-64 transition-all duration-300"></div>}
-                      >
-                        <Sidebar />
-                      </Suspense>
-                      <MainContent>{children}</MainContent>
-                    </div>
-                    <Footer />
-                  </SidebarProvider>
-                </StripeProvider>
+                <CompareProvider>
+                  <StripeProvider>
+                    <SidebarProvider>
+                      <Header />
+                      <div className="flex flex-grow">
+                        <Suspense
+                          fallback={<div className="w-0 md:w-64 transition-all duration-300"></div>}
+                        >
+                          <Sidebar />
+                        </Suspense>
+                        <MainContent>{children}</MainContent>
+                      </div>
+                      <Footer />
+                    </SidebarProvider>
+                  </StripeProvider>
+                </CompareProvider>
               </WishlistProvider>
             </ToastProvider>
           </CartProvider>
