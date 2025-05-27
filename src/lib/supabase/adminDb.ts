@@ -17,27 +17,73 @@ import {
 export const createProduct = async (
   product: Omit<Product, 'id' | 'created_at' | 'updated_at'>
 ): Promise<InsertResponse<Product>> => {
-  const response = await supabase
-    .from('products')
-    .insert(product)
-    .select()
-    .single();
+  // Create a copy of the product data to avoid modifying the original
+  const productData = { ...product };
 
-  return { data: response.data, error: response.error };
+  // Remove subcategory_id if it's an empty string to avoid issues if the column doesn't exist
+  if (productData.subcategory_id === '') {
+    delete productData.subcategory_id;
+    console.log('Removed empty subcategory_id from product data');
+  }
+
+  console.log('Creating product with data:', JSON.stringify(productData, null, 2));
+
+  try {
+    const response = await supabase
+      .from('products')
+      .insert(productData)
+      .select()
+      .single();
+
+    if (response.error) {
+      console.error('Supabase error creating product:', response.error);
+      console.error('Error details:', JSON.stringify(response.error, null, 2));
+    } else {
+      console.log('Product created successfully:', response.data?.id);
+    }
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Exception in createProduct:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in createProduct') };
+  }
 };
 
 export const updateProduct = async (
   id: string,
   product: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at'>>
 ): Promise<UpdateResponse<Product>> => {
-  const response = await supabase
-    .from('products')
-    .update({ ...product, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
+  // Create a copy of the product data to avoid modifying the original
+  const productData = { ...product, updated_at: new Date().toISOString() };
 
-  return { data: response.data, error: response.error };
+  // Remove subcategory_id if it's an empty string to avoid issues if the column doesn't exist
+  if (productData.subcategory_id === '') {
+    delete productData.subcategory_id;
+    console.log('Removed empty subcategory_id from product data');
+  }
+
+  console.log('Updating product with data:', JSON.stringify(productData, null, 2));
+
+  try {
+    const response = await supabase
+      .from('products')
+      .update(productData)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (response.error) {
+      console.error('Supabase error updating product:', response.error);
+      console.error('Error details:', JSON.stringify(response.error, null, 2));
+    } else {
+      console.log('Product updated successfully:', response.data?.id);
+    }
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Exception in updateProduct:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateProduct') };
+  }
 };
 
 export const deleteProduct = async (id: string): Promise<DeleteResponse> => {

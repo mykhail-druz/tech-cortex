@@ -215,6 +215,7 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_specifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE category_specification_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
@@ -235,14 +236,62 @@ ON navigation_links FOR SELECT USING (is_active = true);
 CREATE POLICY "Products are viewable by everyone" 
 ON products FOR SELECT USING (true);
 
+CREATE POLICY "Products can be added by admins and managers" 
+ON products FOR INSERT WITH CHECK (is_admin_or_manager());
+
+CREATE POLICY "Products can be updated by admins and managers" 
+ON products FOR UPDATE USING (is_admin_or_manager());
+
+CREATE POLICY "Products can be deleted by admins and managers" 
+ON products FOR DELETE USING (is_admin_or_manager());
+
 CREATE POLICY "Categories are viewable by everyone" 
 ON categories FOR SELECT USING (true);
+
+CREATE POLICY "Categories can be added by admins and managers" 
+ON categories FOR INSERT WITH CHECK (is_admin_or_manager());
+
+CREATE POLICY "Categories can be updated by admins and managers" 
+ON categories FOR UPDATE USING (is_admin_or_manager());
+
+CREATE POLICY "Categories can be deleted by admins and managers" 
+ON categories FOR DELETE USING (is_admin_or_manager());
 
 CREATE POLICY "Product images are viewable by everyone" 
 ON product_images FOR SELECT USING (true);
 
+CREATE POLICY "Product images can be added by admins and managers" 
+ON product_images FOR INSERT WITH CHECK (is_admin_or_manager());
+
+CREATE POLICY "Product images can be updated by admins and managers" 
+ON product_images FOR UPDATE USING (is_admin_or_manager());
+
+CREATE POLICY "Product images can be deleted by admins and managers" 
+ON product_images FOR DELETE USING (is_admin_or_manager());
+
 CREATE POLICY "Product specifications are viewable by everyone" 
 ON product_specifications FOR SELECT USING (true);
+
+CREATE POLICY "Product specifications can be added by admins and managers" 
+ON product_specifications FOR INSERT WITH CHECK (is_admin_or_manager());
+
+CREATE POLICY "Product specifications can be updated by admins and managers" 
+ON product_specifications FOR UPDATE USING (is_admin_or_manager());
+
+CREATE POLICY "Product specifications can be deleted by admins and managers" 
+ON product_specifications FOR DELETE USING (is_admin_or_manager());
+
+CREATE POLICY "Category specification templates are viewable by everyone" 
+ON category_specification_templates FOR SELECT USING (true);
+
+CREATE POLICY "Category specification templates can be modified by admins and managers" 
+ON category_specification_templates FOR INSERT WITH CHECK (is_admin_or_manager());
+
+CREATE POLICY "Category specification templates can be updated by admins and managers" 
+ON category_specification_templates FOR UPDATE USING (is_admin_or_manager());
+
+CREATE POLICY "Category specification templates can be deleted by admins and managers" 
+ON category_specification_templates FOR DELETE USING (is_admin_or_manager());
 
 CREATE POLICY "Reviews are viewable by everyone" 
 ON reviews FOR SELECT USING (is_approved = true);
@@ -292,6 +341,21 @@ ON reviews FOR INSERT WITH CHECK (auth.uid() = user_id);
 
 CREATE POLICY "Users can update their own reviews" 
 ON reviews FOR UPDATE USING (auth.uid() = user_id);
+
+-- Function to check if user is admin or manager
+CREATE OR REPLACE FUNCTION is_admin_or_manager()
+RETURNS BOOLEAN AS $$
+DECLARE
+  user_role VARCHAR;
+BEGIN
+  SELECT ur.name INTO user_role
+  FROM user_profiles up
+  JOIN user_roles ur ON up.role_id = ur.id
+  WHERE up.id = auth.uid();
+
+  RETURN user_role IN ('admin', 'manager');
+END;
+$$ LANGUAGE plpgsql;
 
 -- Create functions to update product ratings
 CREATE OR REPLACE FUNCTION update_product_rating()

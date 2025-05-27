@@ -98,9 +98,58 @@ export const deleteFile = async (
     // We'll attempt to delete directly and handle any errors
 
     // Extract the file path from the public URL if needed
-    const path = filePath.includes(bucket) 
-      ? filePath.split(`${bucket}/`)[1] 
-      : filePath;
+    let path = filePath;
+
+    // Handle full Supabase URLs (https://xxx.supabase.co/storage/v1/object/public/bucket/path)
+    if (filePath.includes('/storage/v1/object/public/')) {
+      const publicPathRegex = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)/;
+      const match = filePath.match(publicPathRegex);
+      if (match && match.length >= 3) {
+        // match[1] is the bucket name, match[2] is the file path
+        path = match[2];
+      }
+    } 
+    // Handle CDN URLs (https://xxx.supabase.co/storage/v1/object/sign/bucket/path)
+    else if (filePath.includes('/storage/v1/object/sign/')) {
+      const signedPathRegex = /\/storage\/v1\/object\/sign\/([^\/]+)\/(.+)/;
+      const match = filePath.match(signedPathRegex);
+      if (match && match.length >= 3) {
+        // match[1] is the bucket name, match[2] is the file path
+        path = match[2];
+      }
+    }
+    // Handle simpler URLs that just include the bucket name
+    else if (filePath.includes(`${bucket}/`)) {
+      path = filePath.split(`${bucket}/`)[1];
+    }
+
+    // Ensure the path includes the 'images' folder if it's in the products bucket
+    // This is needed because images are uploaded to 'products/images' but the URL might not reflect this structure
+    if (bucket === 'products' && !path.startsWith('images/') && !path.includes('/images/')) {
+      path = `images/${path}`;
+      console.log(`Added 'images/' prefix to path: ${path}`);
+    }
+
+    // Remove any query parameters from the path
+    if (path.includes('?')) {
+      path = path.split('?')[0];
+    }
+
+    // Decode URL-encoded characters in the path
+    try {
+      path = decodeURIComponent(path);
+    } catch (e) {
+      console.warn('Failed to decode URL path, using as-is:', e);
+    }
+
+    console.log(`Original URL: ${filePath}`);
+    console.log(`Extracted path: ${path}`);
+
+    // Ensure we have a valid path before attempting to delete
+    if (!path || path.trim() === '') {
+      console.error('Invalid file path extracted from URL:', filePath);
+      return { success: false, error: new Error('Invalid file path extracted from URL') };
+    }
 
     console.log(`Attempting to delete file ${bucket}/${path} as user ${session.user.id}`);
 

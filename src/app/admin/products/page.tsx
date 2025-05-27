@@ -208,7 +208,7 @@ export default function ProductsManagement() {
 
       {/* Products Table */}
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
@@ -267,7 +267,7 @@ export default function ProductsManagement() {
                     </td>
                     <td className="hidden md:table-cell px-6 py-4">
                       <span
-                        className={`px-4 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        className={`px-4 py-1 inline-flex text-xs leading-5 font-semibold rounded-full text-nowrap ${
                           product.in_stock
                             ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'

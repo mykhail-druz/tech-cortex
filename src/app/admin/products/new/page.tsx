@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Category, ProductSpecification, CategorySpecificationTemplate } from '@/lib/supabase/types';
+import { Category, ProductSpecification, CategorySpecificationTemplate, ProductImage } from '@/lib/supabase/types';
 import Link from 'next/link';
 
 export default function AddProductPage() {
@@ -24,8 +24,8 @@ export default function AddProductPage() {
     slug: '',
     description: '',
     price: 0,
-    old_price: 0,
-    discount_percentage: 0,
+    old_price: null,
+    discount_percentage: null,
     main_image_url: '',
     category_id: '',
     subcategory_id: '',
@@ -40,6 +40,11 @@ export default function AddProductPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // State for multiple images
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagesPreviews, setImagesPreviews] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
 
   // Add state for product specifications
   const [specifications, setSpecifications] = useState<Omit<ProductSpecification, 'id' | 'product_id'>[]>([]);
@@ -135,10 +140,18 @@ export default function AddProductPage() {
         slug: generateSlug(value),
       });
     } else if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: parseFloat(value) || 0,
-      });
+      if ((name === 'old_price' || name === 'discount_percentage' || name === 'price') && value === '') {
+        // Allow empty value for old_price, discount_percentage, and price to be set as null
+        setFormData({
+          ...formData,
+          [name]: null,
+        });
+      } else {
+        setFormData({
+          ...formData,
+          [name]: parseFloat(value) || 0,
+        });
+      }
     } else {
       setFormData({
         ...formData,
@@ -213,7 +226,7 @@ export default function AddProductPage() {
     setSpecifications(reorderedSpecs);
   };
 
-  // Handle image file selection
+  // Handle main image file selection
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -241,13 +254,72 @@ export default function AddProductPage() {
     }
   };
 
+  // Handle multiple image file selection
+  const handleMultipleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+
+      // Limit to 10 images total (including existing ones)
+      if (selectedImages.length + files.length > 10) {
+        toast.warning('You can upload a maximum of 10 images per product');
+        return;
+      }
+
+      // Validate each file
+      const validFiles: File[] = [];
+      const invalidFiles: string[] = [];
+
+      files.forEach(file => {
+        // Check if file is an image
+        if (!file.type.startsWith('image/')) {
+          invalidFiles.push(`${file.name} is not an image file`);
+          return;
+        }
+
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          invalidFiles.push(`${file.name} exceeds the 5MB size limit`);
+          return;
+        }
+
+        validFiles.push(file);
+      });
+
+      // Show warnings for invalid files
+      if (invalidFiles.length > 0) {
+        toast.warning(`Some files were not added: ${invalidFiles.join(', ')}`);
+      }
+
+      if (validFiles.length === 0) return;
+
+      // Add valid files to selected images
+      setSelectedImages(prev => [...prev, ...validFiles]);
+
+      // Create preview URLs for the selected images
+      validFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setImagesPreviews(prev => [...prev, event.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  // Remove an image from the selected images
+  const removeSelectedImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagesPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
   // Validate form
   const validateForm = () => {
     const errors: Record<string, string> = {};
 
     if (!formData.title.trim()) errors.title = 'Title is required';
     if (!formData.slug.trim()) errors.slug = 'Slug is required';
-    if (formData.price <= 0) errors.price = 'Price must be greater than 0';
+    if (formData.price === null || formData.price === undefined) errors.price = 'Price is required';
+    else if (formData.price <= 0) errors.price = 'Price must be greater than 0';
     if (!formData.category_id) errors.category_id = 'Category is required';
 
     setFormErrors(errors);
@@ -265,7 +337,7 @@ export default function AddProductPage() {
     try {
       let productData = { ...formData };
 
-      // Upload image if selected
+      // Upload main image if selected
       if (selectedImage) {
         setUploadingImage(true);
 
@@ -292,18 +364,25 @@ export default function AddProductPage() {
       const { data, error } = await adminDbService.createProduct(productData);
 
       if (error) {
+        console.error('Error creating product:', error);
+        console.error('Error details:', JSON.stringify(error, null, 2));
+        console.error('Product data:', JSON.stringify(productData, null, 2));
         throw error;
       }
 
-      // If product was created successfully and there are specifications to add
-      if (data && specifications.length > 0) {
-        const productId = data.id;
+      if (!data) {
+        throw new Error('Failed to create product: No data returned');
+      }
 
+      const productId = data.id;
+
+      // If product was created successfully and there are specifications to add
+      if (specifications.length > 0) {
         // Add specifications
         for (const spec of specifications) {
           const { error: specError } = await adminDbService.addProductSpecification({
             product_id: productId,
-            template_id: spec.template_id,
+            template_id: spec.template_id || null,
             name: spec.name,
             value: spec.value,
             display_order: spec.display_order
@@ -317,10 +396,78 @@ export default function AddProductPage() {
         }
       }
 
+      // Upload additional images if selected
+      if (selectedImages.length > 0) {
+        setUploadingImages(true);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Upload each image and create a product_images record
+        for (let i = 0; i < selectedImages.length; i++) {
+          try {
+            // Upload to Supabase storage
+            const { url, error } = await storageService.uploadFile(
+              selectedImages[i],
+              'products', // bucket name
+              'images' // folder path
+            );
+
+            if (error) {
+              console.error(`Error uploading additional image ${i + 1}:`, error);
+              errorCount++;
+              continue;
+            }
+
+            if (!url) {
+              console.error(`No URL returned for additional image ${i + 1}`);
+              errorCount++;
+              continue;
+            }
+
+            // Create product_images record
+            const imageData: Omit<ProductImage, 'id' | 'created_at'> = {
+              product_id: productId,
+              image_url: url,
+              alt_text: `${productData.title} - Image ${i + 1}`,
+              is_main: false,
+              display_order: i
+            };
+
+            const { error: addImageError } = await adminDbService.addProductImage(imageData);
+
+            if (addImageError) {
+              console.error(`Error adding additional image ${i + 1} to database:`, addImageError);
+              errorCount++;
+              continue;
+            }
+
+            successCount++;
+          } catch (imageError) {
+            console.error(`Error processing additional image ${i + 1}:`, imageError);
+            errorCount++;
+          }
+        }
+
+        setUploadingImages(false);
+
+        if (errorCount > 0) {
+          toast.warning(`Product created but ${errorCount} additional images could not be added.`);
+        }
+
+        if (successCount > 0) {
+          toast.success(`Successfully added ${successCount} additional images.`);
+        }
+      }
+
       // Redirect to products page
       router.push('/admin/products');
     } catch (error) {
       console.error('Error creating product:', error);
+      if (error instanceof Error) {
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       toast.error('Failed to create product. Please try again.');
     } finally {
       setSubmitting(false);
@@ -402,9 +549,8 @@ export default function AddProductPage() {
                 type="number"
                 id="price"
                 name="price"
-                value={formData.price}
+                value={formData.price === null ? '' : formData.price}
                 onChange={handleInputChange}
-                min="0"
                 step="0.01"
                 className={`w-full p-2 border rounded-md ${
                   formErrors.price ? 'border-red-500' : 'border-gray-300'
@@ -424,9 +570,8 @@ export default function AddProductPage() {
                 type="number"
                 id="old_price"
                 name="old_price"
-                value={formData.old_price}
+                value={formData.old_price === null ? '' : formData.old_price}
                 onChange={handleInputChange}
-                min="0"
                 step="0.01"
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
@@ -441,9 +586,8 @@ export default function AddProductPage() {
                 type="number"
                 id="discount_percentage"
                 name="discount_percentage"
-                value={formData.discount_percentage}
+                value={formData.discount_percentage === null ? '' : formData.discount_percentage}
                 onChange={handleInputChange}
-                min="0"
                 max="100"
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
@@ -575,6 +719,55 @@ export default function AddProductPage() {
               </div>
             </div>
 
+            {/* Additional Images Upload */}
+            <div className="col-span-1 md:col-span-2">
+              <label htmlFor="additional_images" className="block text-sm font-medium text-gray-700 mb-1">
+                Additional Images (up to 10)
+              </label>
+              <div className="flex flex-col space-y-4">
+                <input
+                  type="file"
+                  id="additional_images"
+                  name="additional_images"
+                  accept="image/*"
+                  multiple
+                  onChange={handleMultipleImagesChange}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+
+                {/* Images preview */}
+                {imagesPreviews.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-sm text-gray-500 mb-2">Previews ({imagesPreviews.length} images):</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {imagesPreviews.map((preview, index) => (
+                        <div key={index} className="relative">
+                          <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
+                            <img 
+                              src={preview} 
+                              alt={`Preview ${index + 1}`} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeSelectedImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-500">
+                  Select up to 10 additional images for your product. Each image should be less than 5MB.
+                </p>
+              </div>
+            </div>
+
             {/* In Stock */}
             <div className="flex items-center">
               <input
@@ -613,7 +806,7 @@ export default function AddProductPage() {
             {/* Specifications List */}
             <div className="bg-gray-50 p-4 rounded-md mb-4">
               {specifications.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100">

@@ -50,19 +50,28 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             </li>
             <li>
-              <Link href="/admin/products" className="flex items-center p-2 rounded hover:bg-gray-100">
+              <Link
+                href="/admin/products"
+                className="flex items-center p-2 rounded hover:bg-gray-100"
+              >
                 <span className="mr-3">📦</span>
                 Products
               </Link>
             </li>
             <li>
-              <Link href="/admin/categories" className="flex items-center p-2 rounded hover:bg-gray-100">
+              <Link
+                href="/admin/categories"
+                className="flex items-center p-2 rounded hover:bg-gray-100"
+              >
                 <span className="mr-3">🗂️</span>
                 Categories
               </Link>
             </li>
             <li>
-              <Link href="/admin/orders" className="flex items-center p-2 rounded hover:bg-gray-100">
+              <Link
+                href="/admin/orders"
+                className="flex items-center p-2 rounded hover:bg-gray-100"
+              >
                 <span className="mr-3">🛒</span>
                 Orders
               </Link>
@@ -74,7 +83,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               </Link>
             </li>
             <li>
-              <Link href="/admin/settings" className="flex items-center p-2 rounded hover:bg-gray-100">
+              <Link
+                href="/admin/settings"
+                className="flex items-center p-2 rounded hover:bg-gray-100"
+              >
                 <span className="mr-3">⚙️</span>
                 Settings
               </Link>
@@ -84,13 +96,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto">
-        <header className="bg-white shadow-sm">
-          <div className="px-6 py-4">
-            <h2 className="text-xl font-semibold text-gray-800">Admin Dashboard</h2>
-          </div>
-        </header>
-        <main className="p-6">{children}</main>
+      <div className="flex-1 overflow-hidden">
+        <main className="p-6 h-[calc(100vh-64px)] overflow-y-auto">{children}</main>
       </div>
     </div>
   );

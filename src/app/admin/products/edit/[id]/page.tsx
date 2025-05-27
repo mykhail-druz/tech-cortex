@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
-import { Product, Category, ProductSpecification, CategorySpecificationTemplate } from '@/lib/supabase/types';
+import * as storageService from '@/lib/supabase/storageService';
+import { Product, Category, ProductSpecification, CategorySpecificationTemplate, ProductImage } from '@/lib/supabase/types';
 import Link from 'next/link';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
@@ -26,7 +27,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     slug: '',
     description: '',
     price: 0,
-    old_price: 0,
+    old_price: null,
     discount_percentage: 0,
     main_image_url: '',
     category_id: '',
@@ -52,6 +53,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   const [specTemplates, setSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
+  // Add state for product images
+  const [existingImages, setExistingImages] = useState<ProductImage[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagesPreviews, setImagesPreviews] = useState<string[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
+
   // Fetch product and categories
   useEffect(() => {
     const fetchData = async () => {
@@ -72,8 +79,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
           slug: foundProduct.slug,
           description: foundProduct.description || '',
           price: foundProduct.price,
-          old_price: foundProduct.old_price || 0,
-          discount_percentage: foundProduct.discount_percentage || 0,
+          old_price: foundProduct.old_price,
+          discount_percentage: foundProduct.discount_percentage,
           main_image_url: foundProduct.main_image_url || '',
           category_id: foundProduct.category_id || '',
           subcategory_id: foundProduct.subcategory_id || '',
@@ -92,6 +99,12 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         const specificationsResponse = await adminDbService.getProductSpecificationsWithTemplates(productId);
         if (specificationsResponse.data) {
           setSpecifications(specificationsResponse.data);
+        }
+
+        // Fetch product images
+        const imagesResponse = await adminDbService.getProductImages(productId);
+        if (imagesResponse.data) {
+          setExistingImages(imagesResponse.data);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -176,10 +189,18 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         });
       }
     } else if (type === 'number') {
-      setFormData({
-        ...formData,
-        [name]: parseFloat(value) || 0,
-      });
+      if ((name === 'old_price' || name === 'discount_percentage' || name === 'price') && value === '') {
+        // Allow empty value for old_price, discount_percentage, and price to be set as null
+        setFormData({
+          ...formData,
+          [name]: null,
+        });
+      } else {
+        setFormData({
+          ...formData,
+          [name]: parseFloat(value) || 0,
+        });
+      }
     } else {
       setFormData({
         ...formData,
@@ -203,7 +224,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
     if (!formData.title.trim()) errors.title = 'Title is required';
     if (!formData.slug.trim()) errors.slug = 'Slug is required';
-    if (formData.price <= 0) errors.price = 'Price must be greater than 0';
+    if (formData.price === null || formData.price === undefined) errors.price = 'Price is required';
+    else if (formData.price <= 0) errors.price = 'Price must be greater than 0';
     if (!formData.category_id) errors.category_id = 'Category is required';
 
     setFormErrors(errors);
@@ -338,6 +360,84 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     }
   };
 
+  // Handle multiple image file selection
+  const handleMultipleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+
+      // Limit to 10 images total (including existing ones)
+      if (existingImages.length + selectedImages.length + files.length > 10) {
+        toast.warning(`You can have a maximum of 10 images per product. You already have ${existingImages.length} existing images and ${selectedImages.length} new images selected.`);
+        return;
+      }
+
+      // Validate each file
+      const validFiles: File[] = [];
+      const invalidFiles: string[] = [];
+
+      files.forEach(file => {
+        // Check if file is an image
+        if (!file.type.startsWith('image/')) {
+          invalidFiles.push(`${file.name} is not an image file`);
+          return;
+        }
+
+        // Check file size (limit to 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          invalidFiles.push(`${file.name} exceeds the 5MB size limit`);
+          return;
+        }
+
+        validFiles.push(file);
+      });
+
+      // Show warnings for invalid files
+      if (invalidFiles.length > 0) {
+        toast.warning(`Some files were not added: ${invalidFiles.join(', ')}`);
+      }
+
+      if (validFiles.length === 0) return;
+
+      // Add valid files to selected images
+      setSelectedImages(prev => [...prev, ...validFiles]);
+
+      // Create preview URLs for the selected images
+      validFiles.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setImagesPreviews(prev => [...prev, event.target?.result as string]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  // Remove a new image from the selected images
+  const removeSelectedImage = (index: number) => {
+    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    setImagesPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Remove an existing image
+  const removeExistingImage = async (imageId: string) => {
+    if (!confirm('Are you sure you want to remove this image?')) return;
+
+    try {
+      const { error } = await adminDbService.deleteProductImage(imageId);
+
+      if (error) {
+        throw error;
+      }
+
+      // Update the state to remove the deleted image
+      setExistingImages(prev => prev.filter(img => img.id !== imageId));
+      toast.success('Image removed successfully');
+    } catch (error) {
+      console.error('Error removing image:', error);
+      toast.error('Failed to remove image. Please try again.');
+    }
+  };
+
   // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -347,10 +447,75 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     setSubmitting(true);
 
     try {
+      // Update product basic information
       const { data, error } = await adminDbService.updateProduct(product.id, formData);
 
       if (error) {
         throw error;
+      }
+
+      // Upload new images if any are selected
+      if (selectedImages.length > 0) {
+        setUploadingImages(true);
+
+        let successCount = 0;
+        let errorCount = 0;
+
+        // Upload each image and create a product_images record
+        for (let i = 0; i < selectedImages.length; i++) {
+          try {
+            // Upload to Supabase storage
+            const { url, error } = await storageService.uploadFile(
+              selectedImages[i],
+              'products', // bucket name
+              'images' // folder path
+            );
+
+            if (error) {
+              console.error(`Error uploading additional image ${i + 1}:`, error);
+              errorCount++;
+              continue;
+            }
+
+            if (!url) {
+              console.error(`No URL returned for additional image ${i + 1}`);
+              errorCount++;
+              continue;
+            }
+
+            // Create product_images record
+            const imageData: Omit<ProductImage, 'id' | 'created_at'> = {
+              product_id: product.id,
+              image_url: url,
+              alt_text: `${formData.title} - Image ${existingImages.length + i + 1}`,
+              is_main: false,
+              display_order: existingImages.length + i
+            };
+
+            const { error: addImageError } = await adminDbService.addProductImage(imageData);
+
+            if (addImageError) {
+              console.error(`Error adding additional image ${i + 1} to database:`, addImageError);
+              errorCount++;
+              continue;
+            }
+
+            successCount++;
+          } catch (imageError) {
+            console.error(`Error processing additional image ${i + 1}:`, imageError);
+            errorCount++;
+          }
+        }
+
+        setUploadingImages(false);
+
+        if (errorCount > 0) {
+          toast.warning(`Product updated but ${errorCount} additional images could not be added.`);
+        }
+
+        if (successCount > 0) {
+          toast.success(`Successfully added ${successCount} additional images.`);
+        }
       }
 
       // Redirect to products page
@@ -453,9 +618,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 type="number"
                 id="price"
                 name="price"
-                value={formData.price}
+                value={formData.price === null ? '' : formData.price}
                 onChange={handleInputChange}
-                min="0"
                 step="0.01"
                 className={`w-full p-2 border rounded-md ${
                   formErrors.price ? 'border-red-500' : 'border-gray-300'
@@ -475,9 +639,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 type="number"
                 id="old_price"
                 name="old_price"
-                value={formData.old_price}
+                value={formData.old_price === null ? '' : formData.old_price}
                 onChange={handleInputChange}
-                min="0"
                 step="0.01"
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
@@ -492,9 +655,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 type="number"
                 id="discount_percentage"
                 name="discount_percentage"
-                value={formData.discount_percentage}
+                value={formData.discount_percentage === null ? '' : formData.discount_percentage}
                 onChange={handleInputChange}
-                min="0"
                 max="100"
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
@@ -594,6 +756,92 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               />
             </div>
 
+            {/* Product Images Management */}
+            <div className="col-span-1 md:col-span-2">
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Product Images</h3>
+
+                {/* Existing Images */}
+                {existingImages.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Existing Images ({existingImages.length})</h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                      {existingImages.map((image) => (
+                        <div key={image.id} className="relative">
+                          <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
+                            <img 
+                              src={image.image_url} 
+                              alt={image.alt_text || 'Product image'} 
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeExistingImage(image.id)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                          >
+                            ×
+                          </button>
+                          {image.is_main && (
+                            <span className="absolute bottom-0 left-0 right-0 bg-blue-500 text-white text-xs text-center py-1">
+                              Main Image
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Add New Images */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Add New Images</h4>
+                  <div className="flex flex-col space-y-4">
+                    <input
+                      type="file"
+                      id="additional_images"
+                      name="additional_images"
+                      accept="image/*"
+                      multiple
+                      onChange={handleMultipleImagesChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                    />
+
+                    {/* New Images Preview */}
+                    {imagesPreviews.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-sm text-gray-500 mb-2">New Images Preview ({imagesPreviews.length})</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                          {imagesPreviews.map((preview, index) => (
+                            <div key={index} className="relative">
+                              <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
+                                <img 
+                                  src={preview} 
+                                  alt={`Preview ${index + 1}`} 
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeSelectedImage(index)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <p className="text-xs text-gray-500">
+                      You can have up to 10 images per product. Currently: {existingImages.length} existing + {selectedImages.length} new = {existingImages.length + selectedImages.length} total.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {/* In Stock */}
             <div className="flex items-center">
               <input
@@ -632,7 +880,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
             {/* Specifications List */}
             <div className="bg-gray-50 p-4 rounded-md mb-4">
               {specifications.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto overflow-y-hidden">
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100">
