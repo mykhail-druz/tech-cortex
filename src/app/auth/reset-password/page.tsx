@@ -20,8 +20,10 @@ function ResetPasswordContent() {
   useEffect(() => {
     // The token is automatically handled by Supabase when the page loads
     // We just need to check if we're on this page with the right parameters
-    const hasResetToken = searchParams.has('token_hash');
-    
+    const hasResetToken = searchParams.has('token_hash') || 
+                          searchParams.has('type') || 
+                          searchParams.has('access_token');
+
     if (!hasResetToken) {
       setError('Invalid or missing reset token. Please request a new password reset link.');
     }
@@ -31,18 +33,18 @@ function ResetPasswordContent() {
     e.preventDefault();
     setError(null);
     setSuccess(null);
-    
+
     // Validate passwords
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
       return;
     }
-    
+
     if (password.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
     }
-    
+
     setIsLoading(true);
 
     try {
@@ -54,11 +56,11 @@ function ResetPasswordContent() {
       }
 
       setSuccess('Your password has been successfully reset.');
-      
+
       // Clear the form
       setPassword('');
       setConfirmPassword('');
-      
+
       // Redirect to login page after 3 seconds
       setTimeout(() => {
         router.push('/auth/login');
@@ -124,7 +126,9 @@ function ResetPasswordContent() {
 
           <button
             type="submit"
-            disabled={isLoading || !searchParams.has('token_hash')}
+            disabled={isLoading || !(searchParams.has('token_hash') || 
+                                     searchParams.has('type') || 
+                                     searchParams.has('access_token'))}
             className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isLoading ? 'Resetting...' : 'Reset Password'}
