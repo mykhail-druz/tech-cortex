@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { Spinner } from '@/components/ui/Spinner';
 
 export default function CartPage() {
   const { items, itemCount, subtotal, updateItemQuantity, removeItem, clearCart, isLoading } = useCart();
@@ -52,7 +53,7 @@ export default function CartPage() {
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-8">Your Cart</h1>
           <div className="bg-white rounded-lg shadow-md p-8 flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <Spinner size="large" color="primary" text="Loading your cart..." />
           </div>
         </div>
       </div>

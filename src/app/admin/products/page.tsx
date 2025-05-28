@@ -17,6 +17,9 @@ export default function ProductsManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
+  const [deletingProduct, setDeletingProduct] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,26 +94,37 @@ export default function ProductsManagement() {
     return result || 'Uncategorized';
   };
 
-  // Function to handle product deletion
-  const handleDeleteProduct = async (productId: string) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      try {
-        // Use the admin database service to delete the product
-        const { error } = await import('@/lib/supabase/adminDb').then(module =>
-          module.deleteProduct(productId)
-        );
+  // Function to open delete confirmation modal
+  const handleDeleteProduct = (product: Product) => {
+    setCurrentProduct(product);
+    setShowDeleteModal(true);
+  };
 
-        if (error) {
-          throw error;
-        }
+  // Function to actually delete the product
+  const deleteProduct = async () => {
+    if (!currentProduct) return;
 
-        // Remove it from the state
-        setProducts(products.filter(product => product.id !== productId));
-        toast.success('Product deleted successfully');
-      } catch (error) {
-        console.error('Error deleting product:', error);
-        toast.error('Failed to delete product');
+    try {
+      setDeletingProduct(true);
+
+      // Use the admin database service to delete the product
+      const { error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.deleteProduct(currentProduct.id)
+      );
+
+      if (error) {
+        throw error;
       }
+
+      // Remove it from the state
+      setProducts(products.filter(product => product.id !== currentProduct.id));
+      setShowDeleteModal(false);
+      toast.success('Product deleted successfully');
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast.error('Failed to delete product');
+    } finally {
+      setDeletingProduct(false);
     }
   };
 
@@ -285,7 +299,7 @@ export default function ProductsManagement() {
                           Edit
                         </Link>
                         <button
-                          onClick={() => handleDeleteProduct(product.id)}
+                          onClick={() => handleDeleteProduct(product)}
                           className="text-red-600 hover:text-red-900"
                         >
                           Delete
@@ -314,6 +328,41 @@ export default function ProductsManagement() {
           </table>
         </div>
       </div>
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && currentProduct && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-xl font-semibold mb-4">Confirm Delete</h2>
+            <p className="mb-4">
+              Are you sure you want to delete the product &quot;{currentProduct.title}&quot;? This
+              action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={deletingProduct}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={deleteProduct}
+                className="px-4 py-2 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 flex items-center"
+                disabled={deletingProduct}
+              >
+                {deletingProduct ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getHomepageContent, getProducts, getCategories, getSetting } from '@/lib/supabase/db';
+import { getHomepageContent, getProducts, getCategories } from '@/lib/supabase/db';
 import { Product } from '@/lib/supabase/types';
 
 // Format price with currency
@@ -105,9 +105,8 @@ async function HomeContent() {
   const { data: allProducts } = await getProducts();
   const { data: categories } = await getCategories();
 
-  // Get the setting for the number of categories to display
-  const { data: categorySetting } = await getSetting('homepage_category_count');
-  const categoryCount = categorySetting ? parseInt(categorySetting.value, 10) : 4; // Default to 4 if setting doesn't exist
+  // Hardcoded value for the number of categories to display
+  const categoryCount = 4;
 
   // Sort products by created_at (newest first) and take the first 8
   const newArrivals = [...(allProducts || [])].sort(

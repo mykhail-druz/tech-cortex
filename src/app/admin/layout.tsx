@@ -82,15 +82,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 Users
               </Link>
             </li>
-            <li>
-              <Link
-                href="/admin/settings"
-                className="flex items-center p-2 rounded hover:bg-gray-100"
-              >
-                <span className="mr-3">⚙️</span>
-                Settings
-              </Link>
-            </li>
           </ul>
         </nav>
       </div>

@@ -1,14 +1,5 @@
 // TypeScript types for Supabase database tables
 
-// Settings type
-export interface Setting {
-  id: string;
-  key: string;
-  value: string;
-  description: string | null;
-  created_at: string;
-  updated_at: string;
-}
 
 // Homepage Content type
 export interface HomepageContent {

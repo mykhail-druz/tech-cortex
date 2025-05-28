@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import ProductsContent from '@/components/product/ProductsContent';
+import { Spinner } from '@/components/ui/Spinner';
 
 // Loading fallback component
 function LoadingFallback() {
@@ -19,8 +20,7 @@ function LoadingFallback() {
         </div>
         <div className="flex-grow">
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-            <p className="mt-4 text-gray-500">Loading products...</p>
+            <Spinner size="large" color="primary" text="Loading products..." centered={false} />
           </div>
         </div>
       </div>

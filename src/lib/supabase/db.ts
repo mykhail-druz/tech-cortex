@@ -13,7 +13,6 @@ import {
   UserProfile,
   UserRole,
   WishlistItem,
-  Setting,
   HomepageContent,
   NavigationLink,
   SelectResponse,
@@ -1064,25 +1063,6 @@ export const isInWishlist = async (userId: string, productId: string): Promise<b
   return !!data;
 };
 
-// Settings
-export const getSetting = async (
-  key: string
-): Promise<{ data: Setting | null; error: Error | null }> => {
-  const response = await supabase.from('settings').select('*').eq('key', key).single();
-
-  return { data: response.data, error: response.error };
-};
-
-export const getSettings = async (keys?: string[]): Promise<SelectResponse<Setting>> => {
-  let query = supabase.from('settings').select('*');
-
-  if (keys && keys.length > 0) {
-    query = query.in('key', keys);
-  }
-
-  const response = await query;
-  return { data: response.data, error: response.error };
-};
 
 // Homepage Content
 export const getHomepageContent = async (): Promise<SelectResponse<HomepageContent>> => {

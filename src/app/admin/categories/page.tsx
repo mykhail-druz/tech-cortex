@@ -18,6 +18,7 @@ export default function CategoriesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentCategory, setCurrentCategory] = useState<Category | null>(null);
+  const [deletingCategory, setDeletingCategory] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     slug: '',
@@ -481,12 +482,13 @@ export default function CategoriesPage() {
     if (!currentCategory) return;
 
     try {
+      setDeletingCategory(true);
+
       const { error } = await adminDbService.deleteCategory(currentCategory.id);
 
       if (error) {
         console.error('Error deleting category:', error);
         toast.error(error.message || 'Failed to delete category. Please try again.');
-        setShowDeleteModal(false);
         return;
       }
 
@@ -498,7 +500,8 @@ export default function CategoriesPage() {
     } catch (error) {
       console.error('Error deleting category:', error);
       toast.error('An unexpected error occurred. Please try again.');
-      setShowDeleteModal(false);
+    } finally {
+      setDeletingCategory(false);
     }
   };
 
@@ -965,14 +968,23 @@ export default function CategoriesPage() {
               <button
                 onClick={() => setShowDeleteModal(false)}
                 className="px-4 py-2 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50"
+                disabled={deletingCategory}
               >
                 Cancel
               </button>
               <button
                 onClick={deleteCategory}
-                className="px-4 py-2 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600"
+                className="px-4 py-2 bg-red-500 text-white rounded text-sm font-medium hover:bg-red-600 flex items-center"
+                disabled={deletingCategory}
               >
-                Delete
+                {deletingCategory ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin mr-2"></div>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete'
+                )}
               </button>
             </div>
           </div>
@@ -982,7 +994,7 @@ export default function CategoriesPage() {
       {/* Specification Templates Modal */}
       {showTemplatesModal && currentCategory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto overflow-x-auto">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">
                 Specification Templates for &quot;{currentCategory.name}&quot;
@@ -1011,7 +1023,7 @@ export default function CategoriesPage() {
                 <div className="mb-6">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">Existing Templates</h3>
                   {specTemplates.length > 0 ? (
-                    <div className="bg-gray-50 rounded-md overflow-hidden">
+                    <div className="bg-gray-50 rounded-md overflow-hidden overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-100">
                           <tr>
@@ -1080,7 +1092,7 @@ export default function CategoriesPage() {
                 </div>
 
                 {/* Add/Edit Template Form */}
-                <div className="bg-white border border-gray-200 rounded-md p-4">
+                <div className="bg-white border border-gray-200 rounded-md p-4 overflow-x-auto">
                   <h3 className="text-lg font-medium text-gray-900 mb-3">
                     {editingTemplateId ? 'Edit Template' : 'Add New Template'}
                   </h3>

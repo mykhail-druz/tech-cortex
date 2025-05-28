@@ -6,6 +6,7 @@ import ProductGrid from '@/components/product/ProductGrid';
 import { cn } from '@/lib/utils';
 import { getProducts, getCategories, searchProducts } from '@/lib/supabase/db';
 import { Product, Category } from '@/lib/supabase/types';
+import { Spinner } from '@/components/ui/Spinner';
 
 // Define sorting options
 const sortOptions = [
@@ -18,7 +19,7 @@ const sortOptions = [
 export default function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // Get all filter parameters from URL
   const query = searchParams.get('q') || '';
   const categorySlug = searchParams.get('category') || 'all';
@@ -91,7 +92,7 @@ export default function ProductsContent() {
     };
 
     fetchData();
-    
+
     // Update local price range when URL parameters change
     setLocalPriceRange([minPrice, maxPrice]);
     setSearchTerm(query);
@@ -100,7 +101,7 @@ export default function ProductsContent() {
   // Update URL with filter parameters
   const updateFilters = (updates: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
-    
+
     // Update or remove parameters based on the updates object
     Object.entries(updates).forEach(([key, value]) => {
       if (value === null) {
@@ -109,7 +110,7 @@ export default function ProductsContent() {
         params.set(key, value);
       }
     });
-    
+
     // Build the new URL
     const newUrl = `/products${params.toString() ? `?${params.toString()}` : ''}`;
     router.push(newUrl);
@@ -221,7 +222,9 @@ export default function ProductsContent() {
             <div className="mb-6">
               <h3 className="font-medium text-gray-900 mb-2">Categories</h3>
               {isLoading ? (
-                <div className="text-gray-400 py-2">Loading...</div>
+                <div className="py-2">
+                  <Spinner size="small" color="primary" text="Loading categories..." centered={false} />
+                </div>
               ) : (
                 <ul className="space-y-2">
                   <li>
@@ -400,8 +403,7 @@ export default function ProductsContent() {
           {/* Product grid */}
           {isLoading ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto"></div>
-              <p className="mt-4 text-gray-500">Loading products...</p>
+              <Spinner size="large" color="primary" text="Loading products..." centered={false} />
             </div>
           ) : (
             <ProductGrid

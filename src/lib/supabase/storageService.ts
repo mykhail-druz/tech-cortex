@@ -8,14 +8,12 @@ import { v4 as uuidv4 } from 'uuid';
  * @param folder - The folder path within the bucket (default: '')
  * @returns Object containing the file URL or error
  */
-export const uploadFile = async (
-  file: File,
-  bucket: string = 'images',
-  folder: string = ''
-) => {
+export const uploadFile = async (file: File, bucket: string = 'images', folder: string = '') => {
   try {
-    // First, check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    // First, check if the user is authenticated
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('User is not authenticated. Please sign in to upload files.');
     }
@@ -33,12 +31,10 @@ export const uploadFile = async (
     console.log(`Attempting to upload file to ${bucket}/${filePath} as user ${session.user.id}`);
 
     // Upload the file to Supabase Storage
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(filePath, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
+      cacheControl: '3600',
+      upsert: false,
+    });
 
     if (error) {
       console.error('Storage upload error:', {
@@ -46,21 +42,23 @@ export const uploadFile = async (
         statusCode: error.statusCode,
         details: error.details,
         name: error.name,
-        stack: error.stack
+        stack: error.stack,
       });
 
       // Provide a more helpful error message for bucket-related issues
       if (error.message?.includes('bucket') || error.statusCode === 404) {
-        throw new Error(`Failed to upload to bucket "${bucket}". Please ensure the bucket exists and you have permission to upload.`);
+        throw new Error(
+          `Failed to upload to bucket "${bucket}". Please ensure the bucket exists and you have permission to upload.`
+        );
       }
 
       throw error;
     }
 
     // Get the public URL for the uploaded file
-    const { data: { publicUrl } } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(filePath);
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from(bucket).getPublicUrl(filePath);
 
     return { url: publicUrl, error: null };
   } catch (error) {
@@ -68,14 +66,15 @@ export const uploadFile = async (
       message: error instanceof Error ? error.message : 'Unknown error',
       name: error instanceof Error ? error.name : 'Unknown',
       stack: error instanceof Error ? error.stack : undefined,
-      error: error // Log the original error object as well
+      error: error, // Log the original error object as well
     });
-    return { 
-      url: null, 
-      error: error instanceof Error ? error : new Error('Unknown error occurred during file upload') 
+    return {
+      url: null,
+      error:
+        error instanceof Error ? error : new Error('Unknown error occurred during file upload'),
     };
   }
-}
+};
 
 /**
  * Deletes a file from Supabase Storage
@@ -83,13 +82,12 @@ export const uploadFile = async (
  * @param bucket - The storage bucket name (default: 'images')
  * @returns Object containing success status or error
  */
-export const deleteFile = async (
-  filePath: string,
-  bucket: string = 'images'
-) => {
+export const deleteFile = async (filePath: string, bucket: string = 'images') => {
   try {
     // First, check if user is authenticated
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) {
       throw new Error('User is not authenticated. Please sign in to delete files.');
     }
@@ -108,7 +106,7 @@ export const deleteFile = async (
         // match[1] is the bucket name, match[2] is the file path
         path = match[2];
       }
-    } 
+    }
     // Handle CDN URLs (https://xxx.supabase.co/storage/v1/object/sign/bucket/path)
     else if (filePath.includes('/storage/v1/object/sign/')) {
       const signedPathRegex = /\/storage\/v1\/object\/sign\/([^\/]+)\/(.+)/;
@@ -153,9 +151,7 @@ export const deleteFile = async (
 
     console.log(`Attempting to delete file ${bucket}/${path} as user ${session.user.id}`);
 
-    const { error } = await supabase.storage
-      .from(bucket)
-      .remove([path]);
+    const { error } = await supabase.storage.from(bucket).remove([path]);
 
     if (error) {
       console.error('Storage delete error:', {
@@ -163,12 +159,14 @@ export const deleteFile = async (
         statusCode: error.statusCode,
         details: error.details,
         name: error.name,
-        stack: error.stack
+        stack: error.stack,
       });
 
       // Provide a more helpful error message for bucket-related issues
       if (error.message?.includes('bucket') || error.statusCode === 404) {
-        throw new Error(`Failed to delete from bucket "${bucket}". Please ensure the bucket exists and you have permission to delete.`);
+        throw new Error(
+          `Failed to delete from bucket "${bucket}". Please ensure the bucket exists and you have permission to delete.`
+        );
       }
 
       throw error;
@@ -180,11 +178,12 @@ export const deleteFile = async (
       message: error instanceof Error ? error.message : 'Unknown error',
       name: error instanceof Error ? error.name : 'Unknown',
       stack: error instanceof Error ? error.stack : undefined,
-      error: error // Log the original error object as well
+      error: error, // Log the original error object as well
     });
-    return { 
-      success: false, 
-      error: error instanceof Error ? error : new Error('Unknown error occurred during file deletion') 
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error : new Error('Unknown error occurred during file deletion'),
     };
   }
-}
+};

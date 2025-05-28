@@ -11,6 +11,7 @@ import { OrderStatus, PaymentStatus } from '@/lib/supabase/types';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentElement from '@/components/checkout/StripePaymentElement';
+import { Spinner, ButtonSpinner } from '@/components/ui/Spinner';
 
 type CheckoutFormData = {
   firstName: string;
@@ -261,7 +262,7 @@ export default function CheckoutPage() {
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold mb-8">Checkout</h1>
           <div className="bg-white rounded-lg shadow-md p-8 flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+            <Spinner size="large" color="primary" text="Loading checkout..." />
           </div>
         </div>
       </div>
@@ -659,9 +660,13 @@ export default function CheckoutPage() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full bg-primary text-white py-3 px-4 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-primary text-white py-3 px-4 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
-                    {isSubmitting ? 'Processing...' : 'Pay with PayPal'}
+                    {isSubmitting ? (
+                      <ButtonSpinner color="white" buttonText="Processing..." />
+                    ) : (
+                      'Pay with PayPal'
+                    )}
                   </button>
                 )}
                 {/* For credit card, the payment button is inside the StripePaymentElement */}

@@ -7,8 +7,14 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Category, ProductSpecification, CategorySpecificationTemplate, ProductImage } from '@/lib/supabase/types';
+import {
+  Category,
+  ProductSpecification,
+  CategorySpecificationTemplate,
+  ProductImage,
+} from '@/lib/supabase/types';
 import Link from 'next/link';
+import Spinner from '@/components/ui/Spinner';
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -47,11 +53,13 @@ export default function AddProductPage() {
   const [uploadingImages, setUploadingImages] = useState(false);
 
   // Add state for product specifications
-  const [specifications, setSpecifications] = useState<Omit<ProductSpecification, 'id' | 'product_id'>[]>([]);
-  const [newSpecification, setNewSpecification] = useState({ 
-    name: '', 
+  const [specifications, setSpecifications] = useState<
+    Omit<ProductSpecification, 'id' | 'product_id'>[]
+  >([]);
+  const [newSpecification, setNewSpecification] = useState({
+    name: '',
     value: '',
-    template_id: '' 
+    template_id: '',
   });
 
   // Add state for specification templates
@@ -84,14 +92,16 @@ export default function AddProductPage() {
 
       // Reset subcategory if category changes
       if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
-        setFormData(prev => ({...prev, subcategory_id: ''}));
+        setFormData(prev => ({ ...prev, subcategory_id: '' }));
       }
 
       // Fetch specification templates for the selected category
       const fetchTemplates = async () => {
         setLoadingTemplates(true);
         try {
-          const { data, error } = await adminDbService.getCategorySpecificationTemplates(formData.category_id);
+          const { data, error } = await adminDbService.getCategorySpecificationTemplates(
+            formData.category_id
+          );
 
           if (error) {
             throw error;
@@ -114,7 +124,7 @@ export default function AddProductPage() {
       fetchTemplates();
     } else {
       setAvailableSubcategories([]);
-      setFormData(prev => ({...prev, subcategory_id: ''}));
+      setFormData(prev => ({ ...prev, subcategory_id: '' }));
       setSpecTemplates([]);
     }
   }, [formData.category_id, categories, toast]);
@@ -129,7 +139,9 @@ export default function AddProductPage() {
   };
 
   // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
 
     if (name === 'title') {
@@ -140,7 +152,10 @@ export default function AddProductPage() {
         slug: generateSlug(value),
       });
     } else if (type === 'number') {
-      if ((name === 'old_price' || name === 'discount_percentage' || name === 'price') && value === '') {
+      if (
+        (name === 'old_price' || name === 'discount_percentage' || name === 'price') &&
+        value === ''
+      ) {
         // Allow empty value for old_price, discount_percentage, and price to be set as null
         setFormData({
           ...formData,
@@ -170,17 +185,19 @@ export default function AddProductPage() {
   };
 
   // Handle specification input changes
-  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleSpecificationChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
 
     // If template_id changes, update the name field with the template name
     if (name === 'template_id' && value) {
       const selectedTemplate = specTemplates.find(t => t.id === value);
       if (selectedTemplate) {
-        setNewSpecification(prev => ({ 
-          ...prev, 
+        setNewSpecification(prev => ({
+          ...prev,
           [name]: value,
-          name: selectedTemplate.name
+          name: selectedTemplate.name,
         }));
       } else {
         setNewSpecification(prev => ({ ...prev, [name]: value }));
@@ -202,12 +219,12 @@ export default function AddProductPage() {
 
     setSpecifications([
       ...specifications,
-      { 
-        name: newSpecification.name, 
+      {
+        name: newSpecification.name,
         value: newSpecification.value,
         template_id: newSpecification.template_id || null,
-        display_order: specifications.length 
-      }
+        display_order: specifications.length,
+      },
     ]);
     setNewSpecification({ name: '', value: '', template_id: '' });
   };
@@ -220,7 +237,7 @@ export default function AddProductPage() {
     // Update display_order for remaining specifications
     const reorderedSpecs = updatedSpecs.map((spec, idx) => ({
       ...spec,
-      display_order: idx
+      display_order: idx,
     }));
 
     setSpecifications(reorderedSpecs);
@@ -247,7 +264,7 @@ export default function AddProductPage() {
 
       // Create a preview URL for the selected image
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = event => {
         setImagePreview(event.target?.result as string);
       };
       reader.readAsDataURL(file);
@@ -298,7 +315,7 @@ export default function AddProductPage() {
       // Create preview URLs for the selected images
       validFiles.forEach(file => {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = event => {
           setImagesPreviews(prev => [...prev, event.target?.result as string]);
         };
         reader.readAsDataURL(file);
@@ -385,7 +402,7 @@ export default function AddProductPage() {
             template_id: spec.template_id || null,
             name: spec.name,
             value: spec.value,
-            display_order: spec.display_order
+            display_order: spec.display_order,
           });
 
           if (specError) {
@@ -431,7 +448,7 @@ export default function AddProductPage() {
               image_url: url,
               alt_text: `${productData.title} - Image ${i + 1}`,
               is_main: false,
-              display_order: i
+              display_order: i,
             };
 
             const { error: addImageError } = await adminDbService.addProductImage(imageData);
@@ -515,9 +532,7 @@ export default function AddProductPage() {
                   formErrors.title ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.title && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.title}</p>
-              )}
+              {formErrors.title && <p className="mt-1 text-sm text-red-500">{formErrors.title}</p>}
             </div>
 
             {/* Slug */}
@@ -535,9 +550,7 @@ export default function AddProductPage() {
                   formErrors.slug ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.slug && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.slug}</p>
-              )}
+              {formErrors.slug && <p className="mt-1 text-sm text-red-500">{formErrors.slug}</p>}
             </div>
 
             {/* Price */}
@@ -556,9 +569,7 @@ export default function AddProductPage() {
                   formErrors.price ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.price && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>
-              )}
+              {formErrors.price && <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>}
             </div>
 
             {/* Old Price */}
@@ -579,7 +590,10 @@ export default function AddProductPage() {
 
             {/* Discount Percentage */}
             <div>
-              <label htmlFor="discount_percentage" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="discount_percentage"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Discount Percentage
               </label>
               <input
@@ -608,11 +622,13 @@ export default function AddProductPage() {
                 }`}
               >
                 <option value="">Select a category</option>
-                {categories.filter(c => !c.is_subcategory).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {categories
+                  .filter(c => !c.is_subcategory)
+                  .map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
               </select>
               {formErrors.category_id && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.category_id}</p>
@@ -622,7 +638,10 @@ export default function AddProductPage() {
             {/* Subcategory - only show when a category is selected */}
             {formData.category_id && (
               <div>
-                <label htmlFor="subcategory_id" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="subcategory_id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Subcategory
                 </label>
                 <select
@@ -633,7 +652,7 @@ export default function AddProductPage() {
                   className="w-full p-2 border border-gray-300 rounded-md"
                 >
                   <option value="">Select a subcategory (optional)</option>
-                  {availableSubcategories.map((subcategory) => (
+                  {availableSubcategories.map(subcategory => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.name}
                     </option>
@@ -692,9 +711,9 @@ export default function AddProductPage() {
                   <div className="mt-2">
                     <p className="text-sm text-gray-500 mb-1">Preview:</p>
                     <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <img 
-                        src={imagePreview} 
-                        alt="Preview" 
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -721,7 +740,10 @@ export default function AddProductPage() {
 
             {/* Additional Images Upload */}
             <div className="col-span-1 md:col-span-2">
-              <label htmlFor="additional_images" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="additional_images"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Additional Images (up to 10)
               </label>
               <div className="flex flex-col space-y-4">
@@ -738,14 +760,16 @@ export default function AddProductPage() {
                 {/* Images preview */}
                 {imagesPreviews.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-2">Previews ({imagesPreviews.length} images):</p>
+                    <p className="text-sm text-gray-500 mb-2">
+                      Previews ({imagesPreviews.length} images):
+                    </p>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                       {imagesPreviews.map((preview, index) => (
                         <div key={index} className="relative">
                           <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
-                            <img 
-                              src={preview} 
-                              alt={`Preview ${index + 1}`} 
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -763,7 +787,8 @@ export default function AddProductPage() {
                 )}
 
                 <p className="text-xs text-gray-500">
-                  Select up to 10 additional images for your product. Each image should be less than 5MB.
+                  Select up to 10 additional images for your product. Each image should be less than
+                  5MB.
                 </p>
               </div>
             </div>
@@ -810,16 +835,24 @@ export default function AddProductPage() {
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Name</th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Value</th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Template</th>
-                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">Actions</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Name
+                        </th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Value
+                        </th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Template
+                        </th>
+                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
                       {specifications.map((spec, index) => {
                         // Find template if it exists
-                        const template = spec.template_id 
+                        const template = spec.template_id
                           ? specTemplates.find(t => t.id === spec.template_id)
                           : null;
 
@@ -867,7 +900,10 @@ export default function AddProductPage() {
               {/* Template Selector */}
               {formData.category_id && (
                 <div className="mb-4">
-                  <label htmlFor="template_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="template_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Specification Template
                   </label>
                   <div className="flex items-center">
@@ -879,7 +915,7 @@ export default function AddProductPage() {
                       className="w-full p-2 border border-gray-300 rounded-md"
                     >
                       <option value="">Select a template (optional)</option>
-                      {specTemplates.map((template) => (
+                      {specTemplates.map(template => (
                         <option key={template.id} value={template.id}>
                           {template.display_name}
                         </option>
@@ -901,7 +937,10 @@ export default function AddProductPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label htmlFor="spec-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="spec-name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Name {!newSpecification.template_id && '*'}
                   </label>
                   <input
@@ -921,7 +960,10 @@ export default function AddProductPage() {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="spec-value"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Value*
                   </label>
                   <input
@@ -952,9 +994,9 @@ export default function AddProductPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:bg-blue-400"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors "
             >
-              {submitting ? 'Creating...' : 'Create Product'}
+              {submitting ? <Spinner size="small" color="white" /> : 'Create product'}
             </button>
           </div>
         </form>
