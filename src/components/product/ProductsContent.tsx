@@ -32,15 +32,51 @@ export default function ProductsContent() {
 
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
+  const [isCategoriesLoading, setIsCategoriesLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(query);
   const [localPriceRange, setLocalPriceRange] = useState<[number, number]>([minPrice, maxPrice]);
 
-  // Fetch products and categories on component mount or when URL parameters change
+  // Fetch categories only once when component mounts
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchCategories = async () => {
       try {
-        setIsLoading(true);
+        // Check if we have cached categories
+        const cachedCategories = localStorage.getItem('cachedCategories');
+        if (cachedCategories) {
+          // Use cached categories immediately
+          setCategories(JSON.parse(cachedCategories));
+          setIsCategoriesLoading(false);
+        } else {
+          // No cache, show loading state
+          setIsCategoriesLoading(true);
+        }
+
+        // Always fetch fresh categories in the background
+        const { data: categoriesData, error: categoriesError } = await getCategories();
+        if (categoriesError) {
+          console.error('Error fetching categories:', categoriesError);
+        } else if (categoriesData) {
+          // Update state with fresh data
+          setCategories(categoriesData);
+          // Cache the categories for future use
+          localStorage.setItem('cachedCategories', JSON.stringify(categoriesData));
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      } finally {
+        setIsCategoriesLoading(false);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Fetch products when URL parameters change
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setIsProductsLoading(true);
 
         // Fetch products - use search if query is provided
         let productsData;
@@ -76,22 +112,14 @@ export default function ProductsContent() {
         } else {
           setProducts(productsData || []);
         }
-
-        // Fetch categories
-        const { data: categoriesData, error: categoriesError } = await getCategories();
-        if (categoriesError) {
-          console.error('Error fetching categories:', categoriesError);
-        } else {
-          setCategories(categoriesData || []);
-        }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        console.error('Error fetching products:', error);
       } finally {
-        setIsLoading(false);
+        setIsProductsLoading(false);
       }
     };
 
-    fetchData();
+    fetchProducts();
 
     // Update local price range when URL parameters change
     setLocalPriceRange([minPrice, maxPrice]);
@@ -221,7 +249,7 @@ export default function ProductsContent() {
             {/* Categories */}
             <div className="mb-6">
               <h3 className="font-medium text-gray-900 mb-2">Categories</h3>
-              {isLoading ? (
+              {isCategoriesLoading ? (
                 <div className="py-2">
                   <Spinner size="small" color="primary" text="Loading categories..." centered={false} />
                 </div>
@@ -401,7 +429,7 @@ export default function ProductsContent() {
           </div>
 
           {/* Product grid */}
-          {isLoading ? (
+          {isProductsLoading ? (
             <div className="bg-white rounded-lg shadow-md p-8 text-center">
               <Spinner size="large" color="primary" text="Loading products..." centered={false} />
             </div>

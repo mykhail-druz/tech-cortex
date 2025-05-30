@@ -499,7 +499,14 @@ export const updateOrderStatus = async (
 export const getAllUsers = async (): Promise<SelectResponse<any>> => {
   try {
     // First, run the function to create missing user profiles
-    await supabase.rpc('create_missing_user_profiles');
+    try {
+      const { error } = await supabase.rpc('create_missing_user_profiles');
+      if (error) {
+        console.error('[getAllUsers] Error creating missing profiles:', error);
+      }
+    } catch (rpcError) {
+      console.error('[getAllUsers] Exception in RPC call:', rpcError);
+    }
 
     // Then fetch all user profiles
     const response = await supabase
@@ -507,7 +514,25 @@ export const getAllUsers = async (): Promise<SelectResponse<any>> => {
       .select(`
         *,
         role:role_id (*)
-      `);
+      `)
+      .order('created_at', { ascending: false });
+
+    // Log the number of users and their details
+    console.log(`[getAllUsers] Found ${response.data?.length || 0} users in user_profiles table`);
+    if (response.data) {
+      response.data.forEach((user, index) => {
+        console.log(`[getAllUsers] User ${index + 1}:`, {
+          id: user.id,
+          first_name: user.first_name,
+          last_name: user.last_name,
+          created_at: user.created_at
+        });
+      });
+    }
+
+    if (response.error) {
+      console.error('[getAllUsers] Error fetching users:', response.error);
+    }
 
     return { data: response.data, error: response.error };
   } catch (error) {
@@ -559,4 +584,3 @@ export const updateUserRole = async (
 
   return { data: response.data, error: response.error };
 };
-

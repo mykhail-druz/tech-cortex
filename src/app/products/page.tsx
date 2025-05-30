@@ -20,7 +20,7 @@ function LoadingFallback() {
         </div>
         <div className="flex-grow">
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <Spinner size="large" color="primary" text="Loading products..." centered={false} />
+            <Spinner size="large" color="primary" text="Loading products..." centered={true} />
           </div>
         </div>
       </div>
