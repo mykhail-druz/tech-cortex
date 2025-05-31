@@ -6,8 +6,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { getNavigationLinks } from '@/lib/supabase/db';
-import { NavigationLink } from '@/lib/supabase/types';
 import SearchSuggestions from '@/components/search/SearchSuggestions';
 import CompareIndicator from '@/components/compare/CompareIndicator';
 import WishlistIndicator from '@/components/wishlist/WishlistIndicator';
@@ -17,8 +15,6 @@ import UserProfileIndicator from '@/components/user/UserProfileIndicator';
 export default function Header() {
   const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [navLinks, setNavLinks] = useState<NavigationLink[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -28,40 +24,6 @@ export default function Header() {
     await signOut();
     setIsMobileMenuOpen(false);
   };
-
-  // Hardcoded navigation links as fallback
-  const fallbackNavLinks: NavigationLink[] = [
-    { id: '1', title: 'Products', url: '/products', parent_id: null, group_name: 'main_nav', display_order: 1, is_active: true, created_at: '', updated_at: '' },
-    { id: '2', title: 'Categories', url: '/categories', parent_id: null, group_name: 'main_nav', display_order: 2, is_active: true, created_at: '', updated_at: '' },
-    { id: '3', title: 'Deals', url: '/deals', parent_id: null, group_name: 'main_nav', display_order: 3, is_active: true, created_at: '', updated_at: '' },
-    { id: '4', title: 'About Us', url: '/about', parent_id: null, group_name: 'main_nav', display_order: 4, is_active: true, created_at: '', updated_at: '' },
-    { id: '5', title: 'Contact', url: '/contact', parent_id: null, group_name: 'main_nav', display_order: 5, is_active: true, created_at: '', updated_at: '' }
-  ];
-
-  // Fetch navigation links on the component mount with fallback
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-
-        // Fetch navigation links for main navigation
-        const { data: navLinksData, error: navLinksError } = await getNavigationLinks('main_nav');
-        if (navLinksError) {
-          // Use fallback navigation links instead of logging error
-          setNavLinks(fallbackNavLinks);
-        } else {
-          setNavLinks(navLinksData || fallbackNavLinks);
-        }
-      } catch (error) {
-        // Use fallback navigation links on any error
-        setNavLinks(fallbackNavLinks);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
 
   // Handle click outside to close suggestions
   useEffect(() => {
@@ -136,22 +98,6 @@ export default function Header() {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-6">
-            {!isLoading && (
-              <>
-                {navLinks.map(link => (
-                  <Link
-                    key={link.id}
-                    href={link.url}
-                    className="text-gray-600 hover:text-primary transition-colors"
-                  >
-                    {link.title}
-                  </Link>
-                ))}
-              </>
-            )}
-          </nav>
 
           {/* Centered Search Bar */}
           <div className="absolute left-1/2 transform -translate-x-1/2 hidden md:block">
@@ -281,7 +227,7 @@ export default function Header() {
               </div>
             </form>
 
-            {/* Hardcoded navigation links for mobile */}
+            {/* Navigation links for mobile based on actual pages */}
             <>
               <Link
                 href="/products"
@@ -290,22 +236,31 @@ export default function Header() {
               >
                 Products
               </Link>
+
               <Link
-                href="/categories"
+                href="/cart"
                 className="block py-2 text-gray-600 hover:text-primary"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Categories
+                Cart
               </Link>
               <Link
-                href="/deals"
+                href="/checkout"
                 className="block py-2 text-gray-600 hover:text-primary"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                Deals
+                Checkout
               </Link>
               <Link
-                href="/about"
+                href="/compare"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Compare
+              </Link>
+
+              <Link
+                href="/about-us"
                 className="block py-2 text-gray-600 hover:text-primary"
                 onClick={() => setIsMobileMenuOpen(false)}
               >
@@ -360,13 +315,6 @@ export default function Header() {
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   Wishlist
-                </Link>
-                <Link
-                  href="/compare"
-                  className="block py-2 text-gray-600 hover:text-primary"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Compare Products
                 </Link>
                 <button
                   onClick={handleSignOut}
