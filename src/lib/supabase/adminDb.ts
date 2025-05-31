@@ -9,6 +9,11 @@ import {
   UpdateResponse,
   DeleteResponse,
   SelectResponse,
+  Order,
+  OrderStatus,
+  OrderWithItems,
+  OrderItem,
+  PaymentStatus,
 } from './types';
 
 // Admin-specific database operations
@@ -460,39 +465,120 @@ export const getCategorySpecificationTemplateById = async (
 };
 
 // Orders
-export const getAllOrders = async (): Promise<SelectResponse<any>> => {
-  const response = await supabase
-    .from('orders')
-    .select(`
-      *,
-      user:user_id (
-        email:email,
-        profile:user_profiles (
-          first_name,
-          last_name
-        )
-      )
-    `)
-    .order('created_at', { ascending: false });
+export const getAllOrders = async (): Promise<SelectResponse<Order>> => {
+  try {
+    const response = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  return { data: response.data, error: response.error };
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Error in getAllOrders:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getAllOrders') };
+  }
 };
 
 export const updateOrderStatus = async (
   id: string,
-  status: string
-): Promise<UpdateResponse<any>> => {
-  const response = await supabase
-    .from('orders')
-    .update({ 
-      status, 
-      updated_at: new Date().toISOString() 
-    })
-    .eq('id', id)
-    .select()
-    .single();
+  status: OrderStatus
+): Promise<UpdateResponse<Order>> => {
+  try {
+    const response = await supabase
+      .from('orders')
+      .update({ 
+        status, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-  return { data: response.data, error: response.error };
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Error in updateOrderStatus:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderStatus') };
+  }
+};
+
+export const getOrderDetails = async (
+  orderId: string
+): Promise<{ data: OrderWithItems | null; error: Error | null }> => {
+  try {
+    // Get the order
+    const orderResponse = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .single();
+
+    if (orderResponse.error) {
+      return { data: null, error: orderResponse.error };
+    }
+
+    // Get the order items with product details
+    const itemsResponse = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        product:product_id (*)
+      `)
+      .eq('order_id', orderId);
+
+    const orderWithItems: OrderWithItems = {
+      ...orderResponse.data,
+      items: itemsResponse.data || [],
+    };
+
+    return { data: orderWithItems, error: null };
+  } catch (error) {
+    console.error('Error in getOrderDetails:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getOrderDetails') };
+  }
+};
+
+export const updateOrderPaymentStatus = async (
+  id: string,
+  paymentStatus: PaymentStatus
+): Promise<UpdateResponse<Order>> => {
+  try {
+    const response = await supabase
+      .from('orders')
+      .update({ 
+        payment_status: paymentStatus, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Error in updateOrderPaymentStatus:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderPaymentStatus') };
+  }
+};
+
+export const updateOrderTrackingNumber = async (
+  id: string,
+  trackingNumber: string
+): Promise<UpdateResponse<Order>> => {
+  try {
+    const response = await supabase
+      .from('orders')
+      .update({ 
+        tracking_number: trackingNumber, 
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Error in updateOrderTrackingNumber:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderTrackingNumber') };
+  }
 };
 
 // Users

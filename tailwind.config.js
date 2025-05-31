@@ -83,4 +83,8 @@ module.exports = {
     },
   },
   plugins: [],
+  corePlugins: {
+    // Disable Tailwind's default scrollbar utilities
+    scrollbar: false,
+  },
 }

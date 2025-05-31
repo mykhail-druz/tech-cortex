@@ -1,18 +1,39 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCart } from '@/contexts/CartContext';
 import * as dbService from '@/lib/supabase/db';
 import { Order, OrderStatus } from '@/lib/supabase/types';
 
-export default function OrdersPage() {
+// Client component that uses useSearchParams
+function OrdersContent() {
   const { user, isLoading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { clearCart } = useCart();
+
+  // Clear cart if redirected from successful payment
+  useEffect(() => {
+    const success = searchParams.get('success');
+    if (success === 'true') {
+      // Use a flag to ensure we only clear the cart once
+      const hasCleared = sessionStorage.getItem('cart_cleared');
+      if (!hasCleared) {
+        clearCart();
+        // Set a flag in session storage to prevent multiple clears
+        sessionStorage.setItem('cart_cleared', 'true');
+      }
+    } else {
+      // Reset the flag when not on a success page
+      sessionStorage.removeItem('cart_cleared');
+    }
+  }, [searchParams, clearCart]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -185,5 +206,28 @@ export default function OrdersPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Loading fallback component
+function OrdersLoading() {
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-8">My Orders</h1>
+        <div className="bg-white rounded-lg shadow-md p-8 flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Main page component that wraps the client component in Suspense
+export default function OrdersPage() {
+  return (
+    <Suspense fallback={<OrdersLoading />}>
+      <OrdersContent />
+    </Suspense>
   );
 }

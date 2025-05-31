@@ -77,9 +77,35 @@ export default function CheckoutPage() {
   // Redirect to login if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
+      // Save cart items to session storage before redirecting
+      if (items.length > 0) {
+        sessionStorage.setItem('pending_cart_items', JSON.stringify(items));
+      }
       router.push('/auth/login?redirect=/checkout');
+    } else if (user && !authLoading) {
+      // Check if there are pending cart items in session storage
+      const pendingCartItems = sessionStorage.getItem('pending_cart_items');
+      if (pendingCartItems) {
+        try {
+          const parsedItems = JSON.parse(pendingCartItems);
+          // Add each item to the user's cart
+          const addItemsToCart = async () => {
+            for (const item of parsedItems) {
+              await dbService.addToCart(user.id, item.product_id, item.quantity);
+            }
+            // Clear the pending items from session storage
+            sessionStorage.removeItem('pending_cart_items');
+            // Reload the page to refresh the cart
+            window.location.reload();
+          };
+          addItemsToCart();
+        } catch (error) {
+          console.error('Error processing pending cart items:', error);
+          sessionStorage.removeItem('pending_cart_items');
+        }
+      }
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, items]);
 
   // Pre-fill form with user profile data if available
   useEffect(() => {
@@ -165,6 +191,12 @@ export default function CheckoutPage() {
         throw new Error('You must be logged in to complete checkout');
       }
 
+      // Validate form data
+      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || 
+          !formData.address || !formData.city || !formData.state || !formData.zipCode) {
+        throw new Error('Please fill in all required fields');
+      }
+
       // Format shipping address
       const shippingAddress = `${formData.firstName} ${formData.lastName}\n${formData.address}${
         formData.apartment ? `, ${formData.apartment}` : ''
@@ -177,6 +209,11 @@ export default function CheckoutPage() {
             formData.billingApartment ? `, ${formData.billingApartment}` : ''
           }\n${formData.billingCity}, ${formData.billingState} ${formData.billingZipCode}\n${formData.billingCountry}`;
 
+      // Validate payment intent ID for credit card payments
+      if (formData.paymentMethod === 'credit_card' && !paymentIntentId) {
+        throw new Error('Payment processing is not ready. Please try again in a moment.');
+      }
+
       // Create order with payment intent ID
       const order = {
         user_id: user.id,
@@ -184,10 +221,12 @@ export default function CheckoutPage() {
         total_amount: subtotal,
         shipping_address: shippingAddress,
         billing_address: billingAddress,
-        payment_method: 'stripe',
+        payment_method: formData.paymentMethod === 'credit_card' ? 'stripe' : 'paypal',
         payment_status: PaymentStatus.PENDING,
         payment_intent_id: paymentIntentId,
       };
+
+      console.log('Order payment_intent_id:', paymentIntentId);
 
       // Create order items
       const orderItems = items.map(item => ({
@@ -197,6 +236,8 @@ export default function CheckoutPage() {
         total_price: (item.product?.price || 0) * item.quantity,
       }));
 
+      console.log('Creating order with data:', { order, orderItems });
+
       // Create order in database
       const { data: createdOrder, error: orderError } = await dbService.createOrder(
         order,
@@ -204,8 +245,11 @@ export default function CheckoutPage() {
       );
 
       if (orderError) {
+        console.error('Order creation error:', orderError);
         throw new Error(`Failed to create order: ${orderError.message}`);
       }
+
+      console.log('Order created successfully:', createdOrder);
 
       // The actual payment processing is handled by the StripePaymentElement component
       // We don't need to clear the cart or redirect here, as that will be handled
@@ -215,7 +259,9 @@ export default function CheckoutPage() {
       if (formData.paymentMethod === 'paypal') {
         // For now, just simulate a successful PayPal payment
         await clearCart();
-        router.push(`/account/orders/${createdOrder?.id}?success=true`);
+        // Temporarily removed redirection as requested
+        // router.push(`/account/orders/${createdOrder?.id}?success=true`);
+        console.log('PayPal payment processed successfully. Redirection disabled as requested.');
       }
     } catch (err) {
       console.error('Checkout error:', err);
@@ -227,18 +273,61 @@ export default function CheckoutPage() {
   // Handle successful Stripe payment
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
+      console.log('Payment successful, updating order status for payment intent:', paymentIntentId);
+
+      // Log all orders to see what's in the database
+      const { data: allOrders, error: ordersError } = await dbService.getUserOrders(user?.id || '');
+      if (ordersError) {
+        console.error('Error fetching user orders:', ordersError);
+      } else {
+        console.log('All user orders:', allOrders);
+        console.log('Orders with matching payment_intent_id:', 
+          allOrders.filter(order => order.payment_intent_id === paymentIntentId));
+      }
+
       // Update the order payment status to PAID
-      // In a real application, you would have a webhook to handle this
+      const { data: updatedOrder, error: updateError } = await dbService.updateOrderByPaymentIntent(
+        paymentIntentId,
+        {
+          payment_status: PaymentStatus.PAID,
+          status: OrderStatus.PROCESSING,
+          user_id: user?.id
+        }
+      );
+
+      if (updateError) {
+        console.error('Error updating order status:', updateError);
+        // Continue with the checkout process even if the update fails
+        // The order will still be created, just not marked as paid
+      } else {
+        console.log('Order status updated successfully:', updatedOrder);
+      }
 
       // Clear cart
       await clearCart();
 
-      // Redirect to order confirmation page
-      // We don't have the order ID here, so we'll redirect to the orders page
-      router.push(`/account/orders?success=true`);
+      // Temporarily removed redirection as requested in the issue
+      console.log('Payment processed successfully. Redirection disabled as requested.');
+      // if (updatedOrder) {
+      //   // If we have the order ID, redirect to the specific order page
+      //   router.push(`/account/orders/${updatedOrder.id}?success=true`);
+      // } else {
+      //   // Fallback to the orders list page
+      //   router.push(`/account/orders?success=true`);
+      // }
     } catch (err) {
       console.error('Payment success handling error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+
+      // Even if there's an error, try to clear the cart (redirection removed)
+      try {
+        await clearCart();
+        // Temporarily removed redirection as requested
+        // router.push(`/account/orders?success=true`);
+        console.log('Cart cleared after error. Redirection disabled as requested.');
+      } catch (clearErr) {
+        console.error('Error clearing cart after payment:', clearErr);
+      }
     }
   };
 
@@ -637,6 +726,7 @@ export default function CheckoutPage() {
                               onPaymentSuccess={handlePaymentSuccess}
                               onPaymentError={handlePaymentError}
                               isSubmitting={isSubmitting}
+                              onSubmit={handleSubmit}
                             />
                           </Elements>
                           <p className="mt-2 text-xs text-gray-500">

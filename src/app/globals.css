@@ -6,6 +6,16 @@
     .animate-pulse-once {
         animation: pulse-once 1s ease-in-out;
     }
+
+    /* Hide scrollbar but keep functionality */
+    .scrollbar-none {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;  /* Chrome, Safari and Opera */
+    }
 }
 
 @layer base {
@@ -66,7 +76,7 @@
         @apply border-border;
     }
     body {
-        @apply bg-background text-foreground;
+        @apply bg-background text-foreground overflow-x-hidden;
     }
 
     /* Custom animations */

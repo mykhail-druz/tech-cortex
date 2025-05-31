@@ -6,8 +6,6 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
-import { useCart } from '@/contexts/CartContext';
-import { useWishlist } from '@/contexts/WishlistContext';
 import { getNavigationLinks } from '@/lib/supabase/db';
 import { NavigationLink } from '@/lib/supabase/types';
 import SearchSuggestions from '@/components/search/SearchSuggestions';
@@ -31,7 +29,16 @@ export default function Header() {
     setIsMobileMenuOpen(false);
   };
 
-  // Fetch navigation links on the component mount
+  // Hardcoded navigation links as fallback
+  const fallbackNavLinks: NavigationLink[] = [
+    { id: '1', title: 'Products', url: '/products', parent_id: null, group_name: 'main_nav', display_order: 1, is_active: true, created_at: '', updated_at: '' },
+    { id: '2', title: 'Categories', url: '/categories', parent_id: null, group_name: 'main_nav', display_order: 2, is_active: true, created_at: '', updated_at: '' },
+    { id: '3', title: 'Deals', url: '/deals', parent_id: null, group_name: 'main_nav', display_order: 3, is_active: true, created_at: '', updated_at: '' },
+    { id: '4', title: 'About Us', url: '/about', parent_id: null, group_name: 'main_nav', display_order: 4, is_active: true, created_at: '', updated_at: '' },
+    { id: '5', title: 'Contact', url: '/contact', parent_id: null, group_name: 'main_nav', display_order: 5, is_active: true, created_at: '', updated_at: '' }
+  ];
+
+  // Fetch navigation links on the component mount with fallback
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -40,12 +47,14 @@ export default function Header() {
         // Fetch navigation links for main navigation
         const { data: navLinksData, error: navLinksError } = await getNavigationLinks('main_nav');
         if (navLinksError) {
-          console.error('Error fetching navigation links:', navLinksError);
+          // Use fallback navigation links instead of logging error
+          setNavLinks(fallbackNavLinks);
         } else {
-          setNavLinks(navLinksData || []);
+          setNavLinks(navLinksData || fallbackNavLinks);
         }
       } catch (error) {
-        console.error('Error fetching data:', error);
+        // Use fallback navigation links on any error
+        setNavLinks(fallbackNavLinks);
       } finally {
         setIsLoading(false);
       }
@@ -137,7 +146,7 @@ export default function Header() {
                     href={link.url}
                     className="text-gray-600 hover:text-primary transition-colors"
                   >
-                    {link.label}
+                    {link.title}
                   </Link>
                 ))}
               </>
@@ -272,20 +281,44 @@ export default function Header() {
               </div>
             </form>
 
-            {!isLoading && (
-              <>
-                {navLinks.map(link => (
-                  <Link
-                    key={link.id}
-                    href={link.url}
-                    className="block py-2 text-gray-600 hover:text-primary"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-              </>
-            )}
+            {/* Hardcoded navigation links for mobile */}
+            <>
+              <Link
+                href="/products"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Products
+              </Link>
+              <Link
+                href="/categories"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Categories
+              </Link>
+              <Link
+                href="/deals"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Deals
+              </Link>
+              <Link
+                href="/about"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                About Us
+              </Link>
+              <Link
+                href="/contact"
+                className="block py-2 text-gray-600 hover:text-primary"
+                onClick={() => setIsMobileMenuOpen(false)}
+              >
+                Contact
+              </Link>
+            </>
 
             {/* Mobile auth links */}
             {!user ? (

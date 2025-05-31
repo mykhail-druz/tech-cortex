@@ -60,30 +60,52 @@ export default function StripePaymentElement({
     setIsLoading(true);
     setErrorMessage(null);
 
-    const { error, paymentIntent } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        // Return URL where the customer should be redirected after payment
-        return_url: `${window.location.origin}/account/orders?success=true`,
-      },
-      redirect: 'if_required',
-    });
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        // Temporarily remove redirect URL as requested
+        // confirmParams: {
+        //   return_url: `${window.location.origin}/account/orders?success=true`,
+        // },
+        // Change to if_required to prevent automatic redirection
+        redirect: 'if_required',
+      });
 
-    if (error) {
-      // Show error to your customer
-      setErrorMessage(error.message || 'An unexpected error occurred.');
-      onPaymentError(error.message || 'An unexpected error occurred.');
-    } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-      // The payment has been processed!
-      onPaymentSuccess(paymentIntent.id);
+      // This code will only run if the redirect is not immediate
+      if (error) {
+        // Show an error to your customer
+        console.error('Payment confirmation error:', error);
+        setErrorMessage(error.message || 'An unexpected error occurred.');
+        onPaymentError(error.message || 'An unexpected error occurred.');
+      } else if (paymentIntent && paymentIntent.status === 'succeeded') {
+        // The payment has been processed!
+        console.log('Payment succeeded!');
+        onPaymentSuccess(paymentIntent.id);
+        // Temporarily removed redirection as requested
+        // window.location.href = `${window.location.origin}/account/orders?success=true`;
+      }
+    } catch (err) {
+      console.error('Unexpected error during payment processing:', err);
+      setErrorMessage('An unexpected error occurred. Please try again.');
+      onPaymentError('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   // Handle form submission
   const handlePayButtonClick = async (e: React.MouseEvent) => {
     e.preventDefault();
+
+    // Call onSubmit if provided to create the order first
+    if (onSubmit) {
+      onSubmit(e as unknown as React.FormEvent);
+
+      // Add a small delay to ensure the order is created before processing payment
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // Then process the payment
     await processPayment();
   };
 

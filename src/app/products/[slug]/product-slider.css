@@ -1,0 +1,218 @@
+/* Custom styles for product image slider */
+
+/* Main slider */
+.swiper-button-next,
+.swiper-button-prev {
+  color: #3b82f6; /* primary color */
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+}
+
+.swiper-button-next:after,
+.swiper-button-prev:after {
+  font-size: 20px;
+}
+
+.swiper-pagination-bullet {
+  background-color: #3b82f6; /* primary color */
+}
+
+/* Thumbnail slider */
+.thumbs-swiper {
+  padding: 5px 0;
+}
+
+.thumbs-swiper .swiper-slide {
+  width: 80px;
+  height: 80px;
+  opacity: 0.6;
+  transition: opacity 0.3s, border-color 0.3s;
+}
+
+.thumbs-swiper .swiper-slide-thumb-active {
+  opacity: 1;
+  border-color: #3b82f6 !important; /* primary color */
+}
+
+/* Zoom functionality */
+.swiper-zoom-container {
+  cursor: zoom-in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.swiper-zoom-container.swiper-zoom-container-zoomed {
+  cursor: grab;
+}
+
+.swiper-zoom-container.swiper-zoom-container-zoomed:active {
+  cursor: grabbing;
+}
+
+/* Image placeholder for consistent sizing */
+.image-placeholder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 600px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: white;
+}
+
+.modal-image-placeholder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 800px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+}
+
+/* Modal styles */
+.fixed.inset-0.z-50 .swiper-button-next,
+.fixed.inset-0.z-50 .swiper-button-prev {
+  color: white;
+  background-color: rgba(0, 0, 0, 0.5);
+  width: 50px;
+  height: 50px;
+}
+
+.fixed.inset-0.z-50 .swiper-button-next:after,
+.fixed.inset-0.z-50 .swiper-button-prev:after {
+  font-size: 24px;
+}
+
+.fixed.inset-0.z-50 .swiper-pagination-bullet {
+  background-color: white;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  /* Navigation buttons */
+  .swiper-button-next,
+  .swiper-button-prev {
+    width: 28px;
+    height: 28px;
+  }
+
+  .swiper-button-next:after,
+  .swiper-button-prev:after {
+    font-size: 14px;
+  }
+
+  /* Thumbnails */
+  .thumbs-swiper .swiper-slide {
+    width: 45px;
+    height: 45px;
+  }
+
+  /* Image placeholders */
+  .image-placeholder {
+    max-width: 100%;
+    max-height: 280px;
+  }
+
+  .modal-image-placeholder {
+    max-width: 100%;
+    max-height: 420px;
+  }
+
+  /* Modal navigation */
+  .fixed.inset-0.z-50 .swiper-button-next,
+  .fixed.inset-0.z-50 .swiper-button-prev {
+    width: 32px;
+    height: 32px;
+  }
+
+  .fixed.inset-0.z-50 .swiper-button-next:after,
+  .fixed.inset-0.z-50 .swiper-button-prev:after {
+    font-size: 16px;
+  }
+}
+
+/* Small mobile devices */
+@media (max-width: 480px) {
+  /* Navigation buttons */
+  .swiper-button-next,
+  .swiper-button-prev {
+    width: 22px;
+    height: 22px;
+  }
+
+  .swiper-button-next:after,
+  .swiper-button-prev:after {
+    font-size: 10px;
+  }
+
+  /* Thumbnails */
+  .thumbs-swiper .swiper-slide {
+    width: 36px;
+    height: 36px;
+  }
+
+  .thumbs-swiper {
+    padding: 3px 0;
+  }
+
+  /* Image placeholders */
+  .image-placeholder {
+    max-height: 220px;
+  }
+
+  .modal-image-placeholder {
+    max-height: 320px;
+  }
+
+  /* Modal navigation */
+  .fixed.inset-0.z-50 .swiper-button-next,
+  .fixed.inset-0.z-50 .swiper-button-prev {
+    width: 26px;
+    height: 26px;
+  }
+
+  .fixed.inset-0.z-50 .swiper-button-next:after,
+  .fixed.inset-0.z-50 .swiper-button-prev:after {
+    font-size: 12px;
+  }
+}
+
+/* Extra small mobile devices */
+@media (max-width: 360px) {
+  /* Navigation buttons */
+  .swiper-button-next,
+  .swiper-button-prev {
+    width: 20px;
+    height: 20px;
+  }
+
+  .swiper-button-next:after,
+  .swiper-button-prev:after {
+    font-size: 8px;
+  }
+
+  /* Thumbnails */
+  .thumbs-swiper .swiper-slide {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Image placeholders */
+  .image-placeholder {
+    max-height: 200px;
+  }
+
+  .modal-image-placeholder {
+    max-height: 280px;
+  }
+}

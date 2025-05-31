@@ -13,18 +13,44 @@ import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from '@/components/product/AddToWishlistButton';
 import AddToCompareButton from '@/components/product/AddToCompareButton';
 import ReviewSection from '@/components/review/ReviewSection';
+// Import Swiper components and styles
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Navigation, Pagination, Thumbs, FreeMode, Zoom } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/navigation';
+import 'swiper/css/pagination';
+import 'swiper/css/thumbs';
+import 'swiper/css/zoom';
+import './product-slider.css';
 
 export default function ProductPage({ params }: { params: { slug: string } }) {
   const unwrappedParams = React.use(params);
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState('description');
   const [activeImage, setActiveImage] = useState(0);
+  const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
   const [product, setProduct] = useState<ProductWithDetails | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalImageIndex, setModalImageIndex] = useState(0);
   const router = useRouter();
   const { addItem } = useCart();
   const toast = useToast();
+
+  // Handle image modal
+  const openImageModal = (index: number) => {
+    setModalImageIndex(index);
+    setIsModalOpen(true);
+    // Prevent scrolling when modal is open
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeImageModal = () => {
+    setIsModalOpen(false);
+    // Restore scrolling
+    document.body.style.overflow = 'auto';
+  };
 
   // Handle quantity changes
   const decrementQuantity = () => {
@@ -143,10 +169,10 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-2 sm:px-3 md:px-4 py-4 sm:py-6 md:py-8">
       {/* Breadcrumb navigation */}
-      <nav className="flex text-sm mb-6" aria-label="Breadcrumb">
-        <ol className="inline-flex items-center space-x-1 md:space-x-3">
+      <nav className="hidden sm:flex text-xs sm:text-sm mb-4 sm:mb-6 overflow-x-auto scrollbar-none" aria-label="Breadcrumb">
+        <ol className="inline-flex items-center space-x-1 md:space-x-3 whitespace-nowrap w-max">
           <li className="inline-flex items-center">
             <Link href="/" className="text-gray-600 hover:text-primary">
               Home
@@ -154,7 +180,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           </li>
           <li>
             <div className="flex items-center">
-              <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                 <path
                   fillRule="evenodd"
                   d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
@@ -222,119 +248,163 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       </nav>
 
       {/* Product details */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-10">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 md:p-6 mb-6 sm:mb-8 md:mb-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 md:gap-8">
           {/* Product images */}
-          <div className="space-y-4">
-            <div className="relative bg-gray-100 rounded-lg overflow-hidden h-80 w-full">
-              <Image
-                src={product.images && product.images.length > 0 
-                  ? product.images[activeImage].image_url 
-                  : product.main_image_url || '/placeholder-product.jpg'}
-                alt={product.title}
-                fill
-                sizes="(max-width: 768px) 100vw, 50vw"
-                className="object-contain"
-              />
+          <div className="space-y-3 sm:space-y-4">
+            {/* Main image slider */}
+            <div className="relative bg-white rounded-lg overflow-hidden w-full" style={{ height: 'min(300px, 55vw)' }}>
+              <Swiper
+                modules={[Navigation, Pagination, Thumbs, Zoom]}
+                navigation
+                pagination={{ clickable: true }}
+                thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
+                slidesPerView={1}
+                loop={true}
+                zoom={{ maxRatio: 3 }}
+                className="h-full w-full"
+                onSlideChange={(swiper) => setActiveImage(swiper.activeIndex)}
+              >
+                {product.images && product.images.length > 0 ? (
+                  product.images.map((image, index) => (
+                    <SwiperSlide key={index} className="flex items-center justify-center bg-white">
+                      <div className="swiper-zoom-container relative h-full w-full cursor-zoom-in" onClick={() => openImageModal(index)}>
+                        <div className="image-placeholder">
+                          <Image
+                            src={image.image_url}
+                            alt={`${product.title} - Image ${index + 1}`}
+                            fill
+                            sizes="(max-width: 480px) 95vw, (max-width: 768px) 90vw, 50vw"
+                            className="object-contain"
+                          />
+                        </div>
+                      </div>
+                    </SwiperSlide>
+                  ))
+                ) : (
+                  <SwiperSlide className="flex items-center justify-center bg-white">
+                    <div className="swiper-zoom-container relative h-full w-full cursor-zoom-in" onClick={() => openImageModal(0)}>
+                      <div className="image-placeholder">
+                        <Image
+                          src={product.main_image_url || '/placeholder-product.jpg'}
+                          alt={product.title}
+                          fill
+                          sizes="(max-width: 480px) 95vw, (max-width: 768px) 90vw, 50vw"
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  </SwiperSlide>
+                )}
+              </Swiper>
+
               {product.discount_percentage > 0 && (
-                <span className="absolute top-4 left-4 bg-red-500 text-white text-sm font-medium px-2 py-1 rounded">
+                <span className="absolute top-4 left-4 bg-red-500 text-white text-sm font-medium px-2 py-1 rounded z-10">
                   -{product.discount_percentage}%
                 </span>
               )}
             </div>
 
             {/* Thumbnail gallery */}
-            <div className="grid grid-cols-4 gap-2">
-              {product.images && product.images.length > 0 ? (
-                product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    className={cn(
-                      'relative bg-gray-100 rounded border h-20',
-                      activeImage === index ? 'border-primary' : 'border-gray-200'
-                    )}
-                    onClick={() => setActiveImage(index)}
-                  >
+            <div className="w-full">
+              <Swiper
+                modules={[FreeMode, Navigation, Thumbs]}
+                onSwiper={setThumbsSwiper}
+                spaceBetween={10}
+                slidesPerView="auto"
+                freeMode={true}
+                watchSlidesProgress={true}
+                loop={true}
+                className="thumbs-swiper"
+              >
+                {product.images && product.images.length > 0 ? (
+                  product.images.map((image, index) => (
+                    <SwiperSlide 
+                      key={index} 
+                      className={cn(
+                        'relative bg-white rounded border h-20 w-20 cursor-pointer',
+                        activeImage === index ? 'border-primary' : 'border-gray-200'
+                      )}
+                    >
+                      <Image
+                        src={image.image_url}
+                        alt={`${product.title} - Thumbnail ${index + 1}`}
+                        fill
+                        sizes="(max-width: 480px) 20vw, (max-width: 768px) 15vw, 10vw"
+                        className="object-contain p-1"
+                      />
+                    </SwiperSlide>
+                  ))
+                ) : (
+                  <SwiperSlide className="relative bg-white rounded border h-20 w-20 border-primary">
                     <Image
-                      src={image.image_url}
-                      alt={`${product.title} - Image ${index + 1}`}
+                      src={product.main_image_url || '/placeholder-product.jpg'}
+                      alt={product.title}
                       fill
-                      sizes="(max-width: 768px) 25vw, 10vw"
+                      sizes="(max-width: 480px) 20vw, (max-width: 768px) 15vw, 10vw"
                       className="object-contain p-1"
                     />
-                  </button>
-                ))
-              ) : (
-                <button
-                  className="relative bg-gray-100 rounded border h-20 border-primary"
-                >
-                  <Image
-                    src={product.main_image_url || '/placeholder-product.jpg'}
-                    alt={product.title}
-                    fill
-                    sizes="(max-width: 768px) 25vw, 10vw"
-                    className="object-contain p-1"
-                  />
-                </button>
-              )}
+                  </SwiperSlide>
+                )}
+              </Swiper>
             </div>
           </div>
 
           {/* Product info */}
           <div className="flex flex-col">
-            <h1 className="text-2xl font-bold text-gray-900 mb-2">{product.title}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">{product.title}</h1>
 
             {/* Brand */}
-            <div className="mb-3">
-              <span className="text-gray-600">Brand: </span>
-              <span className="font-medium">{product.brand}</span>
+            <div className="mb-2 sm:mb-3">
+              <span className="text-gray-600 text-sm sm:text-base">Brand: </span>
+              <span className="font-medium text-sm sm:text-base">{product.brand}</span>
             </div>
 
             {/* Rating */}
-            <div className="flex items-center mb-4">
+            <div className="flex items-center mb-3 sm:mb-4">
               <div className="flex mr-2">{renderRating(product.rating || 0)}</div>
-              <span className="text-gray-600 text-sm">
+              <span className="text-gray-600 text-xs sm:text-sm">
                 {(product.rating || 0).toFixed(1)} ({product.review_count || 0} reviews)
               </span>
             </div>
 
             {/* Price */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <div className="flex items-center">
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-xl sm:text-2xl font-bold text-gray-900">
                   {formatPrice(product.price)}
                 </span>
                 {product.old_price > 0 && (
-                  <span className="ml-2 text-gray-500 line-through">
+                  <span className="ml-2 text-sm sm:text-base text-gray-500 line-through">
                     {formatPrice(product.old_price)}
                   </span>
                 )}
               </div>
               {product.in_stock ? (
-                <span className="text-green-600 font-medium mt-1 inline-block">In Stock</span>
+                <span className="text-green-600 font-medium text-sm sm:text-base mt-1 inline-block">In Stock</span>
               ) : (
-                <span className="text-red-600 font-medium mt-1 inline-block">Out of Stock</span>
+                <span className="text-red-600 font-medium text-sm sm:text-base mt-1 inline-block">Out of Stock</span>
               )}
             </div>
 
             {/* Brief description */}
-            <p className="text-gray-600 mb-6">{product.description}</p>
+            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">{product.description}</p>
 
             {/* Quantity selector */}
-            <div className="flex items-center mb-6">
-              <span className="text-gray-700 mr-3">Quantity:</span>
+            <div className="flex items-center mb-4 sm:mb-6">
+              <span className="text-sm sm:text-base text-gray-700 mr-2 sm:mr-3">Quantity:</span>
               <div className="flex items-center border border-gray-300 rounded-md">
                 <button
                   onClick={decrementQuantity}
-                  className="flex-shrink-0 px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none disabled:opacity-50"
+                  className="flex-shrink-0 px-2 sm:px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none disabled:opacity-50"
                   disabled={quantity <= 1}
                 >
                   -
                 </button>
-                <span className="px-3 py-1 border-x border-gray-300">{quantity}</span>
+                <span className="px-2 sm:px-3 py-1 border-x border-gray-300 text-sm sm:text-base">{quantity}</span>
                 <button
                   onClick={incrementQuantity}
-                  className="flex-shrink-0 px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
+                  className="flex-shrink-0 px-2 sm:px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
                 >
                   +
                 </button>
@@ -342,34 +412,36 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
             </div>
 
             {/* Add to cart button and action buttons */}
-            <div className="flex gap-3 mb-6">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-4 sm:mb-6">
               <button
                 onClick={addToCart}
                 disabled={!product.in_stock}
                 className={cn(
-                  'px-4 py-3 rounded-md font-medium w-1/2 transition-all duration-300 shadow-md hover:shadow-lg',
+                  'px-3 sm:px-4 py-2 sm:py-3 rounded-md text-sm sm:text-base font-medium sm:w-1/2 transition-all duration-300 shadow-md hover:shadow-lg order-1',
                   product.in_stock
                     ? 'bg-blue-600 text-white hover:bg-blue-700 hover:scale-[1.02] active:scale-[0.98]'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 )}
               >
-                <span className="flex items-center justify-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="flex items-center justify-center gap-1 sm:gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                   </svg>
                   Add to Cart
                 </span>
               </button>
-              <AddToWishlistButton 
-                productId={product.id} 
-                variant="icon-button"
-                className="flex-1 py-3 hover:scale-[1.02] active:scale-[0.98]"
-              />
-              <AddToCompareButton
-                productId={product.id}
-                variant="icon-button"
-                className="flex-1 py-3 hover:scale-[1.02] active:scale-[0.98]"
-              />
+              <div className="flex gap-2 sm:gap-3 sm:flex-1 order-2">
+                <AddToWishlistButton 
+                  productId={product.id} 
+                  variant="icon-button"
+                  className="flex-1 py-2 sm:py-3 text-sm sm:text-base hover:scale-[1.02] active:scale-[0.98]"
+                />
+                <AddToCompareButton
+                  productId={product.id}
+                  variant="icon-button"
+                  className="flex-1 py-2 sm:py-3 text-sm sm:text-base hover:scale-[1.02] active:scale-[0.98]"
+                />
+              </div>
             </div>
 
             {/* Additional product details */}
@@ -410,13 +482,13 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       </div>
 
       {/* Product tabs - Description, Specifications, Reviews */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-10">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 sm:mb-8 md:mb-10">
         <div className="border-b border-gray-200">
-          <nav className="flex overflow-x-auto">
+          <nav className="flex overflow-x-auto scrollbar-none">
             <button
               onClick={() => setActiveTab('description')}
               className={cn(
-                'py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap',
+                'py-2 px-2 sm:py-3 sm:px-3 md:py-4 md:px-6 text-center border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap',
                 activeTab === 'description'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -427,18 +499,18 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
             <button
               onClick={() => setActiveTab('specifications')}
               className={cn(
-                'py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap',
+                'py-2 px-2 sm:py-3 sm:px-3 md:py-4 md:px-6 text-center border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap',
                 activeTab === 'specifications'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               )}
             >
-              Specifications
+              Specs
             </button>
             <button
               onClick={() => setActiveTab('reviews')}
               className={cn(
-                'py-4 px-6 text-center border-b-2 font-medium text-sm whitespace-nowrap',
+                'py-2 px-2 sm:py-3 sm:px-3 md:py-4 md:px-6 text-center border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap',
                 activeTab === 'reviews'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -449,9 +521,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {activeTab === 'description' && (
-            <div className="prose max-w-none">
+            <div className="prose max-w-none text-sm sm:text-base">
               {product.description ? (
                 <div dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, '<br />') }} />
               ) : (
@@ -465,7 +537,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               {product.specifications && product.specifications.length > 0 ? (
                 <>
                   {/* Copy to clipboard button */}
-                  <div className="flex justify-start mb-4">
+                  <div className="flex justify-start mb-3 sm:mb-4">
                     <button
                       onClick={() => {
                         // Create a formatted string of all specifications
@@ -483,9 +555,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                             toast.error('Failed to copy specifications');
                           });
                       }}
-                      className="flex items-center text-sm text-primary hover:text-primary-dark transition-colors"
+                      className="flex items-center text-xs sm:text-sm text-primary hover:text-primary-dark transition-colors"
                     >
-                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                       </svg>
                       Copy Specifications
@@ -493,74 +565,76 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                   </div>
 
                   {/* Simple list of specifications */}
-                  {product.specifications.map((spec, index) => (
-                    <div 
-                      key={index} 
-                      className="py-2 flex items-baseline"
-                    >
-                      <div className="flex items-baseline" style={{ width: '40%' }}>
-                        <span className="text-sm font-medium text-gray-900 min-w-[120px]">
-                          {spec.template ? spec.template.display_name : spec.name}
-                        </span>
-                        <div className="mx-1 flex-grow border-b border-dotted border-gray-300"></div>
-                      </div>
-                      <div className="text-gray-700 flex-1">
-                        {/* Format values based on content */}
-                        {(() => {
-                          // Use the same name source for both display and formatting
-                          const specName = (spec.template ? spec.template.name : spec.name).toLowerCase();
+                  <div className="text-xs sm:text-sm">
+                    {product.specifications.map((spec, index) => (
+                      <div 
+                        key={index} 
+                        className="py-1 sm:py-2 flex flex-col sm:flex-row sm:items-baseline border-b border-gray-100 last:border-b-0"
+                      >
+                        <div className="sm:flex sm:items-baseline sm:w-[40%] mb-1 sm:mb-0">
+                          <span className="font-medium text-gray-900 sm:min-w-[120px]">
+                            {spec.template ? spec.template.display_name : spec.name}
+                          </span>
+                          <div className="hidden sm:block mx-1 flex-grow border-b border-dotted border-gray-300"></div>
+                        </div>
+                        <div className="text-gray-700 sm:flex-1 pl-2 sm:pl-0">
+                          {/* Format values based on content */}
+                          {(() => {
+                            // Use the same name source for both display and formatting
+                            const specName = (spec.template ? spec.template.name : spec.name).toLowerCase();
 
-                          if (specName.includes('color')) {
-                            return (
-                              <div className="flex items-center">
-                                <span 
-                                  className="inline-block w-4 h-4 mr-2 rounded-full border border-gray-300" 
-                                  style={{ 
-                                    backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
-                                                    spec.value.toLowerCase().includes('white') ? 'white' :
-                                                    spec.value.toLowerCase().includes('silver') ? 'silver' :
-                                                    spec.value.toLowerCase().includes('gold') ? 'gold' :
-                                                    spec.value.toLowerCase().includes('blue') ? 'blue' :
-                                                    spec.value.toLowerCase().includes('red') ? 'red' : 
-                                                    'transparent'
-                                  }}
-                                ></span>
-                                <span className="font-medium">{spec.value}</span>
-                              </div>
-                            );
-                          } else if (specName.includes('capacity') || 
-                                    specName.includes('memory') || 
-                                    specName.includes('storage') || 
-                                    specName.includes('ram')) {
-                            return (
-                              <span className="font-medium">
-                                {spec.value.replace(/(\d+)/, '$1')}
-                              </span>
-                            );
-                          } else if (specName.includes('resolution')) {
-                            return (
-                              <span className="font-medium">
-                                <span className="px-2 py-1 bg-gray-100 rounded text-sm">{spec.value}</span>
-                              </span>
-                            );
-                          } else if (specName.includes('processor') || 
-                                    specName.includes('cpu')) {
-                            return (
-                              <span className="font-medium">
-                                <span className="font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
-                              </span>
-                            );
-                          } else {
-                            return <span className="font-medium">{spec.value}</span>;
-                          }
-                        })()}
+                            if (specName.includes('color')) {
+                              return (
+                                <div className="flex items-center">
+                                  <span 
+                                    className="inline-block w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 rounded-full border border-gray-300" 
+                                    style={{ 
+                                      backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
+                                                      spec.value.toLowerCase().includes('white') ? 'white' :
+                                                      spec.value.toLowerCase().includes('silver') ? 'silver' :
+                                                      spec.value.toLowerCase().includes('gold') ? 'gold' :
+                                                      spec.value.toLowerCase().includes('blue') ? 'blue' :
+                                                      spec.value.toLowerCase().includes('red') ? 'red' : 
+                                                      'transparent'
+                                    }}
+                                  ></span>
+                                  <span className="font-medium">{spec.value}</span>
+                                </div>
+                              );
+                            } else if (specName.includes('capacity') || 
+                                      specName.includes('memory') || 
+                                      specName.includes('storage') || 
+                                      specName.includes('ram')) {
+                              return (
+                                <span className="font-medium">
+                                  {spec.value.replace(/(\d+)/, '$1')}
+                                </span>
+                              );
+                            } else if (specName.includes('resolution')) {
+                              return (
+                                <span className="font-medium">
+                                  <span className="px-1 py-0.5 sm:px-2 sm:py-1 bg-gray-100 rounded text-xs sm:text-sm">{spec.value}</span>
+                                </span>
+                              );
+                            } else if (specName.includes('processor') || 
+                                      specName.includes('cpu')) {
+                              return (
+                                <span className="font-medium">
+                                  <span className="font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
+                                </span>
+                              );
+                            } else {
+                              return <span className="font-medium">{spec.value}</span>;
+                            }
+                          })()}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </>
               ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No specifications available for this product.</p>
+                <div className="text-center py-4 sm:py-8">
+                  <p className="text-gray-500 text-sm sm:text-base">No specifications available for this product.</p>
                 </div>
               )}
             </div>
@@ -579,37 +653,115 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
 
       {/* Related products */}
       {relatedProducts.length > 0 && (
-        <div className="mb-10">
-          <h2 className="text-2xl font-bold mb-6">Related Products</h2>
-          <ProductGrid products={relatedProducts.map(product => ({
-            id: product.id,
-            title: product.title,
-            price: product.price,
-            oldPrice: product.old_price || undefined,
-            image: product.main_image_url || '/placeholder-product.jpg',
-            category: product.category_id || '',
-            rating: product.rating,
-            inStock: product.in_stock,
-            slug: product.slug,
-          }))} />
+        <div className="mb-8 sm:mb-10">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 md:mb-6">Related Products</h2>
+          <ProductGrid 
+            products={relatedProducts.map(product => ({
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              oldPrice: product.old_price || undefined,
+              image: product.main_image_url || '/placeholder-product.jpg',
+              category: product.category_id || '',
+              rating: product.rating,
+              inStock: product.in_stock,
+              slug: product.slug,
+            }))}
+            layout="grid"
+            limit={4}
+          />
         </div>
       )}
 
       {/* Recently viewed */}
       {relatedProducts.length > 0 && (
         <div>
-          <h2 className="text-2xl font-bold mb-6">Recently Viewed</h2>
-          <ProductGrid products={relatedProducts.slice(0, Math.min(3, relatedProducts.length)).map(product => ({
-            id: product.id,
-            title: product.title,
-            price: product.price,
-            oldPrice: product.old_price || undefined,
-            image: product.main_image_url || '/placeholder-product.jpg',
-            category: product.category_id || '',
-            rating: product.rating,
-            inStock: product.in_stock,
-            slug: product.slug,
-          }))} />
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 md:mb-6">Recently Viewed</h2>
+          <ProductGrid 
+            products={relatedProducts.slice(0, Math.min(3, relatedProducts.length)).map(product => ({
+              id: product.id,
+              title: product.title,
+              price: product.price,
+              oldPrice: product.old_price || undefined,
+              image: product.main_image_url || '/placeholder-product.jpg',
+              category: product.category_id || '',
+              rating: product.rating,
+              inStock: product.in_stock,
+              slug: product.slug,
+            }))}
+            layout="grid"
+            limit={3}
+          />
+        </div>
+      )}
+
+      {/* Image Modal */}
+      {isModalOpen && product && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-1 sm:p-2 md:p-4">
+          <div className="relative w-full max-w-6xl h-[92vh] sm:h-[90vh] flex flex-col">
+            {/* Close button */}
+            <button 
+              onClick={closeImageModal}
+              className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 p-1.5 sm:p-2 bg-white bg-opacity-80 rounded-full text-gray-800 hover:bg-opacity-100 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Main image container */}
+            <div className="flex-grow relative">
+              <Swiper
+                modules={[Navigation, Pagination, Zoom]}
+                navigation
+                pagination={{ clickable: true }}
+                slidesPerView={1}
+                initialSlide={modalImageIndex}
+                loop={true}
+                zoom={{ maxRatio: 4 }}
+                className="h-full w-full"
+              >
+                {product.images && product.images.length > 0 ? (
+                  product.images.map((image, index) => (
+                    <SwiperSlide key={index} className="flex items-center justify-center">
+                      <div className="swiper-zoom-container h-full w-full">
+                        <div className="modal-image-placeholder">
+                          <Image
+                            src={image.image_url}
+                            alt={`${product.title} - Image ${index + 1}`}
+                            fill
+                            sizes="(max-width: 360px) 100vw, (max-width: 480px) 100vw, (max-width: 768px) 95vw, 90vw"
+                            className="object-contain"
+                            priority
+                          />
+                        </div>
+                      </div>
+                    </SwiperSlide>
+                  ))
+                ) : (
+                  <SwiperSlide className="flex items-center justify-center">
+                    <div className="swiper-zoom-container h-full w-full">
+                      <div className="modal-image-placeholder">
+                        <Image
+                          src={product.main_image_url || '/placeholder-product.jpg'}
+                          alt={product.title}
+                          fill
+                          sizes="(max-width: 360px) 100vw, (max-width: 480px) 100vw, (max-width: 768px) 95vw, 90vw"
+                          className="object-contain"
+                          priority
+                        />
+                      </div>
+                    </div>
+                  </SwiperSlide>
+                )}
+              </Swiper>
+            </div>
+
+            {/* Instructions */}
+            <div className="text-center text-white text-xs sm:text-sm mt-2 sm:mt-4">
+              <p>Click and drag to zoom. Double-click to reset zoom.</p>
+            </div>
+          </div>
         </div>
       )}
     </div>

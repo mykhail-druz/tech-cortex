@@ -43,7 +43,7 @@ const CompareContext = createContext<CompareContextType>({
 // Local storage key for compare list
 const COMPARE_LIST_KEY = 'techcortex_compare_list';
 
-// Maximum number of products that can be compared
+// Maximum number of products that can be compared per category
 const MAX_COMPARE_ITEMS = 4;
 
 // Provider component
@@ -173,12 +173,6 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { error: null };
       }
 
-      // Check if we've reached the maximum number of items
-      if (items.length >= MAX_COMPARE_ITEMS) {
-        toast.error(`You can only compare up to ${MAX_COMPARE_ITEMS} products at a time`);
-        return { error: new Error(`Maximum of ${MAX_COMPARE_ITEMS} products allowed`) };
-      }
-
       // Fetch product details
       const { data: product, error } = await dbService.getProductById(productId);
 
@@ -187,8 +181,19 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return { error: error || new Error('Product not found') };
       }
 
-      // We allow adding products from any category
-      // No need to set or check category here
+      // Check if we've reached the maximum number of items for this category
+      // We allow adding products from any category, but limit to MAX_COMPARE_ITEMS per category
+      const categoryId = product.category_id;
+      if (categoryId) {
+        const productsInSameCategory = items.filter(item => 
+          item.product.category_id === categoryId
+        );
+
+        if (productsInSameCategory.length >= MAX_COMPARE_ITEMS) {
+          toast.error(`You can only compare up to ${MAX_COMPARE_ITEMS} products in each category`);
+          return { error: new Error(`Maximum of ${MAX_COMPARE_ITEMS} products allowed per category`) };
+        }
+      }
 
       // Add to compare list
       const newItem: CompareItem = {

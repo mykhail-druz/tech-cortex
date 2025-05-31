@@ -756,17 +756,65 @@ export const createOrder = async (
   order: Omit<Order, 'id' | 'created_at' | 'updated_at'>,
   orderItems: Omit<OrderItem, 'id' | 'order_id' | 'created_at'>[]
 ): Promise<{ data: Order | null; error: Error | null }> => {
-  // Start a transaction
-  const { data, error } = await supabase.rpc('create_order', {
-    order_data: order,
-    order_items_data: orderItems,
-  });
+  try {
+    console.log('Creating order with data:', JSON.stringify(order, null, 2));
 
-  if (error) {
-    return { data: null, error };
+    // Validate required fields
+    if (!order.user_id) {
+      const error = new Error('user_id is required');
+      console.error('Order validation error:', error);
+      return { data: null, error };
+    }
+
+    if (!order.shipping_address) {
+      const error = new Error('shipping_address is required');
+      console.error('Order validation error:', error);
+      return { data: null, error };
+    }
+
+    // Log the payment intent ID specifically
+    console.log('Order payment_intent_id before insert:', order.payment_intent_id);
+
+    // Insert the order first
+    const { data: orderData, error: orderError } = await supabase
+      .from('orders')
+      .insert(order)
+      .select()
+      .single();
+
+    if (orderError) {
+      console.error('Error creating order:', orderError);
+      return { data: null, error: orderError };
+    }
+
+    console.log('Order created successfully:', JSON.stringify(orderData, null, 2));
+    console.log('Order payment_intent_id after insert:', orderData.payment_intent_id);
+
+    // Then insert the order items with the order_id
+    const itemsWithOrderId = orderItems.map(item => ({
+      ...item,
+      order_id: orderData.id
+    }));
+
+    console.log('Creating order items:', JSON.stringify(itemsWithOrderId, null, 2));
+
+    const { error: itemsError } = await supabase
+      .from('order_items')
+      .insert(itemsWithOrderId);
+
+    if (itemsError) {
+      console.error('Error creating order items:', itemsError);
+      // If there's an error with the items, we should delete the order to avoid orphaned orders
+      await supabase.from('orders').delete().eq('id', orderData.id);
+      return { data: null, error: itemsError };
+    }
+
+    console.log('Order items created successfully');
+    return { data: orderData, error: null };
+  } catch (error) {
+    console.error('Unexpected error in createOrder:', error);
+    return { data: null, error: error as Error };
   }
-
-  return { data, error: null };
 };
 
 export const getUserOrders = async (userId: string): Promise<SelectResponse<Order>> => {
@@ -812,6 +860,124 @@ export const getOrderById = async (
   };
 
   return { data: orderWithItems, error: null };
+};
+
+export const updateOrderByPaymentIntent = async (
+  paymentIntentId: string,
+  updates: Partial<Order>
+): Promise<{ data: Order | null; error: Error | null }> => {
+  try {
+    if (!paymentIntentId) {
+      const error = new Error('Payment intent ID is required');
+      console.error(error.message);
+      return { data: null, error };
+    }
+
+    console.log('Updating order by payment intent ID:', paymentIntentId);
+
+    // First, check if any orders exist with this payment intent ID
+    const { data: checkOrders, error: checkError } = await supabase
+      .from('orders')
+      .select('id, payment_intent_id')
+      .eq('payment_intent_id', paymentIntentId);
+
+    if (checkError) {
+      console.error('Error checking orders by payment intent:', checkError);
+      return { data: null, error: checkError };
+    }
+
+    console.log('Orders with this payment intent ID:', checkOrders);
+
+    // If no orders found, try to find the most recent order for this user
+    if (!checkOrders || checkOrders.length === 0) {
+      console.log('No orders found with payment intent ID, trying to find most recent order');
+
+      // Get the user ID from the updates if available
+      const userId = updates.user_id;
+      if (!userId) {
+        const error = new Error('No orders found with this payment intent ID and no user ID provided');
+        console.error(error.message);
+        return { data: null, error };
+      }
+
+      // Find the most recent order for this user
+      const { data: recentOrder, error: recentError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (recentError) {
+        console.error('Error finding recent order:', recentError);
+        return { data: null, error: recentError };
+      }
+
+      if (!recentOrder) {
+        const error = new Error(`No orders found for user: ${userId}`);
+        console.error(error.message);
+        return { data: null, error };
+      }
+
+      console.log('Found most recent order:', recentOrder);
+
+      // Update the order with the payment intent ID
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('orders')
+        .update({ 
+          ...updates, 
+          payment_intent_id: paymentIntentId,
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', recentOrder.id)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('Error updating recent order:', updateError);
+        return { data: null, error: updateError };
+      }
+
+      return { data: updatedOrder, error: null };
+    }
+
+    // Find the order by payment_intent_id
+    const { data: existingOrder, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('payment_intent_id', paymentIntentId)
+      .single();
+
+    if (findError) {
+      console.error('Error finding order by payment intent:', findError);
+      return { data: null, error: findError };
+    }
+
+    if (!existingOrder) {
+      const error = new Error(`No order found with payment intent ID: ${paymentIntentId}`);
+      console.error(error.message);
+      return { data: null, error };
+    }
+
+    // Update the order
+    const { data, error: updateError } = await supabase
+      .from('orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', existingOrder.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating order:', updateError);
+      return { data: null, error: updateError };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error in updateOrderByPaymentIntent:', error);
+    return { data: null, error: error as Error };
+  }
 };
 
 // User Roles

@@ -154,6 +154,7 @@ export interface Order {
   billing_address: string | null;
   payment_method: string | null;
   payment_status: PaymentStatus;
+  payment_intent_id: string | null;
   tracking_number: string | null;
   notes: string | null;
   created_at: string;

@@ -57,15 +57,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const loadCartItems = async () => {
       if (authLoading) return;
-      
+
       setIsLoading(true);
-      
+
       try {
         if (user) {
           // Logged in user: load cart from database
           const { data } = await dbService.getCartItems(user.id);
           setItems(data || []);
-          
+
           // Merge any guest cart items into the user's cart
           const guestCart = loadGuestCart();
           if (guestCart.length > 0) {
@@ -73,10 +73,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             for (const item of guestCart) {
               await dbService.addToCart(user.id, item.product_id, item.quantity);
             }
-            
+
             // Clear the guest cart
             clearGuestCart();
-            
+
             // Reload the cart
             const { data: updatedData } = await dbService.getCartItems(user.id);
             setItems(updatedData || []);
@@ -99,20 +99,20 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Helper functions for guest cart
   const loadGuestCart = (): GuestCartItem[] => {
     if (typeof window === 'undefined') return [];
-    
+
     const cartJson = localStorage.getItem(GUEST_CART_KEY);
     return cartJson ? JSON.parse(cartJson) : [];
   };
 
   const saveGuestCart = (cart: GuestCartItem[]) => {
     if (typeof window === 'undefined') return;
-    
+
     localStorage.setItem(GUEST_CART_KEY, JSON.stringify(cart));
   };
 
   const clearGuestCart = () => {
     if (typeof window === 'undefined') return;
-    
+
     localStorage.removeItem(GUEST_CART_KEY);
   };
 
@@ -123,17 +123,17 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Logged in user: add to database
         const { error } = await dbService.addToCart(user.id, productId, quantity);
         if (error) return { error };
-        
+
         // Reload cart
         const { data } = await dbService.getCartItems(user.id);
         setItems(data || []);
       } else {
         // Guest user: add to local storage
         const guestCart = loadGuestCart();
-        
+
         // Check if product already exists in cart
         const existingItemIndex = guestCart.findIndex(item => item.product_id === productId);
-        
+
         if (existingItemIndex >= 0) {
           // Update quantity if item exists
           guestCart[existingItemIndex].quantity += quantity;
@@ -142,11 +142,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Fetch product details
           const { data: products } = await dbService.getProducts();
           const product = products?.find(p => p.id === productId);
-          
+
           if (!product) {
             return { error: new Error('Product not found') };
           }
-          
+
           guestCart.push({
             id: `guest_${Date.now()}`,
             product_id: productId,
@@ -154,11 +154,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             product,
           });
         }
-        
+
         saveGuestCart(guestCart);
         setItems(guestCart as CartItem[]);
       }
-      
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -171,12 +171,12 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (quantity <= 0) {
         return removeItem(itemId);
       }
-      
+
       if (user) {
         // Logged in user: update in database
         const { error } = await dbService.updateCartItemQuantity(itemId, quantity);
         if (error) return { error };
-        
+
         // Reload cart
         const { data } = await dbService.getCartItems(user.id);
         setItems(data || []);
@@ -184,14 +184,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Guest user: update in local storage
         const guestCart = loadGuestCart();
         const itemIndex = guestCart.findIndex(item => item.id === itemId);
-        
+
         if (itemIndex >= 0) {
           guestCart[itemIndex].quantity = quantity;
           saveGuestCart(guestCart);
           setItems(guestCart as CartItem[]);
         }
       }
-      
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -205,7 +205,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Logged in user: remove from database
         const { error } = await dbService.removeFromCart(itemId);
         if (error) return { error };
-        
+
         // Reload cart
         const { data } = await dbService.getCartItems(user.id);
         setItems(data || []);
@@ -216,7 +216,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveGuestCart(updatedCart);
         setItems(updatedCart as CartItem[]);
       }
-      
+
       return { error: null };
     } catch (error) {
       return { error: error as Error };
@@ -226,20 +226,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Clear cart
   const clearCart = async () => {
     try {
+      console.log('Clearing cart...');
       if (user) {
         // Logged in user: clear in database
         const { error } = await dbService.clearCart(user.id);
-        if (error) return { error };
-        
+        if (error) {
+          console.error('Error clearing cart in database:', error);
+          return { error };
+        }
+
+        console.log('Cart cleared in database');
         setItems([]);
       } else {
         // Guest user: clear in local storage
         clearGuestCart();
+        console.log('Guest cart cleared');
         setItems([]);
       }
-      
+
       return { error: null };
     } catch (error) {
+      console.error('Unexpected error in clearCart:', error);
       return { error: error as Error };
     }
   };
