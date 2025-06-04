@@ -23,7 +23,7 @@ type AuthContextType = {
     password: string,
     metadata?: { first_name?: string; last_name?: string }
   ) => Promise<{ error: Error | null }>;
-  signInWithOAuth: (provider: 'google') => Promise<void>;
+  signInWithOAuth: (provider: 'google', redirectTo?: string) => Promise<void>;
   signOut: () => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (password: string) => Promise<{ error: Error | null }>;
@@ -41,7 +41,7 @@ const AuthContext = createContext<AuthContextType>({
   hasRole: () => false,
   signIn: async () => ({ error: new Error('AuthContext not initialized') }),
   signUp: async () => ({ error: new Error('AuthContext not initialized') }),
-  signInWithOAuth: async () => {},
+  signInWithOAuth: async (_, __) => {},
   signOut: async () => ({ error: new Error('AuthContext not initialized') }),
   resetPassword: async () => ({ error: new Error('AuthContext not initialized') }),
   updatePassword: async () => ({ error: new Error('AuthContext not initialized') }),
@@ -174,9 +174,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   // Sign in with OAuth (only Google is supported)
-  const signInWithOAuth = async (provider: 'google') => {
-    await authService.signInWithOAuth(provider);
-    // Note: User profile creation is handled in the auth state change listener
+  const signInWithOAuth = async (provider: 'google', redirectTo?: string) => {
+    await authService.signInWithOAuth(provider, redirectTo);
   };
 
   // Sign out function
