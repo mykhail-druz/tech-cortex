@@ -13,6 +13,6 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     autoRefreshToken: true,
     flowType: 'pkce',
     detectSessionInUrl: true,
-    redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/reset-password` : undefined,
+    // redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/reset-password` : undefined,
   },
 });
