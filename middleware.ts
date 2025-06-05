@@ -8,6 +8,12 @@ export async function middleware(request: NextRequest) {
     },
   })
 
+  // Пропускаем middleware для auth callback и reset-password маршрутов
+  if (request.nextUrl.pathname.startsWith('/auth/callback') ||
+    request.nextUrl.pathname.startsWith('/auth/reset-password')) {
+    return response;
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -31,7 +37,7 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Этот вызов нужен чтобы инициализировать cookies
+  // Инициализируем cookies, только если это не auth callback или reset-password
   await supabase.auth.getUser()
 
   return response

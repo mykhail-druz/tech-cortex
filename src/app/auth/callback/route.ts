@@ -24,17 +24,30 @@ export async function GET(request: NextRequest) {
             })
           },
         },
+        auth: {
+          flowType: 'pkce',
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+        },
       }
     )
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (error) {
-      console.error('Auth error:', error)
-      return NextResponse.redirect(new URL('/auth/auth-code-error', request.url))
+      if (error) {
+        console.error('Auth error:', error)
+        return NextResponse.redirect(new URL(`/auth/error?message=${encodeURIComponent(error.message)}`, request.url))
+      }
+
+      console.log('Successfully exchanged code for session:', data.session?.user?.email)
+    } catch (error) {
+      console.error('Unexpected error during auth exchange:', error)
+      return NextResponse.redirect(new URL('/auth/error?message=Authentication failed', request.url))
     }
   }
 
-  // URL to redirect to after sign up process completes
+  // URL to redirect to after sign-up process completes
   return NextResponse.redirect(new URL(redirectTo, request.url))
 }

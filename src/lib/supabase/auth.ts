@@ -50,10 +50,13 @@ export const signInWithOAuth = async (provider: 'google', redirectTo?: string): 
     return;
   }
 
-  const { error } = await supabase.auth.signInWithOAuth({
+  const redirectUrl = `${window.location.origin}/auth/callback${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`;
+  console.log('OAuth redirect URL:', redirectUrl);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/auth/callback${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`,
+      redirectTo: redirectUrl,
       queryParams: {
         access_type: 'offline',
         prompt: 'consent',
@@ -61,11 +64,14 @@ export const signInWithOAuth = async (provider: 'google', redirectTo?: string): 
     },
   });
 
+  console.log('OAuth response:', { data, error });
+
   if (error) {
     console.error('OAuth initiation error:', error);
     throw error;
   }
 };
+
 
 // Sign out
 export const signOut = async (): Promise<{ error: AuthError | null }> => {
@@ -88,11 +94,11 @@ export const getUser = async (): Promise<{ user: User | null; error: AuthError |
 // Reset password
 export const resetPassword = async (email: string): Promise<{ error: AuthError | null }> => {
   // Get the site URL from environment or use window.location.origin as fallback
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 
-                 (typeof window !== 'undefined' ? window.location.origin : '');
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ||
+    (typeof window !== 'undefined' ? window.location.origin : '');
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/reset-password`,
+    redirectTo: `${siteUrl}/auth/reset-password`, // Это будет обрабатываться route.ts
   });
   return { error };
 };
@@ -148,6 +154,12 @@ export const onAuthStateChange = (
   callback: (event: 'SIGNED_IN' | 'SIGNED_OUT' | 'USER_UPDATED' | 'PASSWORD_RECOVERY', session: Session | null) => void
 ) => {
   return supabase.auth.onAuthStateChange((event, session) => {
+    // Блокируем PASSWORD_RECOVERY события чтобы предотвратить автологин
+    if (event === 'PASSWORD_RECOVERY') {
+      console.log('Blocking PASSWORD_RECOVERY event to prevent auto-login');
+      return; // НЕ вызываем callback для recovery событий
+    }
+
     callback(event, session);
   });
 };

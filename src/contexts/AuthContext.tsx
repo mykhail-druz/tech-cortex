@@ -56,8 +56,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Initialize auth state
+
+// Initialize auth state
   useEffect(() => {
+    // НЕ инициализируем auth контекст на странице reset-password для безопасности
+    if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
+      console.log('Skipping auth initialization on reset-password page');
+      setIsLoading(false);
+      return;
+    }
+
     const initializeAuth = async () => {
       try {
         // Get current session
@@ -80,8 +88,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     initializeAuth();
 
-    // Set up auth state change listener
+    // Set up auth state change listener (только если НЕ на reset-password странице)
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
+      // Дополнительная проверка внутри listener
+      if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
+        console.log('Ignoring auth state change on reset-password page');
+        return;
+      }
+
       setSession(session);
       setUser(session?.user || null);
 
@@ -272,8 +286,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 // Custom hook to use the auth context
 export const useAuth = () => {
   const context = useContext(AuthContext);
+
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+
+  // На странице reset-password возвращаем минимальный контекст
+  if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
+    return {
+      ...context,
+      user: null,
+      profile: null,
+      session: null,
+      isLoading: false,
+      isAdmin: false,
+      isManager: false,
+      hasRole: () => false,
+    };
+  }
+
   return context;
 };
+
