@@ -44,19 +44,27 @@ export const signIn = async (email: string, password: string): Promise<AuthRespo
 };
 
 // Sign in with OAuth provider (only Google is supported)
-export const signInWithOAuth = async (provider: 'google' | 'facebook' | 'github', redirectTo?: string): Promise<void> => {
-  // Only allow Google as a provider
+export const signInWithOAuth = async (provider: 'google', redirectTo?: string): Promise<void> => {
   if (provider !== 'google') {
     console.error('Only Google authentication is currently supported');
     return;
   }
 
-  await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
       redirectTo: `${window.location.origin}/auth/callback${redirectTo ? `?redirect=${encodeURIComponent(redirectTo)}` : ''}`,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      }
     },
   });
+
+  if (error) {
+    console.error('OAuth initiation error:', error);
+    throw error;
+  }
 };
 
 // Sign out

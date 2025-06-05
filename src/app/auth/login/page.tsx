@@ -51,13 +51,14 @@ function LoginContent() {
 
   const handleOAuthSignIn = async (provider: 'google') => {
     try {
+      console.log('Starting OAuth sign-in with provider:', provider);
+      console.log('Redirect URL:', redirectTo);
       setError(null);
       setSuccess(null);
-      // Pass the redirect parameter to the OAuth provider
       await signInWithOAuth(provider, redirectTo);
     } catch (err) {
+      console.error('OAuth sign-in error:', err);
       setError('An error occurred with Google login. Please try again.');
-      console.error(err);
     }
   };
 
