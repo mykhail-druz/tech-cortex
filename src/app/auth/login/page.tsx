@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { FaEye, FaEyeSlash, FaCheck, FaTimes } from 'react-icons/fa';
 
 // Client component that uses useSearchParams
 function LoginContent() {
@@ -12,6 +13,13 @@ function LoginContent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // New state variables for enhanced UI/UX
+  const [showPassword, setShowPassword] = useState(false);
+  const [validations, setValidations] = useState({
+    email: { valid: false, message: '' }
+  });
+
   const { signIn, signInWithOAuth } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,10 +33,31 @@ function LoginContent() {
     }
   }, [registered]);
 
+  // Email validation
+  useEffect(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const isValid = emailRegex.test(email);
+
+    setValidations(prev => ({
+      ...prev,
+      email: {
+        valid: isValid,
+        message: email && !isValid ? 'Please enter a valid email address' : ''
+      }
+    }));
+  }, [email]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
+
+    // Check email validation
+    if (!validations.email.valid && email) {
+      setError('Please enter a valid email address');
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -74,8 +103,13 @@ function LoginContent() {
         )}
 
         {success && (
-          <div className="bg-green-50 text-green-600 p-3 rounded-md mb-4">
-            {success}
+          <div className="bg-green-50 text-green-600 p-4 rounded-md mb-4 border border-green-200 shadow-sm animate-fadeIn flex items-center">
+            <svg className="w-5 h-5 mr-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+            </svg>
+            <div>
+              {success}
+            </div>
           </div>
         )}
 
@@ -84,15 +118,35 @@ function LoginContent() {
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
               Email Address
             </label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="your@email.com"
-            />
+            <div className="relative">
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={`w-full px-3 py-2 border ${
+                  email && !validations.email.valid 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                    : email && validations.email.valid 
+                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                      : 'border-gray-300 focus:ring-primary focus:border-primary'
+                } rounded-md focus:outline-none`}
+                placeholder="your@email.com"
+              />
+              {email && (
+                <span className="absolute inset-y-0 right-0 flex items-center pr-3">
+                  {validations.email.valid ? (
+                    <FaCheck className="text-green-500" />
+                  ) : (
+                    <FaTimes className="text-red-500" />
+                  )}
+                </span>
+              )}
+            </div>
+            {validations.email.message && (
+              <p className="mt-1 text-xs text-red-500">{validations.email.message}</p>
+            )}
           </div>
 
           <div>
@@ -104,15 +158,28 @@ function LoginContent() {
                 Forgot password?
               </Link>
             </div>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                className="absolute inset-y-0 right-0 flex items-center pr-3"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <FaEyeSlash className="text-gray-500" />
+                ) : (
+                  <FaEye className="text-gray-500" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button
