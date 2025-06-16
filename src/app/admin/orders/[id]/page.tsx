@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
-import { OrderWithItems, OrderStatus, PaymentStatus } from '@/lib/supabase/types';
+import { OrderWithItems, OrderStatus, PaymentStatus } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 
 // Order Detail Page
@@ -21,8 +21,8 @@ export default function OrderDetail() {
       try {
         setLoading(true);
         // Fetch order details from the database
-        const { data, error } = await import('@/lib/supabase/adminDb').then(
-          module => module.getOrderDetails(id as string)
+        const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+          module.getOrderDetails(id as string)
         );
 
         if (error) {
@@ -49,8 +49,8 @@ export default function OrderDetail() {
   const handleUpdateStatus = async (newStatus: OrderStatus) => {
     try {
       // Update order status in the database
-      const { data, error } = await import('@/lib/supabase/adminDb').then(
-        module => module.updateOrderStatus(id as string, newStatus)
+      const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.updateOrderStatus(id as string, newStatus)
       );
 
       if (error) {
@@ -62,7 +62,7 @@ export default function OrderDetail() {
         setOrder({
           ...order,
           status: newStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
       }
 
@@ -77,8 +77,8 @@ export default function OrderDetail() {
   const handleUpdatePaymentStatus = async (newPaymentStatus: PaymentStatus) => {
     try {
       // Update payment status in the database
-      const { data, error } = await import('@/lib/supabase/adminDb').then(
-        module => module.updateOrderPaymentStatus(id as string, newPaymentStatus)
+      const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.updateOrderPaymentStatus(id as string, newPaymentStatus)
       );
 
       if (error) {
@@ -90,7 +90,7 @@ export default function OrderDetail() {
         setOrder({
           ...order,
           payment_status: newPaymentStatus,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
       }
 
@@ -116,8 +116,8 @@ export default function OrderDetail() {
       setIsUpdatingTracking(true);
 
       // Update tracking number in the database
-      const { data, error } = await import('@/lib/supabase/adminDb').then(
-        module => module.updateOrderTrackingNumber(id as string, trackingNumber)
+      const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.updateOrderTrackingNumber(id as string, trackingNumber)
       );
 
       if (error) {
@@ -129,7 +129,7 @@ export default function OrderDetail() {
         setOrder({
           ...order,
           tracking_number: trackingNumber,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         });
       }
 
@@ -157,8 +157,13 @@ export default function OrderDetail() {
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-gray-800">Order Not Found</h2>
-        <p className="mt-2 text-gray-600">The order you're looking for doesn't exist or you don't have permission to view it.</p>
-        <Link href="/admin/orders" className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+        <p className="mt-2 text-gray-600">
+          The order you're looking for doesn't exist or you don't have permission to view it.
+        </p>
+        <Link
+          href="/admin/orders"
+          className="mt-4 inline-block bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
           Back to Orders
         </Link>
       </div>
@@ -204,12 +209,12 @@ export default function OrderDetail() {
                   order.status === OrderStatus.DELIVERED
                     ? 'bg-green-100 text-green-800'
                     : order.status === OrderStatus.SHIPPED
-                    ? 'bg-blue-100 text-blue-800'
-                    : order.status === OrderStatus.PROCESSING
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : order.status === OrderStatus.PENDING
-                    ? 'bg-gray-100 text-gray-800'
-                    : 'bg-red-100 text-red-800'
+                      ? 'bg-blue-100 text-blue-800'
+                      : order.status === OrderStatus.PROCESSING
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : order.status === OrderStatus.PENDING
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-red-100 text-red-800'
                 }`}
               >
                 {order.status}
@@ -224,10 +229,10 @@ export default function OrderDetail() {
                   order.payment_status === PaymentStatus.PAID
                     ? 'bg-green-100 text-green-800'
                     : order.payment_status === PaymentStatus.PENDING
-                    ? 'bg-yellow-100 text-yellow-800'
-                    : order.payment_status === PaymentStatus.REFUNDED
-                    ? 'bg-blue-100 text-blue-800'
-                    : 'bg-red-100 text-red-800'
+                      ? 'bg-yellow-100 text-yellow-800'
+                      : order.payment_status === PaymentStatus.REFUNDED
+                        ? 'bg-blue-100 text-blue-800'
+                        : 'bg-red-100 text-red-800'
                 }`}
               >
                 {order.payment_status}
@@ -244,7 +249,7 @@ export default function OrderDetail() {
               <input
                 type="text"
                 value={trackingNumber}
-                onChange={(e) => setTrackingNumber(e.target.value)}
+                onChange={e => setTrackingNumber(e.target.value)}
                 placeholder="Enter tracking number"
                 className="px-2 py-1 border border-gray-300 rounded text-sm w-full max-w-xs"
               />
@@ -286,7 +291,7 @@ export default function OrderDetail() {
           <div>
             <h3 className="text-sm font-medium text-gray-500">Update Order Status</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {Object.values(OrderStatus).map((status) => (
+              {Object.values(OrderStatus).map(status => (
                 <button
                   key={status}
                   onClick={() => handleUpdateStatus(status as OrderStatus)}
@@ -306,7 +311,7 @@ export default function OrderDetail() {
           <div>
             <h3 className="text-sm font-medium text-gray-500">Update Payment Status</h3>
             <div className="mt-2 flex flex-wrap gap-2">
-              {Object.values(PaymentStatus).map((status) => (
+              {Object.values(PaymentStatus).map(status => (
                 <button
                   key={status}
                   onClick={() => handleUpdatePaymentStatus(status as PaymentStatus)}
@@ -347,7 +352,7 @@ export default function OrderDetail() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {order.items.map((item) => (
+              {order.items.map(item => (
                 <tr key={item.id}>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -362,9 +367,7 @@ export default function OrderDetail() {
                         <p className="font-medium text-gray-900">
                           {item.product?.title || 'Product'}
                         </p>
-                        <p className="text-sm text-gray-500">
-                          SKU: {item.product?.sku || 'N/A'}
-                        </p>
+                        <p className="text-sm text-gray-500">SKU: {item.product?.sku || 'N/A'}</p>
                       </div>
                     </div>
                   </td>

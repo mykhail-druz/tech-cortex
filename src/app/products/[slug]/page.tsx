@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import ProductGrid from '@/components/product/ProductGrid';
 import { getProductBySlug, getRelatedProducts } from '@/lib/supabase/db';
-import { ProductWithDetails, Product } from '@/lib/supabase/types';
+import { ProductWithDetails, Product } from '@/lib/supabase/types/types';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from '@/components/product/AddToWishlistButton';
@@ -37,6 +37,43 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   const router = useRouter();
   const { addItem } = useCart();
   const toast = useToast();
+
+  // Создаем объединенный массив изображений: главное + дополнительные
+  const allImages = useMemo(() => {
+    if (!product) return [];
+
+    const images = [];
+
+    // Добавляем главное изображение первым (если оно есть)
+    if (product.main_image_url) {
+      images.push({
+        image_url: product.main_image_url,
+        alt_text: product.title,
+      });
+    }
+
+    // Добавляем дополнительные изображения
+    if (product.images && product.images.length > 0) {
+      product.images.forEach((img, index) => {
+        images.push({
+          image_url: img.image_url,
+          alt_text: img.alt_text || `${product.title} - Image ${index + 1}`,
+          is_main: false,
+        });
+      });
+    }
+
+    // Если нет ни главного, ни дополнительных изображений, показываем placeholder
+    if (images.length === 0) {
+      images.push({
+        image_url: '/placeholder-product.jpg',
+        alt_text: product.title,
+        is_main: true,
+      });
+    }
+
+    return images;
+  }, [product]);
 
   // Handle image modal
   const openImageModal = (index: number) => {
@@ -156,7 +193,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Product Not Found</h1>
-          <p className="text-gray-600 mb-6">The product you are looking for does not exist or has been removed.</p>
+          <p className="text-gray-600 mb-6">
+            The product you are looking for does not exist or has been removed.
+          </p>
           <button
             onClick={() => router.push('/products')}
             className="px-6 py-3 bg-primary text-white rounded-md font-medium hover:bg-primary-dark transition-colors"
@@ -171,7 +210,10 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   return (
     <div className="container mx-auto px-2 sm:px-3 md:px-4 py-4 sm:py-6 md:py-8">
       {/* Breadcrumb navigation */}
-      <nav className="hidden sm:flex text-xs sm:text-sm mb-4 sm:mb-6 overflow-x-auto scrollbar-none" aria-label="Breadcrumb">
+      <nav
+        className="hidden sm:flex text-xs sm:text-sm mb-4 sm:mb-6 overflow-x-auto scrollbar-none"
+        aria-label="Breadcrumb"
+      >
         <ol className="inline-flex items-center space-x-1 md:space-x-3 whitespace-nowrap w-max">
           <li className="inline-flex items-center">
             <Link href="/" className="text-gray-600 hover:text-primary">
@@ -180,7 +222,11 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           </li>
           <li>
             <div className="flex items-center">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg
+                className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400"
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
                 <path
                   fillRule="evenodd"
                   d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
@@ -253,41 +299,31 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           {/* Product images */}
           <div className="space-y-3 sm:space-y-4">
             {/* Main image slider */}
-            <div className="relative bg-white rounded-lg overflow-hidden w-full" style={{ height: 'min(300px, 55vw)' }}>
+            <div
+              className="relative bg-white rounded-lg overflow-hidden w-full"
+              style={{ height: 'min(300px, 55vw)' }}
+            >
               <Swiper
                 modules={[Navigation, Pagination, Thumbs, Zoom]}
                 navigation
                 pagination={{ clickable: true }}
                 thumbs={{ swiper: thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null }}
                 slidesPerView={1}
-                loop={true}
+                loop={allImages.length > 1}
                 zoom={{ maxRatio: 3 }}
                 className="h-full w-full"
-                onSlideChange={(swiper) => setActiveImage(swiper.activeIndex)}
+                onSlideChange={swiper => setActiveImage(swiper.activeIndex)}
               >
-                {product.images && product.images.length > 0 ? (
-                  product.images.map((image, index) => (
-                    <SwiperSlide key={index} className="flex items-center justify-center bg-white">
-                      <div className="swiper-zoom-container relative h-full w-full cursor-zoom-in" onClick={() => openImageModal(index)}>
-                        <div className="image-placeholder">
-                          <Image
-                            src={image.image_url}
-                            alt={`${product.title} - Image ${index + 1}`}
-                            fill
-                            sizes="(max-width: 480px) 95vw, (max-width: 768px) 90vw, 50vw"
-                            className="object-contain"
-                          />
-                        </div>
-                      </div>
-                    </SwiperSlide>
-                  ))
-                ) : (
-                  <SwiperSlide className="flex items-center justify-center bg-white">
-                    <div className="swiper-zoom-container relative h-full w-full cursor-zoom-in" onClick={() => openImageModal(0)}>
+                {allImages.map((image, index) => (
+                  <SwiperSlide key={index} className="flex items-center justify-center bg-white">
+                    <div
+                      className="swiper-zoom-container relative h-full w-full cursor-zoom-in"
+                      onClick={() => openImageModal(index)}
+                    >
                       <div className="image-placeholder">
                         <Image
-                          src={product.main_image_url || '/placeholder-product.jpg'}
-                          alt={product.title}
+                          src={image.image_url}
+                          alt={image.alt_text}
                           fill
                           sizes="(max-width: 480px) 95vw, (max-width: 768px) 90vw, 50vw"
                           className="object-contain"
@@ -295,7 +331,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                       </div>
                     </div>
                   </SwiperSlide>
-                )}
+                ))}
               </Swiper>
 
               {product.discount_percentage > 0 && (
@@ -306,21 +342,21 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
             </div>
 
             {/* Thumbnail gallery */}
-            <div className="w-full">
-              <Swiper
-                modules={[FreeMode, Navigation, Thumbs]}
-                onSwiper={setThumbsSwiper}
-                spaceBetween={10}
-                slidesPerView="auto"
-                freeMode={true}
-                watchSlidesProgress={true}
-                loop={true}
-                className="thumbs-swiper"
-              >
-                {product.images && product.images.length > 0 ? (
-                  product.images.map((image, index) => (
-                    <SwiperSlide 
-                      key={index} 
+            {allImages.length > 1 && (
+              <div className="w-full">
+                <Swiper
+                  modules={[FreeMode, Navigation, Thumbs]}
+                  onSwiper={setThumbsSwiper}
+                  spaceBetween={10}
+                  slidesPerView="auto"
+                  freeMode={true}
+                  watchSlidesProgress={true}
+                  loop={allImages.length > 1}
+                  className="thumbs-swiper"
+                >
+                  {allImages.map((image, index) => (
+                    <SwiperSlide
+                      key={index}
                       className={cn(
                         'relative bg-white rounded border h-20 w-20 cursor-pointer',
                         activeImage === index ? 'border-primary' : 'border-gray-200'
@@ -328,26 +364,16 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                     >
                       <Image
                         src={image.image_url}
-                        alt={`${product.title} - Thumbnail ${index + 1}`}
+                        alt={image.alt_text}
                         fill
                         sizes="(max-width: 480px) 20vw, (max-width: 768px) 15vw, 10vw"
                         className="object-contain p-1"
                       />
                     </SwiperSlide>
-                  ))
-                ) : (
-                  <SwiperSlide className="relative bg-white rounded border h-20 w-20 border-primary">
-                    <Image
-                      src={product.main_image_url || '/placeholder-product.jpg'}
-                      alt={product.title}
-                      fill
-                      sizes="(max-width: 480px) 20vw, (max-width: 768px) 15vw, 10vw"
-                      className="object-contain p-1"
-                    />
-                  </SwiperSlide>
-                )}
-              </Swiper>
-            </div>
+                  ))}
+                </Swiper>
+              </div>
+            )}
           </div>
 
           {/* Product info */}
@@ -381,9 +407,13 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                 )}
               </div>
               {product.in_stock ? (
-                <span className="text-green-600 font-medium text-sm sm:text-base mt-1 inline-block">In Stock</span>
+                <span className="text-green-600 font-medium text-sm sm:text-base mt-1 inline-block">
+                  In Stock
+                </span>
               ) : (
-                <span className="text-red-600 font-medium text-sm sm:text-base mt-1 inline-block">Out of Stock</span>
+                <span className="text-red-600 font-medium text-sm sm:text-base mt-1 inline-block">
+                  Out of Stock
+                </span>
               )}
             </div>
 
@@ -401,7 +431,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                 >
                   -
                 </button>
-                <span className="px-2 sm:px-3 py-1 border-x border-gray-300 text-sm sm:text-base">{quantity}</span>
+                <span className="px-2 sm:px-3 py-1 border-x border-gray-300 text-sm sm:text-base">
+                  {quantity}
+                </span>
                 <button
                   onClick={incrementQuantity}
                   className="flex-shrink-0 px-2 sm:px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
@@ -424,15 +456,26 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                 )}
               >
                 <span className="flex items-center justify-center gap-1 sm:gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 sm:h-5 sm:w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
+                    />
                   </svg>
                   Add to Cart
                 </span>
               </button>
               <div className="flex gap-2 sm:gap-3 sm:flex-1 order-2">
-                <AddToWishlistButton 
-                  productId={product.id} 
+                <AddToWishlistButton
+                  productId={product.id}
                   variant="icon-button"
                   className="flex-1 py-2 sm:py-3 text-sm sm:text-base hover:scale-[1.02] active:scale-[0.98]"
                 />
@@ -481,6 +524,42 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
         </div>
       </div>
 
+      {/* Image Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="relative max-w-4xl max-h-full p-4">
+            <button
+              onClick={closeImageModal}
+              className="absolute top-4 right-4 text-white text-2xl z-10 hover:text-gray-300"
+            >
+              ×
+            </button>
+            <Swiper
+              modules={[Navigation, Pagination, Zoom]}
+              navigation
+              pagination={{ clickable: true }}
+              zoom={{ maxRatio: 5 }}
+              initialSlide={modalImageIndex}
+              className="max-h-[90vh] max-w-[90vw]"
+            >
+              {allImages.map((image, index) => (
+                <SwiperSlide key={index} className="flex items-center justify-center">
+                  <div className="swiper-zoom-container">
+                    <Image
+                      src={image.image_url}
+                      alt={image.alt_text}
+                      width={800}
+                      height={600}
+                      className="object-contain max-w-full max-h-full"
+                    />
+                  </div>
+                </SwiperSlide>
+              ))}
+            </Swiper>
+          </div>
+        </div>
+      )}
+
       {/* Product tabs - Description, Specifications, Reviews */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-6 sm:mb-8 md:mb-10">
         <div className="border-b border-gray-200">
@@ -525,7 +604,9 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
           {activeTab === 'description' && (
             <div className="prose max-w-none text-sm sm:text-base">
               {product.description ? (
-                <div dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, '<br />') }} />
+                <div
+                  dangerouslySetInnerHTML={{ __html: product.description.replace(/\n/g, '<br />') }}
+                />
               ) : (
                 <p>No detailed description available for this product.</p>
               )}
@@ -546,7 +627,8 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                           .join('\n');
 
                         // Copy to clipboard
-                        navigator.clipboard.writeText(specsText)
+                        navigator.clipboard
+                          .writeText(specsText)
                           .then(() => {
                             toast.success('Specifications copied to clipboard');
                           })
@@ -557,8 +639,19 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                       }}
                       className="flex items-center text-xs sm:text-sm text-primary hover:text-primary-dark transition-colors"
                     >
-                      <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                      <svg
+                        className="w-3 h-3 sm:w-4 sm:h-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"
+                        />
                       </svg>
                       Copy Specifications
                     </button>
@@ -567,201 +660,52 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                   {/* Simple list of specifications */}
                   <div className="text-xs sm:text-sm">
                     {product.specifications.map((spec, index) => (
-                      <div 
-                        key={index} 
+                      <div
+                        key={index}
                         className="py-1 sm:py-2 flex flex-col sm:flex-row sm:items-baseline border-b border-gray-100 last:border-b-0"
                       >
                         <div className="sm:flex sm:items-baseline sm:w-[40%] mb-1 sm:mb-0">
                           <span className="font-medium text-gray-900 sm:min-w-[120px]">
                             {spec.template ? spec.template.display_name : spec.name}
                           </span>
-                          <div className="hidden sm:block mx-1 flex-grow border-b border-dotted border-gray-300"></div>
+                          {spec.template && spec.template.units && (
+                            <span className="text-gray-500 text-xs ml-1">
+                              ({spec.template.units})
+                            </span>
+                          )}
                         </div>
-                        <div className="text-gray-700 sm:flex-1 pl-2 sm:pl-0">
-                          {/* Format values based on content */}
-                          {(() => {
-                            // Use the same name source for both display and formatting
-                            const specName = (spec.template ? spec.template.name : spec.name).toLowerCase();
-
-                            if (specName.includes('color')) {
-                              return (
-                                <div className="flex items-center">
-                                  <span 
-                                    className="inline-block w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 rounded-full border border-gray-300" 
-                                    style={{ 
-                                      backgroundColor: spec.value.toLowerCase().includes('black') ? 'black' : 
-                                                      spec.value.toLowerCase().includes('white') ? 'white' :
-                                                      spec.value.toLowerCase().includes('silver') ? 'silver' :
-                                                      spec.value.toLowerCase().includes('gold') ? 'gold' :
-                                                      spec.value.toLowerCase().includes('blue') ? 'blue' :
-                                                      spec.value.toLowerCase().includes('red') ? 'red' : 
-                                                      'transparent'
-                                    }}
-                                  ></span>
-                                  <span className="font-medium">{spec.value}</span>
-                                </div>
-                              );
-                            } else if (specName.includes('capacity') || 
-                                      specName.includes('memory') || 
-                                      specName.includes('storage') || 
-                                      specName.includes('ram')) {
-                              return (
-                                <span className="font-medium">
-                                  {spec.value.replace(/(\d+)/, '$1')}
-                                </span>
-                              );
-                            } else if (specName.includes('resolution')) {
-                              return (
-                                <span className="font-medium">
-                                  <span className="px-1 py-0.5 sm:px-2 sm:py-1 bg-gray-100 rounded text-xs sm:text-sm">{spec.value}</span>
-                                </span>
-                              );
-                            } else if (specName.includes('processor') || 
-                                      specName.includes('cpu')) {
-                              return (
-                                <span className="font-medium">
-                                  <span className="font-semibold">{spec.value.split(' ')[0]}</span> {spec.value.split(' ').slice(1).join(' ')}
-                                </span>
-                              );
-                            } else {
-                              return <span className="font-medium">{spec.value}</span>;
-                            }
-                          })()}
+                        <div className="sm:flex-1">
+                          <span className="text-gray-700">
+                            {spec.template && spec.template.data_type === 'boolean'
+                              ? spec.value === 'true'
+                                ? 'Yes'
+                                : 'No'
+                              : spec.value}
+                          </span>
                         </div>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <div className="text-center py-4 sm:py-8">
-                  <p className="text-gray-500 text-sm sm:text-base">No specifications available for this product.</p>
-                </div>
+                <p className="text-gray-500">No specifications available for this product.</p>
               )}
             </div>
           )}
 
           {activeTab === 'reviews' && (
-            <ReviewSection
-              productId={product.id}
-              initialReviews={product.reviews}
-              reviewCount={product.review_count || 0}
-              averageRating={product.rating || 0}
-            />
+            <ReviewSection productId={product.id} productTitle={product.title} />
           )}
         </div>
       </div>
 
       {/* Related products */}
       {relatedProducts.length > 0 && (
-        <div className="mb-8 sm:mb-10">
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 md:mb-6">Related Products</h2>
-          <ProductGrid 
-            products={relatedProducts.map(product => ({
-              id: product.id,
-              title: product.title,
-              price: product.price,
-              oldPrice: product.old_price || undefined,
-              image: product.main_image_url || '/placeholder-product.jpg',
-              category: product.category_id || '',
-              rating: product.rating,
-              inStock: product.in_stock,
-              slug: product.slug,
-            }))}
-            layout="grid"
-            limit={4}
-          />
-        </div>
-      )}
-
-      {/* Recently viewed */}
-      {relatedProducts.length > 0 && (
-        <div>
-          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-3 sm:mb-4 md:mb-6">Recently Viewed</h2>
-          <ProductGrid 
-            products={relatedProducts.slice(0, Math.min(3, relatedProducts.length)).map(product => ({
-              id: product.id,
-              title: product.title,
-              price: product.price,
-              oldPrice: product.old_price || undefined,
-              image: product.main_image_url || '/placeholder-product.jpg',
-              category: product.category_id || '',
-              rating: product.rating,
-              inStock: product.in_stock,
-              slug: product.slug,
-            }))}
-            layout="grid"
-            limit={3}
-          />
-        </div>
-      )}
-
-      {/* Image Modal */}
-      {isModalOpen && product && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-90 p-1 sm:p-2 md:p-4">
-          <div className="relative w-full max-w-6xl h-[92vh] sm:h-[90vh] flex flex-col">
-            {/* Close button */}
-            <button 
-              onClick={closeImageModal}
-              className="absolute top-1 right-1 sm:top-2 sm:right-2 z-10 p-1.5 sm:p-2 bg-white bg-opacity-80 rounded-full text-gray-800 hover:bg-opacity-100 transition-all"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-
-            {/* Main image container */}
-            <div className="flex-grow relative">
-              <Swiper
-                modules={[Navigation, Pagination, Zoom]}
-                navigation
-                pagination={{ clickable: true }}
-                slidesPerView={1}
-                initialSlide={modalImageIndex}
-                loop={true}
-                zoom={{ maxRatio: 4 }}
-                className="h-full w-full"
-              >
-                {product.images && product.images.length > 0 ? (
-                  product.images.map((image, index) => (
-                    <SwiperSlide key={index} className="flex items-center justify-center">
-                      <div className="swiper-zoom-container h-full w-full">
-                        <div className="modal-image-placeholder">
-                          <Image
-                            src={image.image_url}
-                            alt={`${product.title} - Image ${index + 1}`}
-                            fill
-                            sizes="(max-width: 360px) 100vw, (max-width: 480px) 100vw, (max-width: 768px) 95vw, 90vw"
-                            className="object-contain"
-                            priority
-                          />
-                        </div>
-                      </div>
-                    </SwiperSlide>
-                  ))
-                ) : (
-                  <SwiperSlide className="flex items-center justify-center">
-                    <div className="swiper-zoom-container h-full w-full">
-                      <div className="modal-image-placeholder">
-                        <Image
-                          src={product.main_image_url || '/placeholder-product.jpg'}
-                          alt={product.title}
-                          fill
-                          sizes="(max-width: 360px) 100vw, (max-width: 480px) 100vw, (max-width: 768px) 95vw, 90vw"
-                          className="object-contain"
-                          priority
-                        />
-                      </div>
-                    </div>
-                  </SwiperSlide>
-                )}
-              </Swiper>
-            </div>
-
-            {/* Instructions */}
-            <div className="text-center text-white text-xs sm:text-sm mt-2 sm:mt-4">
-              <p>Click and drag to zoom. Double-click to reset zoom.</p>
-            </div>
-          </div>
+        <div className="mb-6 sm:mb-8 md:mb-10">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-4 sm:mb-6">
+            Related Products
+          </h2>
+          <ProductGrid products={relatedProducts} />
         </div>
       )}
     </div>

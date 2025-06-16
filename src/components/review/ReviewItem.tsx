@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Review } from '@/lib/supabase/types';
+import { Review } from '@/lib/supabase/types/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { updateReview, deleteReview } from '@/lib/supabase/db';
 import { useToast } from '@/contexts/ToastContext';
@@ -102,7 +102,7 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
             Rating
           </label>
           <div className="flex space-x-1">
-            {[1, 2, 3, 4, 5].map((star) => (
+            {[1, 2, 3, 4, 5].map(star => (
               <button
                 key={star}
                 type="button"
@@ -131,7 +131,7 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
             type="text"
             id="title"
             value={editedTitle}
-            onChange={(e) => setEditedTitle(e.target.value)}
+            onChange={e => setEditedTitle(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
           />
         </div>
@@ -144,7 +144,7 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
             id="content"
             rows={4}
             value={editedContent}
-            onChange={(e) => setEditedContent(e.target.value)}
+            onChange={e => setEditedContent(e.target.value)}
             className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
           />
         </div>
@@ -211,16 +211,18 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
         {review.is_verified_purchase && (
           <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium flex items-center">
             <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              <path
+                fillRule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clipRule="evenodd"
+              />
             </svg>
             Verified Purchase
           </span>
         )}
       </div>
 
-      {review.title && (
-        <h4 className="font-medium text-lg mb-2 text-gray-900">{review.title}</h4>
-      )}
+      {review.title && <h4 className="font-medium text-lg mb-2 text-gray-900">{review.title}</h4>}
 
       {review.content && (
         <div className="bg-gray-50 p-4 rounded-md mb-4">
@@ -246,7 +248,12 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
               className="flex items-center text-sm text-primary hover:text-primary/80"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                />
               </svg>
               Edit
             </button>
@@ -255,7 +262,12 @@ export default function ReviewItem({ review, onReviewUpdated, onReviewDeleted }:
               className="flex items-center text-sm text-red-600 hover:text-red-800"
             >
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
               Delete
             </button>

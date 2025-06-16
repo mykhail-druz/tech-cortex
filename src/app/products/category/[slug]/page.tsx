@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
 import { cn } from '@/lib/utils';
 import { getProducts, getCategories } from '@/lib/supabase/db';
-import { Product, Category } from '@/lib/supabase/types';
+import { Product, Category } from '@/lib/supabase/types/types';
 
 // Define sorting options
 const sortOptions = [
@@ -49,7 +49,7 @@ export default function CategoryProductsPage() {
           console.error('Error fetching categories:', categoriesError);
         } else {
           setCategories(categoriesData || []);
-          
+
           // Find the category by slug and set its name
           const category = categoriesData?.find(c => c.slug === categorySlug);
           if (category) {
@@ -106,28 +106,30 @@ export default function CategoryProductsPage() {
                       </button>
 
                       {/* Subcategories */}
-                      {activeCategory === category.slug && category.subcategories && category.subcategories.length > 0 && (
-                        <ul className="pl-4 space-y-1 mt-1">
-                          {category.subcategories.map(subcategory => (
-                            <li key={subcategory.id}>
-                              <button
-                                className={cn(
-                                  'w-full text-left py-1 px-2 rounded-md text-sm transition-colors',
-                                  activeSubcategory === subcategory.slug
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                                )}
-                                onClick={() => {
-                                  setActiveCategory(category.slug);
-                                  setActiveSubcategory(subcategory.slug);
-                                }}
-                              >
-                                {subcategory.name}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      {activeCategory === category.slug &&
+                        category.subcategories &&
+                        category.subcategories.length > 0 && (
+                          <ul className="pl-4 space-y-1 mt-1">
+                            {category.subcategories.map(subcategory => (
+                              <li key={subcategory.id}>
+                                <button
+                                  className={cn(
+                                    'w-full text-left py-1 px-2 rounded-md text-sm transition-colors',
+                                    activeSubcategory === subcategory.slug
+                                      ? 'bg-primary/10 text-primary'
+                                      : 'text-gray-600 hover:bg-gray-100'
+                                  )}
+                                  onClick={() => {
+                                    setActiveCategory(category.slug);
+                                    setActiveSubcategory(subcategory.slug);
+                                  }}
+                                >
+                                  {subcategory.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                     </li>
                   ))}
                 </ul>

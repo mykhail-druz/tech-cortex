@@ -14,9 +14,190 @@ import {
   OrderWithItems,
   OrderItem,
   PaymentStatus,
-} from './types';
+} from './types/types';
+import { CompatibilityRule } from './types/specifications';
+import { CategoryTemplateService } from './services/categoryTemplateService';
+import { ProductService } from './services/productService';
 
 // Admin-specific database operations
+
+// Получение шаблонов категории для админки
+export const getCategoryTemplates = async (
+  categoryId: string
+): Promise<SelectResponse<CategorySpecificationTemplate>> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select('*')
+    .eq('category_id', categoryId)
+    .order('display_order');
+
+  return { data: response.data, error: response.error };
+};
+
+// Создание продукта с валидированными спецификациями
+export const createProductWithValidatedSpecs = async (
+  productData: Omit<Product, 'id' | 'created_at' | 'updated_at'>,
+  specifications: { [templateName: string]: any }
+): Promise<InsertResponse<Product> & { validationErrors?: string[] }> => {
+  console.log('🔧 Creating product with validated specifications...');
+  console.log('Product data:', JSON.stringify(productData, null, 2));
+  console.log('Specifications:', JSON.stringify(specifications, null, 2));
+
+  try {
+    // Используем новый сервис
+    const result = await ProductService.createProductWithSpecifications(
+      productData,
+      specifications
+    );
+
+    console.log('Result from ProductService:', JSON.stringify(result, null, 2));
+
+    if (!result.success) {
+      console.error('Validation failed:', result.errors);
+      return {
+        data: null,
+        error: new Error(result.errors?.join(', ') || 'Validation failed'),
+        validationErrors: result.errors,
+      };
+    }
+
+    // Получаем созданный продукт
+    const { data: product, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', result.productId!)
+      .single();
+
+    console.log('Retrieved product from database:', JSON.stringify(product, null, 2));
+    console.log('Error retrieving product:', error);
+
+    return { data: product, error };
+  } catch (error) {
+    console.error('❌ Error in createProductWithValidatedSpecs:', error);
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error'),
+      validationErrors: ['Внутренняя ошибка сервера'],
+    };
+  }
+};
+
+// Обновление спецификаций продукта с валидацией
+export const updateProductSpecifications = async (
+  productId: string,
+  specifications: { [templateName: string]: any }
+): Promise<{ success: boolean; errors?: string[] }> => {
+  try {
+    // Получаем категорию продукта
+    const { data: product } = await supabase
+      .from('products')
+      .select('category_id, subcategory_id')
+      .eq('id', productId)
+      .single();
+
+    if (!product) {
+      return { success: false, errors: ['Продукт не найден'] };
+    }
+
+    // Получаем slug категории
+    const categoryId = product.subcategory_id || product.category_id;
+    const { data: category } = await supabase
+      .from('categories')
+      .select('slug')
+      .eq('id', categoryId)
+      .single();
+
+    if (!category) {
+      return { success: false, errors: ['Категория не найдена'] };
+    }
+
+    // Получаем шаблоны
+    const templates = await CategoryTemplateService.getTemplatesForCategory(category.slug);
+    const errors: string[] = [];
+
+    // Валидируем спецификации
+    for (const template of templates) {
+      const value = specifications[template.name];
+      const validation = CategoryTemplateService.validateSpecification(template, value);
+
+      if (!validation.isValid) {
+        errors.push(validation.error!);
+      }
+    }
+
+    if (errors.length > 0) {
+      return { success: false, errors };
+    }
+
+    // Удаляем старые спецификации
+    await supabase.from('product_specifications').delete().eq('product_id', productId);
+
+    // Добавляем новые спецификации
+    const specInserts = [];
+    for (const template of templates) {
+      const value = specifications[template.name];
+      if (value !== undefined && value !== null) {
+        let typedSpec: any = {
+          product_id: productId,
+          template_id: template.id,
+          name: template.name,
+          value: String(value),
+          display_order: template.display_order,
+        };
+
+        // Добавляем типизированные значения
+        switch (template.data_type) {
+          case 'number':
+            typedSpec.value_number = Number(value);
+            break;
+          case 'boolean':
+            typedSpec.value_boolean = Boolean(value);
+            break;
+          case 'enum':
+          case 'socket':
+          case 'memory_type':
+          case 'power_connector':
+            typedSpec.value_enum = String(value);
+            break;
+          default:
+            typedSpec.value_text = String(value);
+        }
+
+        specInserts.push(typedSpec);
+      }
+    }
+
+    if (specInserts.length > 0) {
+      const { error } = await supabase.from('product_specifications').insert(specInserts);
+
+      if (error) {
+        return { success: false, errors: ['Ошибка сохранения спецификаций: ' + error.message] };
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error updating product specifications:', error);
+    return { success: false, errors: ['Внутренняя ошибка сервера'] };
+  }
+};
+
+// Инициализация системы шаблонов (для админа)
+export const initializeSpecificationTemplates = async (): Promise<{
+  success: boolean;
+  error?: string;
+}> => {
+  try {
+    await CategoryTemplateService.initializeCategoryTemplates();
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error initializing templates:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+};
 
 // Products
 export const createProduct = async (
@@ -31,14 +212,18 @@ export const createProduct = async (
     console.log('Removed empty subcategory_id from product data');
   }
 
+  // Make sure main_image_url is not an empty string
+  if (productData.main_image_url !== undefined) {
+    productData.main_image_url = productData.main_image_url && productData.main_image_url.trim() !== '' 
+      ? productData.main_image_url 
+      : null;
+    console.log('Sanitized main_image_url:', productData.main_image_url);
+  }
+
   console.log('Creating product with data:', JSON.stringify(productData, null, 2));
 
   try {
-    const response = await supabase
-      .from('products')
-      .insert(productData)
-      .select()
-      .single();
+    const response = await supabase.from('products').insert(productData).select().single();
 
     if (response.error) {
       console.error('Supabase error creating product:', response.error);
@@ -50,7 +235,10 @@ export const createProduct = async (
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Exception in createProduct:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in createProduct') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in createProduct'),
+    };
   }
 };
 
@@ -65,6 +253,14 @@ export const updateProduct = async (
   if (productData.subcategory_id === '') {
     delete productData.subcategory_id;
     console.log('Removed empty subcategory_id from product data');
+  }
+
+  // Make sure main_image_url is not an empty string
+  if (productData.main_image_url !== undefined) {
+    productData.main_image_url = productData.main_image_url && productData.main_image_url.trim() !== '' 
+      ? productData.main_image_url 
+      : null;
+    console.log('Sanitized main_image_url:', productData.main_image_url);
   }
 
   console.log('Updating product with data:', JSON.stringify(productData, null, 2));
@@ -87,7 +283,10 @@ export const updateProduct = async (
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Exception in updateProduct:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateProduct') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in updateProduct'),
+    };
   }
 };
 
@@ -147,13 +346,60 @@ export const deleteProduct = async (id: string): Promise<DeleteResponse> => {
 export const addProductImage = async (
   image: Omit<ProductImage, 'id' | 'created_at'>
 ): Promise<InsertResponse<ProductImage>> => {
-  const response = await supabase
-    .from('product_images')
-    .insert(image)
-    .select()
-    .single();
+  console.log('Adding product image to database:', JSON.stringify(image, null, 2));
 
-  return { data: response.data, error: response.error };
+  try {
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    console.log('User session for image upload:', session ? 'Authenticated' : 'Not authenticated');
+
+    // Check if the product exists
+    const { data: product, error: productError } = await supabase
+      .from('products')
+      .select('id, title')
+      .eq('id', image.product_id)
+      .single();
+
+    if (productError) {
+      console.error('Error finding product for image:', productError);
+      return { 
+        data: null, 
+        error: new Error(`Product not found: ${productError.message}`) 
+      };
+    }
+
+    console.log('Found product for image:', product);
+
+    // Make sure image_url is not an empty string
+    const sanitizedImage = {
+      ...image,
+      image_url: image.image_url && image.image_url.trim() !== '' 
+        ? image.image_url 
+        : null
+    };
+
+    console.log('Sanitized image data:', JSON.stringify(sanitizedImage, null, 2));
+
+    // Insert the image
+    console.log('Inserting image into product_images table...');
+    const response = await supabase.from('product_images').insert(sanitizedImage).select().single();
+
+    if (response.error) {
+      console.error('Error adding product image:', response.error);
+      console.error('Error details:', JSON.stringify(response.error, null, 2));
+    } else {
+      console.log('Successfully added product image:', response.data);
+    }
+
+    return { data: response.data, error: response.error };
+  } catch (error) {
+    console.error('Exception in addProductImage:', error);
+    console.error('Error details:', JSON.stringify(error, null, 2));
+    return { 
+      data: null, 
+      error: error instanceof Error ? error : new Error('Unknown error in addProductImage') 
+    };
+  }
 };
 
 export const updateProductImage = async (
@@ -195,11 +441,15 @@ export const deleteProductImage = async (id: string): Promise<DeleteResponse> =>
     return { error: response.error };
   } catch (error) {
     console.error('Error in deleteProductImage:', error);
-    return { error: error instanceof Error ? error : new Error('Unknown error in deleteProductImage') };
+    return {
+      error: error instanceof Error ? error : new Error('Unknown error in deleteProductImage'),
+    };
   }
 };
 
-export const getProductImages = async (productId: string): Promise<SelectResponse<ProductImage>> => {
+export const getProductImages = async (
+  productId: string
+): Promise<SelectResponse<ProductImage>> => {
   const response = await supabase
     .from('product_images')
     .select('*')
@@ -213,11 +463,7 @@ export const getProductImages = async (productId: string): Promise<SelectRespons
 export const addProductSpecification = async (
   spec: Omit<ProductSpecification, 'id'>
 ): Promise<InsertResponse<ProductSpecification>> => {
-  const response = await supabase
-    .from('product_specifications')
-    .insert(spec)
-    .select()
-    .single();
+  const response = await supabase.from('product_specifications').insert(spec).select().single();
 
   return { data: response.data, error: response.error };
 };
@@ -241,7 +487,9 @@ export const deleteProductSpecification = async (id: string): Promise<DeleteResp
   return { error: response.error };
 };
 
-export const getProductSpecifications = async (productId: string): Promise<SelectResponse<ProductSpecification>> => {
+export const getProductSpecifications = async (
+  productId: string
+): Promise<SelectResponse<ProductSpecification>> => {
   const response = await supabase
     .from('product_specifications')
     .select('*')
@@ -251,13 +499,17 @@ export const getProductSpecifications = async (productId: string): Promise<Selec
   return { data: response.data, error: response.error };
 };
 
-export const getProductSpecificationsWithTemplates = async (productId: string): Promise<SelectResponse<any>> => {
+export const getProductSpecificationsWithTemplates = async (
+  productId: string
+): Promise<SelectResponse<any>> => {
   const response = await supabase
     .from('product_specifications')
-    .select(`
+    .select(
+      `
       *,
       template:template_id (*)
-    `)
+    `
+    )
     .eq('product_id', productId)
     .order('display_order', { ascending: true });
 
@@ -268,11 +520,7 @@ export const getProductSpecificationsWithTemplates = async (productId: string): 
 export const createCategory = async (
   category: Omit<Category, 'id' | 'created_at' | 'updated_at'>
 ): Promise<InsertResponse<Category>> => {
-  const response = await supabase
-    .from('categories')
-    .insert(category)
-    .select()
-    .single();
+  const response = await supabase.from('categories').insert(category).select().single();
 
   return { data: response.data, error: response.error };
 };
@@ -432,10 +680,11 @@ export const deleteCategorySpecificationTemplate = async (id: string): Promise<D
     return { error: response.error };
   } catch (error) {
     console.error('Error in deleteCategorySpecificationTemplate:', error);
-    return { 
-      error: error instanceof Error 
-        ? error 
-        : new Error('Unknown error in deleteCategorySpecificationTemplate') 
+    return {
+      error:
+        error instanceof Error
+          ? error
+          : new Error('Unknown error in deleteCategorySpecificationTemplate'),
     };
   }
 };
@@ -447,6 +696,23 @@ export const getCategorySpecificationTemplates = async (
     .from('category_specification_templates')
     .select('*')
     .eq('category_id', categoryId)
+    .order('display_order', { ascending: true });
+
+  return { data: response.data, error: response.error };
+};
+
+export const getAllSpecificationTemplates = async (): Promise<
+  SelectResponse<CategorySpecificationTemplate>
+> => {
+  const response = await supabase
+    .from('category_specification_templates')
+    .select(
+      `
+      *,
+      category:category_id (id, name)
+    `
+    )
+    .order('category_id', { ascending: true })
     .order('display_order', { ascending: true });
 
   return { data: response.data, error: response.error };
@@ -475,7 +741,10 @@ export const getAllOrders = async (): Promise<SelectResponse<Order>> => {
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Error in getAllOrders:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getAllOrders') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in getAllOrders'),
+    };
   }
 };
 
@@ -486,9 +755,9 @@ export const updateOrderStatus = async (
   try {
     const response = await supabase
       .from('orders')
-      .update({ 
-        status, 
-        updated_at: new Date().toISOString() 
+      .update({
+        status,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -497,7 +766,10 @@ export const updateOrderStatus = async (
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Error in updateOrderStatus:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderStatus') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in updateOrderStatus'),
+    };
   }
 };
 
@@ -506,11 +778,7 @@ export const getOrderDetails = async (
 ): Promise<{ data: OrderWithItems | null; error: Error | null }> => {
   try {
     // Get the order
-    const orderResponse = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', orderId)
-      .single();
+    const orderResponse = await supabase.from('orders').select('*').eq('id', orderId).single();
 
     if (orderResponse.error) {
       return { data: null, error: orderResponse.error };
@@ -519,10 +787,12 @@ export const getOrderDetails = async (
     // Get the order items with product details
     const itemsResponse = await supabase
       .from('order_items')
-      .select(`
+      .select(
+        `
         *,
         product:product_id (*)
-      `)
+      `
+      )
       .eq('order_id', orderId);
 
     const orderWithItems: OrderWithItems = {
@@ -533,7 +803,10 @@ export const getOrderDetails = async (
     return { data: orderWithItems, error: null };
   } catch (error) {
     console.error('Error in getOrderDetails:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getOrderDetails') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in getOrderDetails'),
+    };
   }
 };
 
@@ -544,9 +817,9 @@ export const updateOrderPaymentStatus = async (
   try {
     const response = await supabase
       .from('orders')
-      .update({ 
-        payment_status: paymentStatus, 
-        updated_at: new Date().toISOString() 
+      .update({
+        payment_status: paymentStatus,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -555,7 +828,11 @@ export const updateOrderPaymentStatus = async (
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Error in updateOrderPaymentStatus:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderPaymentStatus') };
+    return {
+      data: null,
+      error:
+        error instanceof Error ? error : new Error('Unknown error in updateOrderPaymentStatus'),
+    };
   }
 };
 
@@ -566,9 +843,9 @@ export const updateOrderTrackingNumber = async (
   try {
     const response = await supabase
       .from('orders')
-      .update({ 
-        tracking_number: trackingNumber, 
-        updated_at: new Date().toISOString() 
+      .update({
+        tracking_number: trackingNumber,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', id)
       .select()
@@ -577,7 +854,11 @@ export const updateOrderTrackingNumber = async (
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Error in updateOrderTrackingNumber:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in updateOrderTrackingNumber') };
+    return {
+      data: null,
+      error:
+        error instanceof Error ? error : new Error('Unknown error in updateOrderTrackingNumber'),
+    };
   }
 };
 
@@ -597,10 +878,12 @@ export const getAllUsers = async (): Promise<SelectResponse<any>> => {
     // Then fetch all user profiles
     const response = await supabase
       .from('user_profiles')
-      .select(`
+      .select(
+        `
         *,
         role:role_id (*)
-      `)
+      `
+      )
       .order('created_at', { ascending: false });
 
     // Log the number of users and their details
@@ -611,7 +894,7 @@ export const getAllUsers = async (): Promise<SelectResponse<any>> => {
           id: user.id,
           first_name: user.first_name,
           last_name: user.last_name,
-          created_at: user.created_at
+          created_at: user.created_at,
         });
       });
     }
@@ -623,7 +906,10 @@ export const getAllUsers = async (): Promise<SelectResponse<any>> => {
     return { data: response.data, error: response.error };
   } catch (error) {
     console.error('Error in getAllUsers:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error in getAllUsers') };
+    return {
+      data: null,
+      error: error instanceof Error ? error : new Error('Unknown error in getAllUsers'),
+    };
   }
 };
 
@@ -660,12 +946,77 @@ export const updateUserRole = async (
 ): Promise<UpdateResponse<any>> => {
   const response = await supabase
     .from('user_profiles')
-    .update({ 
+    .update({
       role_id: roleId,
-      updated_at: new Date().toISOString() 
+      updated_at: new Date().toISOString(),
     })
     .eq('id', userId)
     .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+// Compatibility Rules
+export const createCompatibilityRule = async (
+  rule: Omit<CompatibilityRule, 'id' | 'created_at' | 'updated_at'>
+): Promise<InsertResponse<CompatibilityRule>> => {
+  const response = await supabase.from('compatibility_rules').insert(rule).select().single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const updateCompatibilityRule = async (
+  id: string,
+  rule: Partial<Omit<CompatibilityRule, 'id' | 'created_at' | 'updated_at'>>
+): Promise<UpdateResponse<CompatibilityRule>> => {
+  const response = await supabase
+    .from('compatibility_rules')
+    .update({ ...rule, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select()
+    .single();
+
+  return { data: response.data, error: response.error };
+};
+
+export const deleteCompatibilityRule = async (id: string): Promise<DeleteResponse> => {
+  const response = await supabase.from('compatibility_rules').delete().eq('id', id);
+  return { error: response.error };
+};
+
+export const getCompatibilityRules = async (): Promise<SelectResponse<CompatibilityRule>> => {
+  const response = await supabase
+    .from('compatibility_rules')
+    .select(
+      `
+      *,
+      primary_category:primary_category_id (id, name),
+      primary_specification:primary_specification_template_id (id, name, display_name, data_type),
+      secondary_category:secondary_category_id (id, name),
+      secondary_specification:secondary_specification_template_id (id, name, display_name, data_type)
+    `
+    )
+    .order('name', { ascending: true });
+
+  return { data: response.data, error: response.error };
+};
+
+export const getCompatibilityRuleById = async (
+  id: string
+): Promise<{ data: CompatibilityRule | null; error: Error | null }> => {
+  const response = await supabase
+    .from('compatibility_rules')
+    .select(
+      `
+      *,
+      primary_category:primary_category_id (id, name),
+      primary_specification:primary_specification_template_id (id, name, display_name, data_type),
+      secondary_category:secondary_category_id (id, name),
+      secondary_specification:secondary_specification_template_id (id, name, display_name, data_type)
+    `
+    )
+    .eq('id', id)
     .single();
 
   return { data: response.data, error: response.error };

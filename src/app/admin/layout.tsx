@@ -82,6 +82,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 Users
               </Link>
             </li>
+            <li>
+              <Link
+                href="/admin/pc-configurator"
+                className="flex items-center p-2 rounded hover:bg-gray-100"
+              >
+                <span className="mr-3">🖥️</span>
+                PC Configurator
+              </Link>
+            </li>
           </ul>
         </nav>
       </div>

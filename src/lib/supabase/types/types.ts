@@ -1,5 +1,10 @@
-// TypeScript types for Supabase database tables
+import {
+  SpecificationDataType,
+  SpecificationValidationRule,
+  SPECIFICATION_ENUMS,
+} from './specifications';
 
+// TypeScript types for Supabase database tables
 
 // Homepage Content type
 export interface HomepageContent {
@@ -42,6 +47,14 @@ export interface Category {
   is_subcategory: boolean;
   created_at: string;
   updated_at: string;
+
+  // New fields for PC configurator
+  pc_component_type?: string | null;
+  pc_icon?: string | null;
+  pc_required?: boolean | null;
+  pc_supports_multiple?: boolean | null;
+  pc_display_order?: number | null;
+
   subcategories?: Category[];
 }
 
@@ -99,12 +112,21 @@ export interface CategorySpecificationTemplate {
   category_id: string;
   name: string;
   display_name: string;
-  description: string | null;
+  description?: string;
+  data_type: SpecificationDataType;
+
+  // КРИТИЧЕСКИ ВАЖНО - строгая типизация!
+  enum_values: string[];
+  enum_source?: keyof typeof SPECIFICATION_ENUMS; // Указывает источник enum'а
+
+  validation_rules: SpecificationValidationRule;
   is_required: boolean;
-  data_type: string;
-  display_order: number;
-  created_at: string;
-  updated_at: string;
+  is_filterable: boolean;
+  is_compatibility_key: boolean; // Влияет на совместимость!
+
+  display_order?: number;
+  filter_order?: number;
+  filter_type?: 'checkbox' | 'dropdown' | 'range' | 'search';
 }
 
 // Product Specification type

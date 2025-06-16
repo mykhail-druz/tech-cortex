@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import * as dbService from '@/lib/supabase/db';
-import { UserProfile, UserRole } from '@/lib/supabase/types';
+import { UserProfile, UserRole } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 
 // Mock user data with roles

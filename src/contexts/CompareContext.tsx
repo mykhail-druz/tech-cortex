@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useAuth } from './AuthContext';
 import * as dbService from '@/lib/supabase/db';
-import { Product } from '@/lib/supabase/types';
+import { Product } from '@/lib/supabase/types/types';
 import { useToast } from './ToastContext';
 
 // Define the context type
@@ -125,7 +125,8 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             // If we don't have the category name yet, fetch it
             if (!categoryNames.has(optimalCategoryId)) {
-              dbService.getCategoryById(optimalCategoryId)
+              dbService
+                .getCategoryById(optimalCategoryId)
                 .then(({ data }) => {
                   if (data) {
                     setCategoryName(data.name);
@@ -185,13 +186,15 @@ export const CompareProvider: React.FC<{ children: React.ReactNode }> = ({ child
       // We allow adding products from any category, but limit to MAX_COMPARE_ITEMS per category
       const categoryId = product.category_id;
       if (categoryId) {
-        const productsInSameCategory = items.filter(item => 
-          item.product.category_id === categoryId
+        const productsInSameCategory = items.filter(
+          item => item.product.category_id === categoryId
         );
 
         if (productsInSameCategory.length >= MAX_COMPARE_ITEMS) {
           toast.error(`You can only compare up to ${MAX_COMPARE_ITEMS} products in each category`);
-          return { error: new Error(`Maximum of ${MAX_COMPARE_ITEMS} products allowed per category`) };
+          return {
+            error: new Error(`Maximum of ${MAX_COMPARE_ITEMS} products allowed per category`),
+          };
         }
       }
 

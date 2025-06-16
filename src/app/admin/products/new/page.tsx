@@ -1,30 +1,43 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
+import { supabase } from '@/lib/supabaseClient';
 import {
   Category,
   ProductSpecification,
   CategorySpecificationTemplate,
   ProductImage,
-} from '@/lib/supabase/types';
+} from '@/lib/supabase/types/types';
 import Link from 'next/link';
 import Spinner from '@/components/ui/Spinner';
+
+// IMPORTS for the specification system
+import {
+  getCategoryTemplates,
+  createProductWithValidatedSpecs,
+  initializeSpecificationTemplates,
+} from '@/lib/supabase/adminDb';
+import { CategoryTemplateService } from '@/lib/supabase/services/categoryTemplateService';
 
 export default function AddProductPage() {
   const router = useRouter();
   const { user, isAdmin, isManager } = useAuth();
   const toast = useToast();
+
+  // Existing state
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [availableSubcategories, setAvailableSubcategories] = useState<Category[]>([]);
 
+  // Basic product data
   const [formData, setFormData] = useState({
     title: '',
     slug: '',
@@ -40,33 +53,25 @@ export default function AddProductPage() {
     sku: '',
   });
 
-  // Add state to track available subcategories
-  const [availableSubcategories, setAvailableSubcategories] = useState<Category[]>([]);
-
+  // Images (existing functionality)
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
-
-  // State for multiple images
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
   const [imagesPreviews, setImagesPreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // Add state for product specifications
-  const [specifications, setSpecifications] = useState<
-    Omit<ProductSpecification, 'id' | 'product_id'>[]
-  >([]);
-  const [newSpecification, setNewSpecification] = useState({
-    name: '',
-    value: '',
-    template_id: '',
-  });
+  // STATE for the specification system
+  const [useNewSpecSystem, setUseNewSpecSystem] = useState(false);
+  const [newSpecTemplates, setNewSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
+  const [newSpecifications, setNewSpecifications] = useState<{ [key: string]: any }>({});
+  const [loadingNewTemplates, setLoadingNewTemplates] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  // Add state for specification templates
-  const [specTemplates, setSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
+  // We only need the loadingTemplates state for the initialization button
   const [loadingTemplates, setLoadingTemplates] = useState(false);
 
-  // Fetch categories
+  // Existing useEffect for categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -80,56 +85,113 @@ export default function AddProductPage() {
         setLoading(false);
       }
     };
-
     fetchCategories();
   }, []);
 
-  // Update available subcategories when category changes
+  // useEffect for loading templates
   useEffect(() => {
     if (formData.category_id) {
       const selectedCategory = categories.find(c => c.id === formData.category_id);
       setAvailableSubcategories(selectedCategory?.subcategories || []);
 
-      // Reset subcategory if category changes
       if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
         setFormData(prev => ({ ...prev, subcategory_id: '' }));
       }
 
-      // Fetch specification templates for the selected category
-      const fetchTemplates = async () => {
-        setLoadingTemplates(true);
-        try {
-          const { data, error } = await adminDbService.getCategorySpecificationTemplates(
-            formData.category_id
-          );
+      // Always use the main category for templates, even when a subcategory is selected
+      const targetCategoryId = formData.subcategory_id || formData.category_id;
 
-          if (error) {
-            throw error;
-          }
-
-          if (data) {
-            setSpecTemplates(data);
-          } else {
-            setSpecTemplates([]);
-          }
-        } catch (error) {
-          console.error('Error fetching specification templates:', error);
-          toast.error('Failed to load specification templates');
-          setSpecTemplates([]);
-        } finally {
-          setLoadingTemplates(false);
-        }
-      };
-
-      fetchTemplates();
+      // For templates, always use the parent category (selectedCategory), not the subcategory
+      if (selectedCategory?.slug) {
+        loadNewSpecificationSystem(selectedCategory.slug, targetCategoryId);
+      } else {
+        loadLegacySpecificationSystem(targetCategoryId);
+      }
     } else {
       setAvailableSubcategories([]);
       setFormData(prev => ({ ...prev, subcategory_id: '' }));
-      setSpecTemplates([]);
+      setNewSpecTemplates([]);
+      setUseNewSpecSystem(false);
     }
-  }, [formData.category_id, categories, toast]);
+  }, [formData.category_id, formData.subcategory_id, categories, toast]);
 
-  // Generate slug from title
+  // Function for loading the specification system
+  const loadNewSpecificationSystem = async (categorySlug: string, categoryId: string) => {
+    setLoadingNewTemplates(true);
+    try {
+      // Check if there are templates for this category in the system
+      const templates = await CategoryTemplateService.getTemplatesForCategory(categorySlug);
+
+      if (templates.length > 0) {
+        console.log('🔧 Using NEW specification system for', categorySlug);
+        setNewSpecTemplates(templates);
+        setUseNewSpecSystem(true);
+
+        // Initialize empty values
+        const initialSpecs: { [key: string]: any } = {};
+        templates.forEach(template => {
+          initialSpecs[template.name] = template.data_type === 'boolean' ? false : '';
+        });
+        setNewSpecifications(initialSpecs);
+
+        // Clear old data
+      } else {
+        console.log('⚠️ No templates found in NEW system, checking for initialization...');
+        // Suggest initializing the specification system
+        setUseNewSpecSystem(false);
+        loadLegacySpecificationSystem(categoryId);
+      }
+    } catch (error) {
+      console.error('Error loading new specification system:', error);
+      toast.warning('Error loading specification system');
+      setUseNewSpecSystem(false);
+      loadLegacySpecificationSystem(categoryId);
+    } finally {
+      setLoadingNewTemplates(false);
+    }
+  };
+
+  // Function to prompt for initialization when no templates are found
+  const loadLegacySpecificationSystem = async (categoryId: string) => {
+    setLoadingTemplates(true);
+    try {
+      console.log('No templates found for this category');
+      setUseNewSpecSystem(false);
+
+      // Clear any existing templates
+      setNewSpecTemplates([]);
+      setNewSpecifications({});
+    } catch (error) {
+      console.error('Error checking for templates:', error);
+      toast.error('Failed to check for specification templates');
+    } finally {
+      setLoadingTemplates(false);
+    }
+  };
+
+  // Function to initialize the specification template system
+  const handleInitializeNewSystem = async () => {
+    try {
+      const result = await initializeSpecificationTemplates();
+      if (result.success) {
+        toast.success('✅ Specification system successfully initialized!');
+        // Reload templates - always use the main category for templates
+        const mainCategory = categories.find(c => c.id === formData.category_id);
+        const targetCategoryId = formData.subcategory_id || formData.category_id;
+
+        if (mainCategory?.slug) {
+          loadNewSpecificationSystem(mainCategory.slug, targetCategoryId);
+        }
+      } else {
+        toast.error('❌ Initialization error: ' + result.error);
+      }
+    } catch (error) {
+      console.error('Error initializing new system:', error);
+      toast.error('❌ Error initializing specification system');
+    }
+  };
+
+  // Existing functions (do not modify)
   const generateSlug = (title: string) => {
     return title
       .toLowerCase()
@@ -138,14 +200,12 @@ export default function AddProductPage() {
       .replace(/^-+|-+$/g, '');
   };
 
-  // Handle form input changes
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
 
     if (name === 'title') {
-      // Auto-generate slug when title changes
       setFormData({
         ...formData,
         title: value,
@@ -156,7 +216,6 @@ export default function AddProductPage() {
         (name === 'old_price' || name === 'discount_percentage' || name === 'price') &&
         value === ''
       ) {
-        // Allow empty value for old_price, discount_percentage, and price to be set as null
         setFormData({
           ...formData,
           [name]: null,
@@ -175,7 +234,6 @@ export default function AddProductPage() {
     }
   };
 
-  // Handle checkbox changes
   const handleCheckboxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target;
     setFormData({
@@ -184,77 +242,24 @@ export default function AddProductPage() {
     });
   };
 
-  // Handle specification input changes
-  const handleSpecificationChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-
-    // If template_id changes, update the name field with the template name
-    if (name === 'template_id' && value) {
-      const selectedTemplate = specTemplates.find(t => t.id === value);
-      if (selectedTemplate) {
-        setNewSpecification(prev => ({
-          ...prev,
-          [name]: value,
-          name: selectedTemplate.name,
-        }));
-      } else {
-        setNewSpecification(prev => ({ ...prev, [name]: value }));
-      }
-    } else {
-      setNewSpecification(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  // Add a new specification
-  const addSpecification = () => {
-    if (!newSpecification.value.trim()) return;
-
-    // Either template_id or name must be provided
-    if (!newSpecification.template_id && !newSpecification.name.trim()) {
-      toast.error('Either select a template or provide a specification name');
-      return;
-    }
-
-    setSpecifications([
-      ...specifications,
-      {
-        name: newSpecification.name,
-        value: newSpecification.value,
-        template_id: newSpecification.template_id || null,
-        display_order: specifications.length,
-      },
-    ]);
-    setNewSpecification({ name: '', value: '', template_id: '' });
-  };
-
-  // Remove a specification
-  const removeSpecification = (index: number) => {
-    const updatedSpecs = [...specifications];
-    updatedSpecs.splice(index, 1);
-
-    // Update display_order for remaining specifications
-    const reorderedSpecs = updatedSpecs.map((spec, idx) => ({
-      ...spec,
-      display_order: idx,
+  // НОВАЯ функция для обработки новых спецификаций
+  const handleNewSpecificationChange = (templateName: string, value: any) => {
+    setNewSpecifications(prev => ({
+      ...prev,
+      [templateName]: value,
     }));
-
-    setSpecifications(reorderedSpecs);
   };
 
-  // Handle main image file selection
+  // Keep existing functions for images (do not modify)
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
 
-      // Check if file is an image
       if (!file.type.startsWith('image/')) {
         toast.warning('Please select an image file (JPEG, PNG, etc.)');
         return;
       }
 
-      // Check file size (limit to 5MB)
       if (file.size > 5 * 1024 * 1024) {
         toast.warning('Image size should be less than 5MB');
         return;
@@ -262,7 +267,6 @@ export default function AddProductPage() {
 
       setSelectedImage(file);
 
-      // Create a preview URL for the selected image
       const reader = new FileReader();
       reader.onload = event => {
         setImagePreview(event.target?.result as string);
@@ -271,29 +275,24 @@ export default function AddProductPage() {
     }
   };
 
-  // Handle multiple image file selection
   const handleMultipleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
 
-      // Limit to 10 images total (including existing ones)
       if (selectedImages.length + files.length > 10) {
         toast.warning('You can upload a maximum of 10 images per product');
         return;
       }
 
-      // Validate each file
       const validFiles: File[] = [];
       const invalidFiles: string[] = [];
 
       files.forEach(file => {
-        // Check if file is an image
         if (!file.type.startsWith('image/')) {
           invalidFiles.push(`${file.name} is not an image file`);
           return;
         }
 
-        // Check file size (limit to 5MB)
         if (file.size > 5 * 1024 * 1024) {
           invalidFiles.push(`${file.name} exceeds the 5MB size limit`);
           return;
@@ -302,17 +301,14 @@ export default function AddProductPage() {
         validFiles.push(file);
       });
 
-      // Show warnings for invalid files
       if (invalidFiles.length > 0) {
         toast.warning(`Some files were not added: ${invalidFiles.join(', ')}`);
       }
 
       if (validFiles.length === 0) return;
 
-      // Add valid files to selected images
       setSelectedImages(prev => [...prev, ...validFiles]);
 
-      // Create preview URLs for the selected images
       validFiles.forEach(file => {
         const reader = new FileReader();
         reader.onload = event => {
@@ -323,477 +319,607 @@ export default function AddProductPage() {
     }
   };
 
-  // Remove an image from the selected images
   const removeSelectedImage = (index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index));
     setImagesPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Validate form
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-
-    if (!formData.title.trim()) errors.title = 'Title is required';
-    if (!formData.slug.trim()) errors.slug = 'Slug is required';
-    if (formData.price === null || formData.price === undefined) errors.price = 'Price is required';
-    else if (formData.price <= 0) errors.price = 'Price must be greater than 0';
-    if (!formData.category_id) errors.category_id = 'Category is required';
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  // Handle form submission
+  // ИСПРАВЛЕННАЯ функция отправки формы
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    if (!validateForm()) return;
-
     setSubmitting(true);
+    setFormErrors({});
+    setValidationErrors([]);
 
     try {
-      let productData = { ...formData };
+      // Validation
+      if (!formData.title.trim()) {
+        setFormErrors(prev => ({ ...prev, title: 'Title is required' }));
+        setSubmitting(false);
+        return;
+      }
+
+      if (!formData.category_id) {
+        setFormErrors(prev => ({ ...prev, category_id: 'Category is required' }));
+        setSubmitting(false);
+        return;
+      }
+
+      // Определяем final category ID для продукта
+      const finalCategoryId = formData.subcategory_id || formData.category_id;
 
       // Upload main image if selected
+      let mainImageUrl = formData.main_image_url;
+      console.log('Initial main_image_url:', mainImageUrl);
+
       if (selectedImage) {
         setUploadingImage(true);
+        console.log(`Uploading main image: ${selectedImage.name}, ${selectedImage.size} bytes...`);
 
-        // Upload to Supabase storage
-        const { url, error } = await storageService.uploadFile(
-          selectedImage,
-          'products', // bucket name
-          'images' // folder path
-        );
+        try {
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          console.log(
+            'User session for main image upload:',
+            session ? 'Authenticated' : 'Not authenticated'
+          );
 
-        if (error) {
-          throw error;
-        }
+          const {
+            url: uploadedUrl,
+            error: uploadError,
+            fileName,
+          } = await storageService.uploadFile(selectedImage, 'products', 'images');
 
-        if (url) {
-          // Update product data with the image URL
-          productData.main_image_url = url;
-        }
-
-        setUploadingImage(false);
-      }
-
-      // Create product with updated data
-      const { data, error } = await adminDbService.createProduct(productData);
-
-      if (error) {
-        console.error('Error creating product:', error);
-        console.error('Error details:', JSON.stringify(error, null, 2));
-        console.error('Product data:', JSON.stringify(productData, null, 2));
-        throw error;
-      }
-
-      if (!data) {
-        throw new Error('Failed to create product: No data returned');
-      }
-
-      const productId = data.id;
-
-      // If product was created successfully and there are specifications to add
-      if (specifications.length > 0) {
-        // Add specifications
-        for (const spec of specifications) {
-          const { error: specError } = await adminDbService.addProductSpecification({
-            product_id: productId,
-            template_id: spec.template_id || null,
-            name: spec.name,
-            value: spec.value,
-            display_order: spec.display_order,
-          });
-
-          if (specError) {
-            console.error('Error adding specification:', specError);
-            toast.warning(`Product created but some specifications could not be added.`);
-            break;
+          if (uploadError) {
+            console.error('Error uploading main image:', uploadError);
+            throw uploadError;
           }
+
+          if (uploadedUrl) {
+            mainImageUrl = uploadedUrl;
+            console.log('Successfully uploaded main image, URL:', mainImageUrl);
+          } else {
+            console.error('No URL returned for uploaded main image');
+            // Используем правильное имя файла в фоллбэке
+            if (fileName) {
+              const fallbackUrl = `https://qaugzgfnfndwilolhjdi.supabase.co/storage/v1/object/public/products/images/${fileName}`;
+              console.log('Using fallback URL with correct filename for main image:', fallbackUrl);
+              mainImageUrl = fallbackUrl;
+            } else {
+              throw new Error('Failed to get image URL and filename');
+            }
+            toast.warning(
+              'Image URL generation had issues. Images might need to be re-uploaded later.'
+            );
+          }
+        } catch (error) {
+          console.error('Error uploading main image:', error);
+          toast.error('Failed to upload main image');
+          setSubmitting(false);
+          setUploadingImage(false);
+          return;
+        } finally {
+          setUploadingImage(false);
+        }
+      } else {
+        console.log('No main image selected for upload');
+      }
+
+      // Подготавливаем данные продукта
+      const productData = {
+        ...formData,
+        category_id: finalCategoryId,
+        subcategory_id: formData.subcategory_id || undefined,
+        main_image_url: mainImageUrl,
+        price: Number(formData.price),
+        old_price: formData.old_price ? Number(formData.old_price) : null,
+        discount_percentage: formData.discount_percentage
+          ? Number(formData.discount_percentage)
+          : null,
+      };
+
+      console.log('Prepared product data:', JSON.stringify(productData, null, 2));
+      console.log('main_image_url in product data:', productData.main_image_url);
+
+      let createdProduct;
+
+      // Using the specification system
+      console.log('🔧 Creating product with specification system');
+
+      const result = await createProductWithValidatedSpecs(productData, newSpecifications);
+
+      if (result.validationErrors && result.validationErrors.length > 0) {
+        setValidationErrors(result.validationErrors);
+        setSubmitting(false);
+        return;
+      }
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      createdProduct = result.data;
+
+      console.log('Created product:', createdProduct);
+
+      if (!createdProduct) {
+        throw new Error('Failed to create product');
+      }
+
+      // Verify that main_image_url was saved correctly
+      console.log('Verifying main_image_url was saved correctly:');
+      console.log('Expected main_image_url:', mainImageUrl);
+      console.log('Actual main_image_url in created product:', createdProduct.main_image_url);
+
+      if (
+        mainImageUrl &&
+        (!createdProduct.main_image_url || createdProduct.main_image_url !== mainImageUrl)
+      ) {
+        console.warn('⚠️ main_image_url mismatch or missing in created product!');
+
+        // Try to fetch the product directly from the database to double-check
+        try {
+          const { data: fetchedProduct, error: fetchError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('id', createdProduct.id)
+            .single();
+
+          if (fetchError) {
+            console.error('Error fetching product to verify main_image_url:', fetchError);
+          } else {
+            console.log('Fetched product directly from database:', fetchedProduct);
+            console.log('main_image_url in fetched product:', fetchedProduct.main_image_url);
+
+            // If the main_image_url is still missing, try to update it
+            if (
+              mainImageUrl &&
+              (!fetchedProduct.main_image_url || fetchedProduct.main_image_url !== mainImageUrl)
+            ) {
+              console.log('Attempting to update main_image_url...');
+              const { data: updatedProduct, error: updateError } =
+                await adminDbService.updateProduct(createdProduct.id, {
+                  main_image_url: mainImageUrl,
+                });
+
+              if (updateError) {
+                console.error('Error updating main_image_url:', updateError);
+              } else {
+                console.log('Successfully updated main_image_url:', updatedProduct);
+                createdProduct = updatedProduct;
+              }
+            }
+          }
+        } catch (verifyError) {
+          console.error('Error verifying main_image_url:', verifyError);
         }
       }
 
-      // Upload additional images if selected
+      // Upload additional images (ИСПРАВЛЕННАЯ логика)
       if (selectedImages.length > 0) {
         setUploadingImages(true);
+        try {
+          console.log(
+            `Starting upload of ${selectedImages.length} additional images for product:`,
+            createdProduct.id
+          );
 
-        let successCount = 0;
-        let errorCount = 0;
+          // Verify the product was created correctly
+          console.log('Verifying product was created correctly:', {
+            id: createdProduct.id,
+            title: createdProduct.title,
+            main_image_url: createdProduct.main_image_url,
+          });
 
-        // Upload each image and create a product_images record
-        for (let i = 0; i < selectedImages.length; i++) {
-          try {
-            // Upload to Supabase storage
-            const { url, error } = await storageService.uploadFile(
-              selectedImages[i],
-              'products', // bucket name
-              'images' // folder path
-            );
+          // Check if user is authenticated
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          console.log(
+            'User session for additional images:',
+            session ? 'Authenticated' : 'Not authenticated'
+          );
 
-            if (error) {
-              console.error(`Error uploading additional image ${i + 1}:`, error);
-              errorCount++;
+          for (let i = 0; i < selectedImages.length; i++) {
+            const image = selectedImages[i];
+            console.log(`Uploading image ${i + 1} (${image.name}, ${image.size} bytes)...`);
+
+            const {
+              url: uploadedUrl,
+              error: uploadError,
+              fileName,
+            } = await storageService.uploadFile(image, 'products', 'images');
+
+            if (uploadError) {
+              console.error(`Error uploading image ${i + 1}:`, uploadError);
               continue;
             }
 
-            if (!url) {
-              console.error(`No URL returned for additional image ${i + 1}`);
-              errorCount++;
-              continue;
+            let imageUrl = uploadedUrl;
+            if (!imageUrl && fileName) {
+              // Используем правильное имя файла в фоллбэке
+              const fallbackUrl = `https://qaugzgfnfndwilolhjdi.supabase.co/storage/v1/object/public/products/images/${fileName}`;
+              console.log(
+                `Using fallback URL with correct filename for image ${i + 1}:`,
+                fallbackUrl
+              );
+              imageUrl = fallbackUrl;
+              toast.warning('Some image URLs had generation issues.');
             }
 
-            // Create product_images record
-            const imageData: Omit<ProductImage, 'id' | 'created_at'> = {
-              product_id: productId,
-              image_url: url,
-              alt_text: `${productData.title} - Image ${i + 1}`,
-              is_main: false,
-              display_order: i,
-            };
+            if (imageUrl) {
+              console.log(`Successfully uploaded image ${i + 1} to storage:`, imageUrl);
 
-            const { error: addImageError } = await adminDbService.addProductImage(imageData);
+              console.log(`Adding image ${i + 1} to product_images table:`, {
+                product_id: createdProduct.id,
+                image_url: imageUrl, // ИСПРАВЛЕНО: используем imageUrl вместо uploadData.url
+                alt_text: `${createdProduct.title} - Image ${i + 1}`,
+                display_order: i,
+              });
 
-            if (addImageError) {
-              console.error(`Error adding additional image ${i + 1} to database:`, addImageError);
-              errorCount++;
-              continue;
+              try {
+                const { data: imageData, error: imageError } = await adminDbService.addProductImage(
+                  {
+                    product_id: createdProduct.id,
+                    image_url: imageUrl, // ИСПРАВЛЕНО: используем imageUrl вместо uploadData.url
+                    alt_text: `${createdProduct.title} - Image ${i + 1}`,
+                    display_order: i,
+                  }
+                );
+
+                if (imageError) {
+                  console.error(`Error adding image ${i + 1} to product_images table:`, imageError);
+                  console.error('Image error details:', JSON.stringify(imageError, null, 2));
+                } else {
+                  console.log(
+                    `Successfully added image ${i + 1} to product_images table:`,
+                    imageData
+                  );
+                }
+              } catch (imageAddError) {
+                console.error(
+                  `Exception adding image ${i + 1} to product_images table:`,
+                  imageAddError
+                );
+              }
+            } else {
+              console.error(
+                `No URL returned for uploaded image ${i + 1} and no fileName available`
+              );
+              console.warn(`Skipping image ${i + 1} due to upload failure`);
             }
-
-            successCount++;
-          } catch (imageError) {
-            console.error(`Error processing additional image ${i + 1}:`, imageError);
-            errorCount++;
           }
-        }
 
-        setUploadingImages(false);
-
-        if (errorCount > 0) {
-          toast.warning(`Product created but ${errorCount} additional images could not be added.`);
-        }
-
-        if (successCount > 0) {
-          toast.success(`Successfully added ${successCount} additional images.`);
+          // Verify images were added to the database
+          try {
+            const { data: productImages, error: getImagesError } =
+              await adminDbService.getProductImages(createdProduct.id);
+            if (getImagesError) {
+              console.error('Error retrieving product images:', getImagesError);
+            } else {
+              console.log(
+                `Retrieved ${productImages?.length || 0} images for product:`,
+                productImages
+              );
+            }
+          } catch (verifyError) {
+            console.error('Error verifying product images:', verifyError);
+          }
+        } catch (error) {
+          console.error('Error uploading additional images:', error);
+          console.error('Error details:', JSON.stringify(error, null, 2));
+          toast.warning('Product created but some images failed to upload');
+        } finally {
+          setUploadingImages(false);
         }
       }
 
-      // Redirect to products page
+      toast.success('Product created successfully!');
       router.push('/admin/products');
     } catch (error) {
       console.error('Error creating product:', error);
-      if (error instanceof Error) {
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-      }
       toast.error('Failed to create product. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
+  // Function to render specification field input
+  const renderNewSpecificationInput = (template: CategorySpecificationTemplate) => {
+    const value = newSpecifications[template.name] || '';
+
+    switch (template.data_type) {
+      case 'number':
+        return (
+          <input
+            type="number"
+            value={value}
+            onChange={e => handleNewSpecificationChange(template.name, Number(e.target.value))}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            step={template.units === 'GHz' ? '0.1' : '1'}
+            min={template.min_value || undefined}
+            max={template.max_value || undefined}
+            required={template.is_required}
+          />
+        );
+
+      case 'boolean':
+        return (
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={e => handleNewSpecificationChange(template.name, e.target.checked)}
+            className="w-4 h-4"
+          />
+        );
+
+      case 'enum':
+      case 'socket':
+      case 'memory_type':
+      case 'power_connector':
+        return (
+          <select
+            value={value}
+            onChange={e => handleNewSpecificationChange(template.name, e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            required={template.is_required}
+          >
+            <option value="">Select {template.display_name.toLowerCase()}</option>
+            {template.enum_values?.map(enumValue => (
+              <option key={enumValue} value={enumValue}>
+                {enumValue}
+              </option>
+            ))}
+          </select>
+        );
+
+      default:
+        return (
+          <input
+            type="text"
+            value={value}
+            onChange={e => handleNewSpecificationChange(template.name, e.target.value)}
+            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+            required={template.is_required}
+          />
+        );
+    }
+  };
+
+  // Authorization check
+  if (!user || (!isAdmin && !isManager)) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-t-blue-500 border-b-blue-500 rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4">Loading...</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
+          <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+          <Link
+            href="/auth/login"
+            className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          >
+            Login
+          </Link>
         </div>
       </div>
     );
   }
 
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Add New Product</h1>
-        <Link
-          href="/admin/products"
-          className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-        >
-          Cancel
-        </Link>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Spinner size="large" />
       </div>
+    );
+  }
 
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <form onSubmit={handleSubmit}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Title */}
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                Title*
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleInputChange}
-                className={`w-full p-2 border rounded-md ${
-                  formErrors.title ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {formErrors.title && <p className="mt-1 text-sm text-red-500">{formErrors.title}</p>}
-            </div>
-
-            {/* Slug */}
-            <div>
-              <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1">
-                Slug*
-              </label>
-              <input
-                type="text"
-                id="slug"
-                name="slug"
-                value={formData.slug}
-                onChange={handleInputChange}
-                className={`w-full p-2 border rounded-md ${
-                  formErrors.slug ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {formErrors.slug && <p className="mt-1 text-sm text-red-500">{formErrors.slug}</p>}
-            </div>
-
-            {/* Price */}
-            <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                Price*
-              </label>
-              <input
-                type="number"
-                id="price"
-                name="price"
-                value={formData.price === null ? '' : formData.price}
-                onChange={handleInputChange}
-                step="0.01"
-                className={`w-full p-2 border rounded-md ${
-                  formErrors.price ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {formErrors.price && <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>}
-            </div>
-
-            {/* Old Price */}
-            <div>
-              <label htmlFor="old_price" className="block text-sm font-medium text-gray-700 mb-1">
-                Old Price
-              </label>
-              <input
-                type="number"
-                id="old_price"
-                name="old_price"
-                value={formData.old_price === null ? '' : formData.old_price}
-                onChange={handleInputChange}
-                step="0.01"
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-
-            {/* Discount Percentage */}
-            <div>
-              <label
-                htmlFor="discount_percentage"
-                className="block text-sm font-medium text-gray-700 mb-1"
+  return (
+    <div className="min-h-screen bg-gray-50 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="bg-white shadow rounded-lg">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
+              <Link
+                href="/admin/products"
+                className="text-blue-600 hover:text-blue-800 text-sm font-medium"
               >
-                Discount Percentage
-              </label>
-              <input
-                type="number"
-                id="discount_percentage"
-                name="discount_percentage"
-                value={formData.discount_percentage === null ? '' : formData.discount_percentage}
-                onChange={handleInputChange}
-                max="100"
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
+                ← Back to Products
+              </Link>
             </div>
+          </div>
 
-            {/* Category */}
-            <div>
-              <label htmlFor="category_id" className="block text-sm font-medium text-gray-700 mb-1">
-                Category*
-              </label>
-              <select
-                id="category_id"
-                name="category_id"
-                value={formData.category_id}
-                onChange={handleInputChange}
-                className={`w-full p-2 border rounded-md ${
-                  formErrors.category_id ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select a category</option>
-                {categories
-                  .filter(c => !c.is_subcategory)
-                  .map(category => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
+            {/* Validation errors for the specification system */}
+            {validationErrors.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded p-4">
+                <h4 className="font-medium text-red-800 mb-2">Validation Errors:</h4>
+                <ul className="list-disc list-inside text-red-700">
+                  {validationErrors.map((error, index) => (
+                    <li key={index}>{error}</li>
                   ))}
-              </select>
-              {formErrors.category_id && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.category_id}</p>
-              )}
-            </div>
-
-            {/* Subcategory - only show when a category is selected */}
-            {formData.category_id && (
-              <div>
-                <label
-                  htmlFor="subcategory_id"
-                  className="block text-sm font-medium text-gray-700 mb-1"
-                >
-                  Subcategory
-                </label>
-                <select
-                  id="subcategory_id"
-                  name="subcategory_id"
-                  value={formData.subcategory_id}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                >
-                  <option value="">Select a subcategory (optional)</option>
-                  {availableSubcategories.map(subcategory => (
-                    <option key={subcategory.id} value={subcategory.id}>
-                      {subcategory.name}
-                    </option>
-                  ))}
-                </select>
+                </ul>
               </div>
             )}
 
-            {/* Brand */}
-            <div>
-              <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">
-                Brand
-              </label>
-              <input
-                type="text"
-                id="brand"
-                name="brand"
-                value={formData.brand}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-
-            {/* SKU */}
-            <div>
-              <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
-                SKU
-              </label>
-              <input
-                type="text"
-                id="sku"
-                name="sku"
-                value={formData.sku}
-                onChange={handleInputChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-              />
-            </div>
-
-            {/* Main Image Upload */}
-            <div>
-              <label htmlFor="main_image" className="block text-sm font-medium text-gray-700 mb-1">
-                Main Image
-              </label>
-              <div className="flex flex-col space-y-2">
+            {/* Basic Product Information */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                  Product Title *
+                </label>
                 <input
-                  type="file"
-                  id="main_image"
-                  name="main_image"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter product title"
                 />
-
-                {/* Image preview */}
-                {imagePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-1">Preview:</p>
-                    <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </div>
+                {formErrors.title && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.title}</p>
                 )}
+              </div>
 
-                {/* Current image URL input (hidden but still part of form data) */}
+              <div>
+                <label htmlFor="slug" className="block text-sm font-medium text-gray-700 mb-1">
+                  URL Slug *
+                </label>
                 <input
-                  type="hidden"
-                  id="main_image_url"
-                  name="main_image_url"
-                  value={formData.main_image_url}
+                  type="text"
+                  id="slug"
+                  name="slug"
+                  value={formData.slug}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="auto-generated-from-title"
                 />
+              </div>
 
-                {/* Show URL if exists but no preview */}
-                {!imagePreview && formData.main_image_url && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500">Current image URL:</p>
-                    <p className="text-sm text-blue-500 truncate">{formData.main_image_url}</p>
-                  </div>
-                )}
+              <div>
+                <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-1">
+                  Brand *
+                </label>
+                <input
+                  type="text"
+                  id="brand"
+                  name="brand"
+                  value={formData.brand}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter brand name"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
+                  SKU
+                </label>
+                <input
+                  type="text"
+                  id="sku"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleInputChange}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Enter SKU (optional)"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                  Price * ($)
+                </label>
+                <input
+                  type="number"
+                  id="price"
+                  name="price"
+                  value={formData.price || ''}
+                  onChange={handleInputChange}
+                  required
+                  step="0.01"
+                  min="0"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div>
+                <label htmlFor="old_price" className="block text-sm font-medium text-gray-700 mb-1">
+                  Old Price ($)
+                </label>
+                <input
+                  type="number"
+                  id="old_price"
+                  name="old_price"
+                  value={formData.old_price || ''}
+                  onChange={handleInputChange}
+                  step="0.01"
+                  min="0"
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="0.00 (optional)"
+                />
               </div>
             </div>
 
-            {/* Additional Images Upload */}
-            <div className="col-span-1 md:col-span-2">
-              <label
-                htmlFor="additional_images"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Additional Images (up to 10)
+            {/* Description */}
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
               </label>
-              <div className="flex flex-col space-y-4">
-                <input
-                  type="file"
-                  id="additional_images"
-                  name="additional_images"
-                  accept="image/*"
-                  multiple
-                  onChange={handleMultipleImagesChange}
-                  className="w-full p-2 border border-gray-300 rounded-md"
-                />
-
-                {/* Images preview */}
-                {imagesPreviews.length > 0 && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-2">
-                      Previews ({imagesPreviews.length} images):
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {imagesPreviews.map((preview, index) => (
-                        <div key={index} className="relative">
-                          <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
-                            <img
-                              src={preview}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeSelectedImage(index)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600"
-                          >
-                            ×
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-xs text-gray-500">
-                  Select up to 10 additional images for your product. Each image should be less than
-                  5MB.
-                </p>
-              </div>
+              <textarea
+                id="description"
+                name="description"
+                rows={4}
+                value={formData.description}
+                onChange={handleInputChange}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter product description"
+              />
             </div>
 
-            {/* In Stock */}
+            {/* Category Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label
+                  htmlFor="category_id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Category *
+                </label>
+                <select
+                  id="category_id"
+                  name="category_id"
+                  value={formData.category_id}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select a category</option>
+                  {categories
+                    .filter(category => !category.is_subcategory)
+                    .map(category => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                </select>
+                {formErrors.category_id && (
+                  <p className="mt-1 text-sm text-red-600">{formErrors.category_id}</p>
+                )}
+              </div>
+
+              {availableSubcategories.length > 0 && (
+                <div>
+                  <label
+                    htmlFor="subcategory_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Subcategory
+                  </label>
+                  <select
+                    id="subcategory_id"
+                    name="subcategory_id"
+                    value={formData.subcategory_id}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Select a subcategory (optional)</option>
+                    {availableSubcategories.map(subcategory => (
+                      <option key={subcategory.id} value={subcategory.id}>
+                        {subcategory.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Stock Status */}
             <div className="flex items-center">
               <input
                 type="checkbox"
@@ -807,199 +933,164 @@ export default function AddProductPage() {
                 In Stock
               </label>
             </div>
-          </div>
 
-          {/* Description */}
-          <div className="mb-6">
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              id="description"
-              name="description"
-              rows={4}
-              value={formData.description}
-              onChange={handleInputChange}
-              className="w-full p-2 border border-gray-300 rounded-md"
-            ></textarea>
-          </div>
-
-          {/* Product Specifications */}
-          <div className="mb-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Product Specifications</h3>
-
-            {/* Specifications List */}
-            <div className="bg-gray-50 p-4 rounded-md mb-4">
-              {specifications.length > 0 ? (
-                <div className="overflow-x-auto overflow-y-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
-                          Name
-                        </th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
-                          Value
-                        </th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
-                          Template
-                        </th>
-                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {specifications.map((spec, index) => {
-                        // Find template if it exists
-                        const template = spec.template_id
-                          ? specTemplates.find(t => t.id === spec.template_id)
-                          : null;
-
-                        return (
-                          <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                            <td className="py-3 px-4 text-sm text-gray-900">
-                              {template ? template.display_name : spec.name}
-                            </td>
-                            <td className="py-3 px-4 text-sm text-gray-500">{spec.value}</td>
-                            <td className="py-3 px-4 text-sm text-gray-500">
-                              {template ? (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  Templated
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                  Custom
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <button
-                                type="button"
-                                onClick={() => removeSpecification(index)}
-                                className="text-red-600 hover:text-red-800"
-                              >
-                                Remove
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+            {/* Specification system loading indicator */}
+            {(loadingNewTemplates || loadingTemplates) && (
+              <div className="bg-blue-50 border border-blue-200 rounded p-4">
+                <div className="flex items-center">
+                  <Spinner size="small" />
+                  <span className="ml-2 text-blue-800">Loading specification templates...</span>
                 </div>
-              ) : (
-                <p className="text-gray-500 text-sm">No specifications added yet.</p>
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* Add Specification Form */}
-            <div className="bg-white p-4 border border-gray-200 rounded-md">
-              <h4 className="font-medium text-gray-900 mb-3">Add New Specification</h4>
+            {/* SPECIFICATION SYSTEM */}
+            {useNewSpecSystem && newSpecTemplates.length > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-green-800">
+                    ✨ Technical Specifications
+                  </h3>
+                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+                    Standardized Templates
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {newSpecTemplates.map(template => (
+                    <div key={template.id}>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {template.display_name}
+                        {template.is_required && <span className="text-red-500"> *</span>}
+                        {template.units && (
+                          <span className="text-gray-500"> ({template.units})</span>
+                        )}
+                        {template.is_compatibility_key && (
+                          <span className="ml-2 px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
+                            Compatibility
+                          </span>
+                        )}
+                      </label>
+                      {template.description && (
+                        <p className="text-xs text-gray-600 mb-2">{template.description}</p>
+                      )}
+                      {renderNewSpecificationInput(template)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-              {/* Template Selector */}
-              {formData.category_id && (
-                <div className="mb-4">
-                  <label
-                    htmlFor="template_id"
-                    className="block text-sm font-medium text-gray-700 mb-1"
+            {/* Initialize button when no templates are found */}
+            {!useNewSpecSystem && formData.category_id && (
+              <div className="bg-gray-50 border border-gray-200 rounded p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-800">Technical Specifications</h3>
+                  <button
+                    type="button"
+                    onClick={handleInitializeNewSystem}
+                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
                   >
-                    Specification Template
-                  </label>
-                  <div className="flex items-center">
-                    <select
-                      id="template_id"
-                      name="template_id"
-                      value={newSpecification.template_id}
-                      onChange={handleSpecificationChange}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="">Select a template (optional)</option>
-                      {specTemplates.map(template => (
-                        <option key={template.id} value={template.id}>
-                          {template.display_name}
-                        </option>
-                      ))}
-                    </select>
-                    {loadingTemplates && (
-                      <div className="ml-2">
-                        <div className="w-5 h-5 border-2 border-t-blue-500 border-b-blue-500 rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">
-                    {specTemplates.length === 0 && !loadingTemplates
-                      ? 'No templates available for this category. You can still add custom specifications.'
-                      : 'Select a template or enter a custom specification name below.'}
+                    🚀 Initialize Specification System
+                  </button>
+                </div>
+                <p className="text-gray-600">
+                  No specification templates found for this category. Click the button above to
+                  initialize the specification system.
+                </p>
+              </div>
+            )}
+
+            {/* Main Image Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Main Product Image
+              </label>
+              <div className="flex items-start space-x-4">
+                <div className="flex-1">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="mt-1 text-sm text-gray-500">
+                    Select a main image for the product (max 5MB)
                   </p>
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label
-                    htmlFor="spec-name"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Name {!newSpecification.template_id && '*'}
-                  </label>
-                  <input
-                    type="text"
-                    id="spec-name"
-                    name="name"
-                    value={newSpecification.name}
-                    onChange={handleSpecificationChange}
-                    placeholder="e.g., Processor, RAM, Storage"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    disabled={!!newSpecification.template_id}
-                  />
-                  {newSpecification.template_id && (
-                    <p className="mt-1 text-xs text-gray-500">
-                      Name is automatically set from the selected template
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label
-                    htmlFor="spec-value"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Value*
-                  </label>
-                  <input
-                    type="text"
-                    id="spec-value"
-                    name="value"
-                    value={newSpecification.value}
-                    onChange={handleSpecificationChange}
-                    placeholder="e.g., Intel Core i7, 16GB, 512GB SSD"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={addSpecification}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  Add Specification
-                </button>
+                {imagePreview && (
+                  <div className="w-24 h-24 border border-gray-300 rounded overflow-hidden">
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  </div>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors "
-            >
-              {submitting ? <Spinner size="small" color="white" /> : 'Create product'}
-            </button>
-          </div>
-        </form>
+            {/* Additional Images Upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Additional Images
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleMultipleImagesChange}
+                className="w-full p-2 border border-gray-300 rounded"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Select additional images for the product (max 10 images total, 5MB each)
+              </p>
+
+              {/* Image Previews */}
+              {imagesPreviews.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {imagesPreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <div className="w-full h-24 border border-gray-300 rounded overflow-hidden">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-700"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+              <Link
+                href="/admin/products"
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </Link>
+              <button
+                type="submit"
+                disabled={submitting || uploadingImage || uploadingImages}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              >
+                {submitting ? (
+                  <>
+                    <Spinner size="small" className="mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Product'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

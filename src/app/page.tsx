@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { getHomepageContent, getProducts, getCategories } from '@/lib/supabase/db';
-import { Product } from '@/lib/supabase/types';
+import { Product } from '@/lib/supabase/types/types';
 
 // Format price with currency
 function formatPrice(price: number) {
@@ -57,9 +57,7 @@ function ProductCard({ product }: { product: Product }) {
         <div className="p-4">
           <h3 className="text-gray-900 font-medium text-lg mb-1 line-clamp-2">{product.title}</h3>
 
-          {product.brand && (
-            <p className="text-gray-500 text-sm mb-2">{product.brand}</p>
-          )}
+          {product.brand && <p className="text-gray-500 text-sm mb-2">{product.brand}</p>}
 
           <div className="flex items-center justify-between mt-2">
             <div>
@@ -73,16 +71,10 @@ function ProductCard({ product }: { product: Product }) {
 
             {product.rating > 0 && (
               <div className="flex items-center">
-                <svg
-                  className="w-4 h-4 text-yellow-400"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
+                <svg className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
                   <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                 </svg>
-                <span className="text-gray-600 text-sm ml-1">
-                  {product.rating.toFixed(1)}
-                </span>
+                <span className="text-gray-600 text-sm ml-1">{product.rating.toFixed(1)}</span>
               </div>
             )}
           </div>
@@ -109,14 +101,12 @@ async function HomeContent() {
   const categoryCount = 4;
 
   // Sort products by created_at (newest first) and take the first 8
-  const newArrivals = [...(allProducts || [])].sort(
-    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-  ).slice(0, 4);
+  const newArrivals = [...(allProducts || [])]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+    .slice(0, 4);
 
   // Sort products by rating (highest first) and take the first 8
-  const featuredProducts = [...(allProducts || [])].sort(
-    (a, b) => b.rating - a.rating
-  ).slice(0, 8);
+  const featuredProducts = [...(allProducts || [])].sort((a, b) => b.rating - a.rating).slice(0, 8);
 
   // Get products with discounts
   const discountedProducts = (allProducts || [])
@@ -137,8 +127,8 @@ async function HomeContent() {
             <p className="text-lg text-gray-600 mb-8">
               {hero?.subtitle || 'Your trusted provider of high-quality computer hardware'}
             </p>
-            <Link 
-              href={hero?.cta_link || '/products'} 
+            <Link
+              href={hero?.cta_link || '/products'}
               className="bg-primary text-white px-8 py-3 rounded-md hover:bg-primary/90 transition-colors inline-block"
             >
               {hero?.cta_text || 'Browse Catalog'}
@@ -153,52 +143,50 @@ async function HomeContent() {
           <h2 className="text-2xl font-bold text-gray-900 mb-8 text-center">Shop by Category</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {/* Display featured categories if available */}
-            {featuredCategories && featuredCategories.length > 0 ? (
-              featuredCategories.map((category) => (
-                <Link 
-                  key={category.id} 
-                  href={category.cta_link || '/products'} 
-                  className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
-                >
-                  {category.image_url && (
-                    <div className="relative h-24 w-24 mx-auto mb-4">
-                      <Image
-                        src={category.image_url}
-                        alt={category.title || ''}
-                        fill
-                        sizes="96px"
-                        className="object-contain"
-                      />
-                    </div>
-                  )}
-                  <h3 className="text-xl font-semibold mb-2">{category.title}</h3>
-                  <p className="text-sm text-gray-500">{category.subtitle}</p>
-                </Link>
-              ))
-            ) : (
-              /* If no featured categories, display regular categories using the configured count */
-              categories?.slice(0, categoryCount).map((category) => (
-                <Link 
-                  key={category.id} 
-                  href={`/products?category=${category.slug}`} 
-                  className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
-                >
-                  {category.image_url && (
-                    <div className="relative h-24 w-24 mx-auto mb-4">
-                      <Image
-                        src={category.image_url}
-                        alt={category.name}
-                        fill
-                        sizes="96px"
-                        className="object-contain"
-                      />
-                    </div>
-                  )}
-                  <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
-                  <p className="text-sm text-gray-500">{category.description}</p>
-                </Link>
-              ))
-            )}
+            {featuredCategories && featuredCategories.length > 0
+              ? featuredCategories.map(category => (
+                  <Link
+                    key={category.id}
+                    href={category.cta_link || '/products'}
+                    className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
+                  >
+                    {category.image_url && (
+                      <div className="relative h-24 w-24 mx-auto mb-4">
+                        <Image
+                          src={category.image_url}
+                          alt={category.title || ''}
+                          fill
+                          sizes="96px"
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <h3 className="text-xl font-semibold mb-2">{category.title}</h3>
+                    <p className="text-sm text-gray-500">{category.subtitle}</p>
+                  </Link>
+                ))
+              : /* If no featured categories, display regular categories using the configured count */
+                categories?.slice(0, categoryCount).map(category => (
+                  <Link
+                    key={category.id}
+                    href={`/products?category=${category.slug}`}
+                    className="bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary transition-colors text-center"
+                  >
+                    {category.image_url && (
+                      <div className="relative h-24 w-24 mx-auto mb-4">
+                        <Image
+                          src={category.image_url}
+                          alt={category.name}
+                          fill
+                          sizes="96px"
+                          className="object-contain"
+                        />
+                      </div>
+                    )}
+                    <h3 className="text-xl font-semibold mb-2">{category.name}</h3>
+                    <p className="text-sm text-gray-500">{category.description}</p>
+                  </Link>
+                ))}
           </div>
         </div>
       </section>
@@ -229,8 +217,8 @@ async function HomeContent() {
                 <h2 className="text-2xl md:text-3xl font-bold mb-4">{promotions[0].title}</h2>
                 <p className="text-lg mb-6">{promotions[0].subtitle}</p>
                 {promotions[0].cta_link && (
-                  <Link 
-                    href={promotions[0].cta_link} 
+                  <Link
+                    href={promotions[0].cta_link}
                     className="bg-white text-blue-600 px-6 py-2 rounded-md hover:bg-gray-100 transition-colors inline-block"
                   >
                     {promotions[0].cta_text || 'Learn More'}
@@ -283,7 +271,7 @@ async function HomeContent() {
         <section className="mb-16">
           <div className="container mx-auto px-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
-              {trustIndicators.map((indicator) => (
+              {trustIndicators.map(indicator => (
                 <div key={indicator.id} className="bg-white p-6 rounded-lg shadow-md">
                   {indicator.image_url ? (
                     <div className="mb-4">
@@ -298,7 +286,11 @@ async function HomeContent() {
                   ) : (
                     <div className="text-primary mb-4">
                       <svg className="h-10 w-10 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     </div>
                   )}
@@ -317,8 +309,13 @@ async function HomeContent() {
           <div className="container mx-auto px-4">
             <div className="bg-gray-100 rounded-lg p-8 md:p-12">
               <div className="max-w-2xl mx-auto text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">{newsletter[0].title || 'Subscribe to Our Newsletter'}</h2>
-                <p className="text-gray-600 mb-6">{newsletter[0].subtitle || 'Stay updated with the latest products, exclusive offers, and tech news.'}</p>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  {newsletter[0].title || 'Subscribe to Our Newsletter'}
+                </h2>
+                <p className="text-gray-600 mb-6">
+                  {newsletter[0].subtitle ||
+                    'Stay updated with the latest products, exclusive offers, and tech news.'}
+                </p>
                 <form className="flex flex-col sm:flex-row gap-4 max-w-md mx-auto">
                   <input
                     type="email"
@@ -351,8 +348,8 @@ async function getHomepageContentBySection(section: string) {
     return { data: [] };
   }
 
-  return { 
-    data: data?.filter(item => item.section === section) || [] 
+  return {
+    data: data?.filter(item => item.section === section) || [],
   };
 }
 
@@ -360,11 +357,13 @@ async function getHomepageContentBySection(section: string) {
 export default function Home() {
   return (
     <main className="min-h-screen">
-      <Suspense fallback={
-        <div className="flex justify-center items-center h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        </div>
-      }>
+      <Suspense
+        fallback={
+          <div className="flex justify-center items-center h-screen">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+          </div>
+        }
+      >
         <HomeContent />
       </Suspense>
     </main>

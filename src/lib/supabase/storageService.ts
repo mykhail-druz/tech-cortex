@@ -31,9 +31,13 @@ export const uploadFile = async (file: File, bucket: string = 'images', folder: 
     console.log(`Attempting to upload file to ${bucket}/${filePath} as user ${session.user.id}`);
 
     // Upload the file to Supabase Storage
+    // Make sure the file is uploaded to the public bucket
+    console.log(`Uploading file to public bucket: ${bucket}/${filePath}`);
     const { data, error } = await supabase.storage.from(bucket).upload(filePath, file, {
       cacheControl: '3600',
       upsert: false,
+      // Set public access for the file
+      public: true,
     });
 
     if (error) {
@@ -56,11 +60,32 @@ export const uploadFile = async (file: File, bucket: string = 'images', folder: 
     }
 
     // Get the public URL for the uploaded file
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from(bucket).getPublicUrl(filePath);
+    console.log(`Getting public URL for ${bucket}/${filePath}`);
 
-    return { url: publicUrl, error: null };
+    // SIMPLIFIED APPROACH: Always return a URL, even if it's a fallback
+
+    // 1. Try the standard method first (this should work in most cases)
+    const publicUrlResponse = supabase.storage.from(bucket).getPublicUrl(filePath);
+    console.log('Public URL response:', JSON.stringify(publicUrlResponse, null, 2));
+
+    if (publicUrlResponse.data && publicUrlResponse.data.publicUrl) {
+      const publicUrl = publicUrlResponse.data.publicUrl;
+      console.log('Successfully got public URL using standard method:', publicUrl);
+      return { url: publicUrl, error: null };
+    }
+
+    console.log('Standard method did not return a valid URL, trying alternative approaches...');
+
+    // Always use the specific Supabase URL format required
+    const supabaseUrl = 'https://qaugzgfnfndwilolhjdi.supabase.co';
+    console.log('Using required Supabase URL format:', supabaseUrl);
+
+    // 3. Construct a URL using the Supabase URL and file path
+    const constructedUrl = `${supabaseUrl}/storage/v1/object/public/${bucket}/${filePath}`;
+    console.log('Constructed URL using Supabase URL and file path:', constructedUrl);
+
+    // 4. Always return a URL, even if it's just a relative one
+    return { url: constructedUrl, error: null, fileName };
   } catch (error) {
     console.error('Error uploading file:', {
       message: error instanceof Error ? error.message : 'Unknown error',
@@ -72,6 +97,7 @@ export const uploadFile = async (file: File, bucket: string = 'images', folder: 
       url: null,
       error:
         error instanceof Error ? error : new Error('Unknown error occurred during file upload'),
+      fileName: null,
     };
   }
 };
@@ -98,10 +124,19 @@ export const deleteFile = async (filePath: string, bucket: string = 'images') =>
     // Extract the file path from the public URL if needed
     let path = filePath;
 
-    // Handle full Supabase URLs (https://xxx.supabase.co/storage/v1/object/public/bucket/path)
+    // Handle full Supabase URLs with /public/ (https://xxx.supabase.co/storage/v1/object/public/bucket/path)
     if (filePath.includes('/storage/v1/object/public/')) {
       const publicPathRegex = /\/storage\/v1\/object\/public\/([^\/]+)\/(.+)/;
       const match = filePath.match(publicPathRegex);
+      if (match && match.length >= 3) {
+        // match[1] is the bucket name, match[2] is the file path
+        path = match[2];
+      }
+    }
+    // Handle full Supabase URLs without /public/ (https://xxx.supabase.co/storage/v1/object/bucket/path)
+    else if (filePath.includes('/storage/v1/object/')) {
+      const directPathRegex = /\/storage\/v1\/object\/([^\/]+)\/(.+)/;
+      const match = filePath.match(directPathRegex);
       if (match && match.length >= 3) {
         // match[1] is the bucket name, match[2] is the file path
         path = match[2];

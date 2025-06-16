@@ -7,7 +7,7 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types';
+import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types/types';
 
 export default function CategoriesPage() {
   // const { user } = useAuth(); // Commented out as it's not being used
@@ -26,6 +26,11 @@ export default function CategoriesPage() {
     image_url: '',
     is_subcategory: false,
     parent_id: '',
+    pc_component_type: '',
+    pc_icon: '🔧',
+    pc_required: false,
+    pc_supports_multiple: false,
+    pc_display_order: 0,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -75,7 +80,7 @@ export default function CategoriesPage() {
   };
 
   // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
     if (name === 'name') {
@@ -149,6 +154,11 @@ export default function CategoriesPage() {
       image_url: '',
       is_subcategory: false,
       parent_id: '',
+      pc_component_type: '',
+      pc_icon: '🔧',
+      pc_required: false,
+      pc_supports_multiple: false,
+      pc_display_order: 0,
     });
     setFormErrors({});
     setSelectedImage(null);
@@ -166,6 +176,11 @@ export default function CategoriesPage() {
       image_url: category.image_url || '',
       is_subcategory: category.is_subcategory || false,
       parent_id: category.parent_id || '',
+      pc_component_type: category.pc_component_type || '',
+      pc_icon: category.pc_icon || '🔧',
+      pc_required: category.pc_required || false,
+      pc_supports_multiple: category.pc_supports_multiple || false,
+      pc_display_order: category.pc_display_order || 0,
     });
     setFormErrors({});
     setSelectedImage(null);
@@ -399,6 +414,7 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error creating category:', error);
+        toast.error(`Failed to create category: ${error.message || JSON.stringify(error) || 'Unknown error'}`);
         return;
       }
 
@@ -458,6 +474,7 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error updating category:', error);
+        toast.error(`Failed to update category: ${error.message || JSON.stringify(error) || 'Unknown error'}`);
         return;
       }
 
@@ -488,7 +505,7 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error deleting category:', error);
-        toast.error(error.message || 'Failed to delete category. Please try again.');
+        toast.error(error.message || JSON.stringify(error) || 'Failed to delete category. Please try again.');
         return;
       }
 
@@ -548,6 +565,9 @@ export default function CategoriesPage() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Description
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                PC Component
+              </th>
               <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
               </th>
@@ -589,6 +609,18 @@ export default function CategoriesPage() {
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                     {category.description || 'No description'}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {category.pc_component_type ? (
+                      <div className="flex items-center">
+                        <span className="mr-2">{category.pc_icon}</span>
+                        <span className="font-medium">{category.pc_component_type}</span>
+                        {category.pc_required && <span className="ml-1 text-red-500">*</span>}
+                        {category.pc_supports_multiple && <span className="ml-1 text-blue-500">(multiple)</span>}
+                      </div>
+                    ) : (
+                      'Not a PC component'
+                    )}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
                       onClick={() => openEditModal(category)}
@@ -627,9 +659,17 @@ export default function CategoriesPage() {
 
       {/* Add Category Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full">
-            <h2 className="text-xl font-semibold mb-4">Add New Category</h2>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking outside (on the overlay)
+            if (e.target === e.currentTarget) {
+              setShowAddModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg p-6 md:p-8 max-w-md md:max-w-lg lg:max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4 sticky top-0 bg-white pt-2">Add New Category</h2>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
@@ -767,6 +807,92 @@ export default function CategoriesPage() {
               </div>
             </div>
 
+            {/* PC Configurator Settings */}
+            <div className="mb-4 border-t pt-4">
+              <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* PC Component Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+                  <input
+                    type="text"
+                    name="pc_component_type"
+                    value={formData.pc_component_type}
+                    onChange={handleInputChange}
+                    placeholder="e.g., processor, memory, graphics-card"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Identifier for PC configurator (leave empty if not a PC component)
+                  </p>
+                </div>
+
+                {/* PC Icon */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                  <input
+                    type="text"
+                    name="pc_icon"
+                    value={formData.pc_icon}
+                    onChange={handleInputChange}
+                    placeholder="🔧"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Emoji icon for the component (e.g., 🔥, 💾, 🎮)
+                  </p>
+                </div>
+
+                {/* PC Display Order */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                  <input
+                    type="number"
+                    name="pc_display_order"
+                    value={formData.pc_display_order}
+                    onChange={handleInputChange}
+                    min="0"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Order in which components appear (lower numbers first)
+                  </p>
+                </div>
+
+                {/* PC Required & Supports Multiple */}
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pc_required"
+                      name="pc_required"
+                      checked={formData.pc_required}
+                      onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="pc_required" className="ml-2 block text-sm text-gray-900">
+                      Required Component
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="pc_supports_multiple"
+                      name="pc_supports_multiple"
+                      checked={formData.pc_supports_multiple}
+                      onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
+                      Supports Multiple Components
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowAddModal(false)}
@@ -788,9 +914,17 @@ export default function CategoriesPage() {
 
       {/* Edit Category Modal */}
       {showEditModal && currentCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md w-full">
-            <h2 className="text-xl font-semibold mb-4">Edit Category</h2>
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking outside (on the overlay)
+            if (e.target === e.currentTarget) {
+              setShowEditModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg p-6 md:p-8 max-w-md md:max-w-lg lg:max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-semibold mb-4 sticky top-0 bg-white pt-2">Edit Category</h2>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
@@ -936,6 +1070,92 @@ export default function CategoriesPage() {
               </div>
             </div>
 
+            {/* PC Configurator Settings */}
+            <div className="mb-4 border-t pt-4">
+              <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* PC Component Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+                  <input
+                    type="text"
+                    name="pc_component_type"
+                    value={formData.pc_component_type}
+                    onChange={handleInputChange}
+                    placeholder="e.g., processor, memory, graphics-card"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Identifier for PC configurator (leave empty if not a PC component)
+                  </p>
+                </div>
+
+                {/* PC Icon */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
+                  <input
+                    type="text"
+                    name="pc_icon"
+                    value={formData.pc_icon}
+                    onChange={handleInputChange}
+                    placeholder="🔧"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Emoji icon for the component (e.g., 🔥, 💾, 🎮)
+                  </p>
+                </div>
+
+                {/* PC Display Order */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                  <input
+                    type="number"
+                    name="pc_display_order"
+                    value={formData.pc_display_order}
+                    onChange={handleInputChange}
+                    min="0"
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Order in which components appear (lower numbers first)
+                  </p>
+                </div>
+
+                {/* PC Required & Supports Multiple */}
+                <div className="flex flex-col space-y-2">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="edit_pc_required"
+                      name="pc_required"
+                      checked={formData.pc_required}
+                      onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit_pc_required" className="ml-2 block text-sm text-gray-900">
+                      Required Component
+                    </label>
+                  </div>
+
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="edit_pc_supports_multiple"
+                      name="pc_supports_multiple"
+                      checked={formData.pc_supports_multiple}
+                      onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="edit_pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
+                      Supports Multiple Components
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end space-x-3">
               <button
                 onClick={() => setShowEditModal(false)}
@@ -957,8 +1177,16 @@ export default function CategoriesPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && currentCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking outside (on the overlay)
+            if (e.target === e.currentTarget) {
+              setShowDeleteModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg p-5 md:p-6 max-w-sm md:max-w-md lg:max-w-lg w-full">
             <h2 className="text-xl font-semibold mb-4">Confirm Delete</h2>
             <p className="mb-4">
               Are you sure you want to delete the category &quot;{currentCategory.name}&quot;? This
@@ -993,9 +1221,17 @@ export default function CategoriesPage() {
 
       {/* Specification Templates Modal */}
       {showTemplatesModal && currentCategory && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto overflow-x-auto">
-            <div className="flex justify-between items-center mb-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            // Close modal when clicking outside (on the overlay)
+            if (e.target === e.currentTarget) {
+              setShowTemplatesModal(false);
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg p-4 md:p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto overflow-x-auto">
+            <div className="flex justify-between items-center mb-4 sticky top-0 bg-white pt-2 z-10">
               <h2 className="text-xl font-semibold">
                 Specification Templates for &quot;{currentCategory.name}&quot;
               </h2>

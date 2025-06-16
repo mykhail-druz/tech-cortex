@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import * as dbService from '@/lib/supabase/db';
-import { OrderWithItems, OrderStatus, PaymentStatus } from '@/lib/supabase/types';
+import { OrderWithItems, OrderStatus, PaymentStatus } from '@/lib/supabase/types/types';
 
 export default function OrderDetailsPage({ params }: { params: { id: string } }) {
   const unwrappedParams = React.use(params);
@@ -141,9 +141,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
               Back to Orders
             </Link>
           </div>
-          <div className="bg-red-50 text-red-600 p-4 rounded-md">
-            {error}
-          </div>
+          <div className="bg-red-50 text-red-600 p-4 rounded-md">{error}</div>
         </div>
       </div>
     );
@@ -164,7 +162,10 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           </div>
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <h2 className="text-xl font-medium text-gray-900 mb-2">Order not found</h2>
-            <p className="text-gray-500 mb-6">The order you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission to view it.</p>
+            <p className="text-gray-500 mb-6">
+              The order you&apos;re looking for doesn&apos;t exist or you don&apos;t have permission
+              to view it.
+            </p>
           </div>
         </div>
       </div>
@@ -205,16 +206,15 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                       order.payment_status
                     )}`}
                   >
-                    Payment: {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+                    Payment:{' '}
+                    {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
                   </span>
                 </div>
               </div>
               <div className="mt-4 md:mt-0 text-right">
                 <p className="text-lg font-bold">{formatPrice(order.total_amount)}</p>
                 {order.tracking_number && (
-                  <p className="text-sm text-gray-500">
-                    Tracking: {order.tracking_number}
-                  </p>
+                  <p className="text-sm text-gray-500">Tracking: {order.tracking_number}</p>
                 )}
               </div>
             </div>
@@ -223,7 +223,7 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
           <div className="p-6">
             <h2 className="text-lg font-medium mb-4">Order Items</h2>
             <ul className="divide-y divide-gray-200">
-              {order.items.map((item) => (
+              {order.items.map(item => (
                 <li key={item.id} className="py-4 first:pt-0 last:pb-0">
                   <div className="flex items-start">
                     <div className="flex-shrink-0 w-16 h-16 relative">
@@ -246,16 +246,17 @@ export default function OrderDetailsPage({ params }: { params: { id: string } })
                         <div>
                           <h3 className="text-base font-medium text-gray-900">
                             {item.product ? (
-                              <Link href={`/products/${item.product.slug}`} className="hover:text-primary">
+                              <Link
+                                href={`/products/${item.product.slug}`}
+                                className="hover:text-primary"
+                              >
                                 {item.product.title}
                               </Link>
                             ) : (
                               `Product (ID: ${item.product_id.substring(0, 8)})`
                             )}
                           </h3>
-                          <p className="mt-1 text-sm text-gray-500">
-                            Quantity: {item.quantity}
-                          </p>
+                          <p className="mt-1 text-sm text-gray-500">Quantity: {item.quantity}</p>
                         </div>
                         <div className="text-right">
                           <p className="text-base font-medium text-gray-900">

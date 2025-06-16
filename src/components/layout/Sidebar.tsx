@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { getCategories } from '@/lib/supabase/db';
-import { Category } from '@/lib/supabase/types';
+import { Category } from '@/lib/supabase/types/types';
 import { useSidebar } from '@/contexts/SidebarContext';
 
 export default function Sidebar() {
@@ -264,13 +264,15 @@ export default function Sidebar() {
                     </button>
 
                     {/* Subcategories */}
-                    {activeCategory === category.slug && category.subcategories && category.subcategories.length > 0 && (
-                      <ul className="pl-4 space-y-1 mt-1">
-                        {category.subcategories.map(subcategory => (
-                          <li key={subcategory.id}>
-                            <button
-                              onClick={() => handleCategoryClick(category.slug, subcategory.slug)}
-                              className={`
+                    {activeCategory === category.slug &&
+                      category.subcategories &&
+                      category.subcategories.length > 0 && (
+                        <ul className="pl-4 space-y-1 mt-1">
+                          {category.subcategories.map(subcategory => (
+                            <li key={subcategory.id}>
+                              <button
+                                onClick={() => handleCategoryClick(category.slug, subcategory.slug)}
+                                className={`
                                 w-full text-left py-1 px-2 rounded-md text-sm transition-colors
                                 ${
                                   activeSubcategory === subcategory.slug
@@ -278,13 +280,13 @@ export default function Sidebar() {
                                     : 'text-gray-600 hover:bg-gray-100'
                                 }
                               `}
-                            >
-                              {subcategory.name}
-                            </button>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                              >
+                                {subcategory.name}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
                   </li>
                 ))}
               </ul>

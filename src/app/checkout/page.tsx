@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import * as dbService from '@/lib/supabase/db';
-import { OrderStatus, PaymentStatus } from '@/lib/supabase/types';
+import { OrderStatus, PaymentStatus } from '@/lib/supabase/types/types';
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentElement from '@/components/checkout/StripePaymentElement';
@@ -192,8 +192,16 @@ export default function CheckoutPage() {
       }
 
       // Validate form data
-      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || 
-          !formData.address || !formData.city || !formData.state || !formData.zipCode) {
+      if (
+        !formData.firstName ||
+        !formData.lastName ||
+        !formData.email ||
+        !formData.phone ||
+        !formData.address ||
+        !formData.city ||
+        !formData.state ||
+        !formData.zipCode
+      ) {
         throw new Error('Please fill in all required fields');
       }
 
@@ -281,8 +289,10 @@ export default function CheckoutPage() {
         console.error('Error fetching user orders:', ordersError);
       } else {
         console.log('All user orders:', allOrders);
-        console.log('Orders with matching payment_intent_id:', 
-          allOrders.filter(order => order.payment_intent_id === paymentIntentId));
+        console.log(
+          'Orders with matching payment_intent_id:',
+          allOrders.filter(order => order.payment_intent_id === paymentIntentId)
+        );
       }
 
       // Update the order payment status to PAID
@@ -291,7 +301,7 @@ export default function CheckoutPage() {
         {
           payment_status: PaymentStatus.PAID,
           status: OrderStatus.PROCESSING,
-          user_id: user?.id
+          user_id: user?.id,
         }
       );
 

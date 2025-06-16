@@ -20,7 +20,9 @@ import {
   UpdateResponse,
   DeleteResponse,
   OrderWithItems,
-} from './types';
+  CategoryWithGoods,
+} from './types/types';
+import { SpecificationFilter } from './types/specifications';
 
 // Products
 export const getProducts = async (
@@ -232,10 +234,12 @@ export const getProductBySlug = async (
   // Get the specifications with template information
   const specificationsResponse = await supabase
     .from('product_specifications')
-    .select(`
+    .select(
+      `
       *,
       template:template_id (*)
-    `)
+    `
+    )
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
@@ -317,10 +321,12 @@ export const getProductById = async (
   // Get the specifications with template information
   const specificationsResponse = await supabase
     .from('product_specifications')
-    .select(`
+    .select(
+      `
       *,
       template:template_id (*)
-    `)
+    `
+    )
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
@@ -793,14 +799,12 @@ export const createOrder = async (
     // Then insert the order items with the order_id
     const itemsWithOrderId = orderItems.map(item => ({
       ...item,
-      order_id: orderData.id
+      order_id: orderData.id,
     }));
 
     console.log('Creating order items:', JSON.stringify(itemsWithOrderId, null, 2));
 
-    const { error: itemsError } = await supabase
-      .from('order_items')
-      .insert(itemsWithOrderId);
+    const { error: itemsError } = await supabase.from('order_items').insert(itemsWithOrderId);
 
     if (itemsError) {
       console.error('Error creating order items:', itemsError);
@@ -895,7 +899,9 @@ export const updateOrderByPaymentIntent = async (
       // Get the user ID from the updates if available
       const userId = updates.user_id;
       if (!userId) {
-        const error = new Error('No orders found with this payment intent ID and no user ID provided');
+        const error = new Error(
+          'No orders found with this payment intent ID and no user ID provided'
+        );
         console.error(error.message);
         return { data: null, error };
       }
@@ -925,10 +931,10 @@ export const updateOrderByPaymentIntent = async (
       // Update the order with the payment intent ID
       const { data: updatedOrder, error: updateError } = await supabase
         .from('orders')
-        .update({ 
-          ...updates, 
+        .update({
+          ...updates,
           payment_intent_id: paymentIntentId,
-          updated_at: new Date().toISOString() 
+          updated_at: new Date().toISOString(),
         })
         .eq('id', recentOrder.id)
         .select()
@@ -1229,7 +1235,6 @@ export const isInWishlist = async (userId: string, productId: string): Promise<b
   return !!data;
 };
 
-
 // Homepage Content
 export const getHomepageContent = async (): Promise<SelectResponse<HomepageContent>> => {
   const response = await supabase
@@ -1292,4 +1297,423 @@ export const getNavigationLinks = async (
   }
 
   return { data: response.data, error: response.error };
+};
+
+/**
+ * Получение продуктов с фильтрацией по спецификациям
+ */
+export const getProductsWithSpecificationFilters = async (
+  categorySlug?: string,
+  specificationFilters?: Record<string, any>,
+  minPrice?: number,
+  maxPrice?: number,
+  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
+  inStockOnly?: boolean
+): Promise<SelectResponse<Product>> => {
+  try {
+    // Start with basic query - simplified to avoid join issues
+    let dbQuery = supabase.from('products').select('*');
+
+    // Apply category filter
+    if (categorySlug && categorySlug !== 'all') {
+      // First get the category/subcategory ID
+      const { data: category } = await supabase
+        .from('categories')
+        .select('id, is_subcategory')
+        .eq('slug', categorySlug)
+        .single();
+
+      if (category) {
+        if (category.is_subcategory) {
+          dbQuery = dbQuery.eq('subcategory_id', category.id);
+        } else {
+          // Get subcategories for this main category
+          const { data: subcategories } = await supabase
+            .from('categories')
+            .select('id')
+            .eq('parent_id', category.id);
+
+          if (subcategories && subcategories.length > 0) {
+            const subcategoryIds = subcategories.map(sub => sub.id);
+            dbQuery = dbQuery.in('subcategory_id', subcategoryIds);
+          }
+        }
+      }
+    }
+
+    // Apply price filters
+    if (minPrice !== undefined) {
+      dbQuery = dbQuery.gte('price', minPrice);
+    }
+    if (maxPrice !== undefined) {
+      dbQuery = dbQuery.lte('price', maxPrice);
+    }
+
+    // Apply stock filter
+    if (inStockOnly) {
+      dbQuery = dbQuery.eq('in_stock', true);
+    }
+
+    // Apply sorting
+    switch (sortBy) {
+      case 'newest':
+        dbQuery = dbQuery.order('created_at', { ascending: false });
+        break;
+      case 'price-asc':
+        dbQuery = dbQuery.order('price', { ascending: true });
+        break;
+      case 'price-desc':
+        dbQuery = dbQuery.order('price', { ascending: false });
+        break;
+      case 'rating':
+        dbQuery = dbQuery.order('rating', { ascending: false });
+        break;
+      default:
+        dbQuery = dbQuery.order('created_at', { ascending: false });
+    }
+
+    const response = await dbQuery;
+
+    if (response.error) {
+      console.error('Error fetching products with specification filters:', response.error);
+      return { data: null, error: response.error };
+    }
+
+    let filteredData = response.data || [];
+
+    // Apply specification filters (simplified for now)
+    if (specificationFilters && Object.keys(specificationFilters).length > 0) {
+      // For now, skip spec filtering to avoid complex joins
+      // This can be implemented later with proper database design
+    }
+
+    return { data: filteredData, error: null };
+  } catch (error) {
+    console.error('Error in getProductsWithSpecificationFilters:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
+  }
+};
+
+export const getProductWithSpecs = async (productId: string): Promise<SelectResponse<Product>> => {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select(
+        `
+        *,
+        specifications:product_specifications(*)
+      `
+      )
+      .eq('id', productId)
+      .single();
+
+    if (error) {
+      return { data: null, error };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error getting product with specs:', error);
+    return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
+  }
+};
+
+/**
+ * Getting available filters for a category
+ */
+export const getAvailableFilters = async (categorySlug: string): Promise<SpecificationFilter[]> => {
+  try {
+    // First, get the category ID
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('slug', categorySlug)
+      .single();
+
+    if (!category) return [];
+
+    // Получаем шаблоны спецификаций для фильтрации
+    const { data: templates } = await supabase
+      .from('category_specification_templates')
+      .select('*')
+      .eq('category_id', category.id)
+      .eq('is_filterable', true)
+      .order('filter_order', { ascending: true });
+
+    if (!templates) return [];
+
+    const filters: SpecificationFilter[] = [];
+
+    for (const template of templates) {
+      const filter: SpecificationFilter = {
+        templateId: template.id,
+        templateName: template.name,
+        filterType: template.filter_type || 'checkbox',
+      };
+
+      if (template.data_type === 'enum' && template.enum_values) {
+        filter.values = template.enum_values;
+      } else if (template.data_type === 'number') {
+        // Получаем диапазон значений
+        const { data: specs } = await supabase
+          .from('product_specifications')
+          .select('value_number')
+          .eq('template_id', template.id)
+          .not('value_number', 'is', null)
+          .order('value_number');
+
+        if (specs && specs.length > 0) {
+          filter.min = specs[0].value_number;
+          filter.max = specs[specs.length - 1].value_number;
+        }
+      } else {
+        // Получаем уникальные значения
+        const { data: specs } = await supabase
+          .from('product_specifications')
+          .select('value_enum, value_text')
+          .eq('template_id', template.id);
+
+        if (specs) {
+          const values = new Set<string>();
+          specs.forEach(spec => {
+            if (spec.value_enum) values.add(spec.value_enum);
+            if (spec.value_text) values.add(spec.value_text);
+          });
+          filter.values = Array.from(values).sort();
+        }
+      }
+
+      filters.push(filter);
+    }
+
+    return filters;
+  } catch (error) {
+    console.error('Error getting available filters:', error);
+    return [];
+  }
+};
+
+/**
+ * Getting compatible products for PC configurator
+ */
+export const getCompatibleProducts = async (
+  categorySlug: string,
+  selectedComponents: Record<string, string>
+): Promise<SelectResponse<Product>> => {
+  try {
+    console.log('🔍 Getting compatible products for:', categorySlug, selectedComponents);
+
+    // First, get the category ID by slug
+    const { data: category, error: categoryError } = await supabase
+      .from('categories')
+      .select('id, is_subcategory, parent_id')
+      .eq('slug', categorySlug)
+      .single();
+
+    if (categoryError || !category) {
+      console.error('Category not found:', categorySlug, categoryError);
+      return { data: [], error: categoryError };
+    }
+
+    console.log('✅ Found category:', category);
+
+    // Получаем все продукты категории с их спецификациями
+    let query = supabase
+      .from('products')
+      .select(
+        `
+        *,
+        specifications:product_specifications(
+          id,
+          name,
+          value,
+          value_text,
+          value_number,
+          value_enum,
+          value_boolean
+        )
+      `
+      )
+      .eq('in_stock', true);
+
+    // Proper filtering by category
+    if (category.is_subcategory) {
+      query = query.eq('subcategory_id', category.id);
+    } else {
+      // Get all subcategories for the main category
+      const { data: subcategories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', category.id)
+        .eq('is_subcategory', true);
+
+      if (subcategories && subcategories.length > 0) {
+        const subcategoryIds = subcategories.map(sub => sub.id);
+        query = query.in('subcategory_id', subcategoryIds);
+      } else {
+        // Fallback to category_id
+        query = query.eq('category_id', category.id);
+      }
+    }
+
+    const { data: products, error } = await query;
+
+    if (error) {
+      console.error('Error fetching products:', error);
+      return { data: null, error };
+    }
+
+    if (!products || products.length === 0) {
+      console.log('⚠️ No products found for category:', categorySlug);
+      return { data: [], error: null };
+    }
+
+    console.log(`📦 Found ${products.length} products in category ${categorySlug}`);
+
+    // Если нет выбранных компонентов, возвращаем все продукты
+    if (Object.keys(selectedComponents).length === 0) {
+      return { data: products as Product[], error: null };
+    }
+
+    // Получаем выбранные продукты для проверки совместимости
+    const selectedProductIds = Object.values(selectedComponents);
+    const { data: selectedProducts, error: selectedError } = await supabase
+      .from('products')
+      .select(
+        `
+        *,
+        specifications:product_specifications(
+          id,
+          name,
+          value,
+          value_text,
+          value_number,
+          value_enum,
+          value_boolean
+        )
+      `
+      )
+      .in('id', selectedProductIds);
+
+    if (selectedError || !selectedProducts) {
+      console.error('Error fetching selected products:', selectedError);
+      return { data: products as Product[], error: null };
+    }
+
+    console.log(`🔧 Found ${selectedProducts.length} selected products for compatibility check`);
+
+    // Создаем карту выбранных продуктов по категориям
+    const selectedProductsMap: Record<string, Product> = {};
+
+    // Получаем категории для выбранных продуктов
+    for (const product of selectedProducts) {
+      // Определяем категорию продукта
+      let productCategorySlug = '';
+
+      if (product.subcategory_id) {
+        const { data: subcategory } = await supabase
+          .from('categories')
+          .select('slug')
+          .eq('id', product.subcategory_id)
+          .single();
+        productCategorySlug = subcategory?.slug || '';
+      } else if (product.category_id) {
+        const { data: mainCategory } = await supabase
+          .from('categories')
+          .select('slug')
+          .eq('id', product.category_id)
+          .single();
+        productCategorySlug = mainCategory?.slug || '';
+      }
+
+      if (productCategorySlug) {
+        selectedProductsMap[productCategorySlug] = product as Product;
+      }
+    }
+
+    console.log('📋 Selected products map:', Object.keys(selectedProductsMap));
+
+    // Динамически импортируем CompatibilityEngine
+    try {
+      const { CompatibilityEngine } = await import('@/lib/compatibility/engine');
+
+      // Фильтруем продукты по совместимости асинхронно
+      const compatibilityChecks = await Promise.all(
+        products.map(async (product) => {
+          try {
+            // Создаем временную конфигурацию для тестирования
+            const testConfiguration = {
+              ...selectedProductsMap,
+              [categorySlug]: product as Product,
+            };
+
+            // Проверяем совместимость (await для асинхронного метода)
+            const validationResult = await CompatibilityEngine.validateConfiguration(testConfiguration);
+
+            // Продукт совместим если нет критических ошибок
+            const hasCriticalIssues = validationResult.issues.some(
+              issue => issue.severity === 'critical'
+            );
+
+            if (hasCriticalIssues) {
+              console.log(`❌ Product ${product.title} has compatibility issues`);
+            }
+
+            return { product, isCompatible: !hasCriticalIssues };
+          } catch (error) {
+            console.error('Error checking compatibility for product:', product.title, error);
+            return { product, isCompatible: true }; // В случае ошибки включаем продукт
+          }
+        })
+      );
+
+      // Фильтруем только совместимые продукты
+      const compatibleProducts = compatibilityChecks
+        .filter(result => result.isCompatible)
+        .map(result => result.product);
+
+      console.log(`✅ Found ${compatibleProducts.length}/${products.length} compatible products`);
+
+      return { data: compatibleProducts as Product[], error: null };
+    } catch (importError) {
+      console.error('Error importing CompatibilityEngine:', importError);
+      // Fallback: return all products if unable to import the engine
+      return { data: products as Product[], error: null };
+    }
+  } catch (error) {
+    console.error('Error in getCompatibleProducts:', error);
+
+    // Fallback: return all products in the category
+    const { data: category } = await supabase
+      .from('categories')
+      .select('id, is_subcategory, parent_id')
+      .eq('slug', categorySlug)
+      .single();
+
+    if (!category) {
+      return { data: [], error: new Error('Category not found') };
+    }
+
+    let fallbackQuery = supabase.from('products').select('*').eq('in_stock', true);
+
+    if (category.is_subcategory) {
+      fallbackQuery = fallbackQuery.eq('subcategory_id', category.id);
+    } else {
+      const { data: subcategories } = await supabase
+        .from('categories')
+        .select('id')
+        .eq('parent_id', category.id)
+        .eq('is_subcategory', true);
+
+      if (subcategories && subcategories.length > 0) {
+        const subcategoryIds = subcategories.map(sub => sub.id);
+        fallbackQuery = fallbackQuery.in('subcategory_id', subcategoryIds);
+      } else {
+        fallbackQuery = fallbackQuery.eq('category_id', category.id);
+      }
+    }
+
+    const { data: fallbackProducts, error: fallbackError } = await fallbackQuery;
+    return { data: fallbackProducts, error: fallbackError };
+  }
 };

@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCart } from '@/contexts/CartContext';
 import * as dbService from '@/lib/supabase/db';
-import { Order, OrderStatus } from '@/lib/supabase/types';
+import { Order, OrderStatus } from '@/lib/supabase/types/types';
 
 // Client component that uses useSearchParams
 function OrdersContent() {
@@ -133,19 +133,12 @@ function OrdersContent() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">My Orders</h1>
-          <Link
-            href="/account"
-            className="text-primary hover:text-primary/80 text-sm font-medium"
-          >
+          <Link href="/account" className="text-primary hover:text-primary/80 text-sm font-medium">
             Back to Account
           </Link>
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">
-            {error}
-          </div>
-        )}
+        {error && <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">{error}</div>}
 
         {orders.length === 0 && !isLoading && !error ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
@@ -174,7 +167,7 @@ function OrdersContent() {
         ) : (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <ul className="divide-y divide-gray-200">
-              {orders.map((order) => (
+              {orders.map(order => (
                 <li key={order.id} className="p-6 hover:bg-gray-50">
                   <Link href={`/account/orders/${order.id}`} className="block">
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between">
@@ -194,7 +187,8 @@ function OrdersContent() {
                       <div className="mt-4 md:mt-0 text-right">
                         <p className="text-lg font-bold">{formatPrice(order.total_amount)}</p>
                         <p className="text-sm text-gray-500">
-                          {order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1)}
+                          {order.payment_status.charAt(0).toUpperCase() +
+                            order.payment_status.slice(1)}
                         </p>
                       </div>
                     </div>

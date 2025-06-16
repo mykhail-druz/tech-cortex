@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
-import { Product, Category } from '@/lib/supabase/types';
+import { Product, Category } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 
 // Product Management Page

@@ -7,7 +7,13 @@ import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
-import { Product, Category, ProductSpecification, CategorySpecificationTemplate, ProductImage } from '@/lib/supabase/types';
+import {
+  Product,
+  Category,
+  ProductSpecification,
+  CategorySpecificationTemplate,
+  ProductImage,
+} from '@/lib/supabase/types/types';
 import Link from 'next/link';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
@@ -42,10 +48,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
   // Add state for product specifications
   const [specifications, setSpecifications] = useState<ProductSpecification[]>([]);
-  const [newSpecification, setNewSpecification] = useState({ 
-    name: '', 
+  const [newSpecification, setNewSpecification] = useState({
+    name: '',
     value: '',
-    template_id: '' 
+    template_id: '',
   });
   const [editingSpecIndex, setEditingSpecIndex] = useState<number | null>(null);
 
@@ -96,7 +102,8 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         }
 
         // Fetch product specifications with template information
-        const specificationsResponse = await adminDbService.getProductSpecificationsWithTemplates(productId);
+        const specificationsResponse =
+          await adminDbService.getProductSpecificationsWithTemplates(productId);
         if (specificationsResponse.data) {
           setSpecifications(specificationsResponse.data);
         }
@@ -126,14 +133,16 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       // Reset subcategory if category changes and current subcategory doesn't belong to the new category
       if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
-        setFormData(prev => ({...prev, subcategory_id: ''}));
+        setFormData(prev => ({ ...prev, subcategory_id: '' }));
       }
 
       // Fetch specification templates for the selected category
       const fetchTemplates = async () => {
         setLoadingTemplates(true);
         try {
-          const { data, error } = await adminDbService.getCategorySpecificationTemplates(formData.category_id);
+          const { data, error } = await adminDbService.getCategorySpecificationTemplates(
+            formData.category_id
+          );
 
           if (error) {
             throw error;
@@ -156,7 +165,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       fetchTemplates();
     } else {
       setAvailableSubcategories([]);
-      setFormData(prev => ({...prev, subcategory_id: ''}));
+      setFormData(prev => ({ ...prev, subcategory_id: '' }));
       setSpecTemplates([]);
     }
   }, [formData.category_id, categories, toast]);
@@ -171,7 +180,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   };
 
   // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value, type } = e.target;
 
     if (name === 'title') {
@@ -189,7 +200,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         });
       }
     } else if (type === 'number') {
-      if ((name === 'old_price' || name === 'discount_percentage' || name === 'price') && value === '') {
+      if (
+        (name === 'old_price' || name === 'discount_percentage' || name === 'price') &&
+        value === ''
+      ) {
         // Allow empty value for old_price, discount_percentage, and price to be set as null
         setFormData({
           ...formData,
@@ -233,17 +247,19 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
   };
 
   // Handle specification input changes
-  const handleSpecificationChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleSpecificationChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
 
     // If template_id changes, update the name field with the template name
     if (name === 'template_id' && value) {
       const selectedTemplate = specTemplates.find(t => t.id === value);
       if (selectedTemplate) {
-        setNewSpecification(prev => ({ 
-          ...prev, 
+        setNewSpecification(prev => ({
+          ...prev,
           [name]: value,
-          name: selectedTemplate.name
+          name: selectedTemplate.name,
         }));
       } else {
         setNewSpecification(prev => ({ ...prev, [name]: value }));
@@ -269,7 +285,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
         template_id: newSpecification.template_id || null,
         name: newSpecification.name,
         value: newSpecification.value,
-        display_order: specifications.length
+        display_order: specifications.length,
       });
 
       if (error) {
@@ -293,7 +309,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     setNewSpecification({
       name: specifications[index].name,
       value: specifications[index].value,
-      template_id: specifications[index].template_id || ''
+      template_id: specifications[index].template_id || '',
     });
   };
 
@@ -316,14 +332,11 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     const specToUpdate = specifications[editingSpecIndex];
 
     try {
-      const { data, error } = await adminDbService.updateProductSpecification(
-        specToUpdate.id,
-        {
-          template_id: newSpecification.template_id || null,
-          name: newSpecification.name,
-          value: newSpecification.value
-        }
-      );
+      const { data, error } = await adminDbService.updateProductSpecification(specToUpdate.id, {
+        template_id: newSpecification.template_id || null,
+        name: newSpecification.name,
+        value: newSpecification.value,
+      });
 
       if (error) {
         throw error;
@@ -367,7 +380,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
       // Limit to 10 images total (including existing ones)
       if (existingImages.length + selectedImages.length + files.length > 10) {
-        toast.warning(`You can have a maximum of 10 images per product. You already have ${existingImages.length} existing images and ${selectedImages.length} new images selected.`);
+        toast.warning(
+          `You can have a maximum of 10 images per product. You already have ${existingImages.length} existing images and ${selectedImages.length} new images selected.`
+        );
         return;
       }
 
@@ -404,7 +419,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
       // Create preview URLs for the selected images
       validFiles.forEach(file => {
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = event => {
           setImagesPreviews(prev => [...prev, event.target?.result as string]);
         };
         reader.readAsDataURL(file);
@@ -489,7 +504,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               image_url: url,
               alt_text: `${formData.title} - Image ${existingImages.length + i + 1}`,
               is_main: false,
-              display_order: existingImages.length + i
+              display_order: existingImages.length + i,
             };
 
             const { error: addImageError } = await adminDbService.addProductImage(imageData);
@@ -543,7 +558,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
     return (
       <div className="text-center py-12">
         <h2 className="text-2xl font-bold text-red-600">Product Not Found</h2>
-        <p className="mt-2 text-gray-600">The product you&apos;re trying to edit doesn&apos;t exist.</p>
+        <p className="mt-2 text-gray-600">
+          The product you&apos;re trying to edit doesn&apos;t exist.
+        </p>
         <Link
           href="/admin/products"
           className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
@@ -584,9 +601,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   formErrors.title ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.title && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.title}</p>
-              )}
+              {formErrors.title && <p className="mt-1 text-sm text-red-500">{formErrors.title}</p>}
             </div>
 
             {/* Slug */}
@@ -604,9 +619,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   formErrors.slug ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.slug && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.slug}</p>
-              )}
+              {formErrors.slug && <p className="mt-1 text-sm text-red-500">{formErrors.slug}</p>}
             </div>
 
             {/* Price */}
@@ -625,9 +638,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   formErrors.price ? 'border-red-500' : 'border-gray-300'
                 }`}
               />
-              {formErrors.price && (
-                <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>
-              )}
+              {formErrors.price && <p className="mt-1 text-sm text-red-500">{formErrors.price}</p>}
             </div>
 
             {/* Old Price */}
@@ -648,7 +659,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
             {/* Discount Percentage */}
             <div>
-              <label htmlFor="discount_percentage" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="discount_percentage"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Discount Percentage
               </label>
               <input
@@ -677,11 +691,13 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 }`}
               >
                 <option value="">Select a category</option>
-                {categories.filter(c => !c.is_subcategory).map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
+                {categories
+                  .filter(c => !c.is_subcategory)
+                  .map(category => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
               </select>
               {formErrors.category_id && (
                 <p className="mt-1 text-sm text-red-500">{formErrors.category_id}</p>
@@ -691,7 +707,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
             {/* Subcategory - only show when a category is selected */}
             {formData.category_id && (
               <div>
-                <label htmlFor="subcategory_id" className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor="subcategory_id"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Subcategory
                 </label>
                 <select
@@ -702,7 +721,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   className="w-full p-2 border border-gray-300 rounded-md"
                 >
                   <option value="">Select a subcategory (optional)</option>
-                  {availableSubcategories.map((subcategory) => (
+                  {availableSubcategories.map(subcategory => (
                     <option key={subcategory.id} value={subcategory.id}>
                       {subcategory.name}
                     </option>
@@ -743,7 +762,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
             {/* Main Image URL */}
             <div>
-              <label htmlFor="main_image_url" className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="main_image_url"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Main Image URL
               </label>
               <input
@@ -764,14 +786,16 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                 {/* Existing Images */}
                 {existingImages.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Existing Images ({existingImages.length})</h4>
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">
+                      Existing Images ({existingImages.length})
+                    </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                      {existingImages.map((image) => (
+                      {existingImages.map(image => (
                         <div key={image.id} className="relative">
                           <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
-                            <img 
-                              src={image.image_url} 
-                              alt={image.alt_text || 'Product image'} 
+                            <img
+                              src={image.image_url}
+                              alt={image.alt_text || 'Product image'}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -810,14 +834,16 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     {/* New Images Preview */}
                     {imagesPreviews.length > 0 && (
                       <div className="mt-2">
-                        <p className="text-sm text-gray-500 mb-2">New Images Preview ({imagesPreviews.length})</p>
+                        <p className="text-sm text-gray-500 mb-2">
+                          New Images Preview ({imagesPreviews.length})
+                        </p>
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                           {imagesPreviews.map((preview, index) => (
                             <div key={index} className="relative">
                               <div className="w-full h-24 border border-gray-300 rounded-md overflow-hidden">
-                                <img 
-                                  src={preview} 
-                                  alt={`Preview ${index + 1}`} 
+                                <img
+                                  src={preview}
+                                  alt={`Preview ${index + 1}`}
                                   className="w-full h-full object-cover"
                                 />
                               </div>
@@ -835,7 +861,9 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                     )}
 
                     <p className="text-xs text-gray-500">
-                      You can have up to 10 images per product. Currently: {existingImages.length} existing + {selectedImages.length} new = {existingImages.length + selectedImages.length} total.
+                      You can have up to 10 images per product. Currently: {existingImages.length}{' '}
+                      existing + {selectedImages.length} new ={' '}
+                      {existingImages.length + selectedImages.length} total.
                     </p>
                   </div>
                 </div>
@@ -884,10 +912,18 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-100">
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Name</th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Value</th>
-                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">Template</th>
-                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">Actions</th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Name
+                        </th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Value
+                        </th>
+                        <th className="py-2 px-4 text-left text-sm font-medium text-gray-700">
+                          Template
+                        </th>
+                        <th className="py-2 px-4 text-right text-sm font-medium text-gray-700">
+                          Actions
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
@@ -947,7 +983,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
               {/* Template Selector */}
               {formData.category_id && (
                 <div className="mb-4">
-                  <label htmlFor="template_id" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="template_id"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Specification Template
                   </label>
                   <div className="flex items-center">
@@ -959,7 +998,7 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                       className="w-full p-2 border border-gray-300 rounded-md"
                     >
                       <option value="">Select a template (optional)</option>
-                      {specTemplates.map((template) => (
+                      {specTemplates.map(template => (
                         <option key={template.id} value={template.id}>
                           {template.display_name}
                         </option>
@@ -981,7 +1020,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label htmlFor="spec-name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="spec-name"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Name {!newSpecification.template_id && '*'}
                   </label>
                   <input
@@ -1001,7 +1043,10 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
                   )}
                 </div>
                 <div>
-                  <label htmlFor="spec-value" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label
+                    htmlFor="spec-value"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
                     Value*
                   </label>
                   <input

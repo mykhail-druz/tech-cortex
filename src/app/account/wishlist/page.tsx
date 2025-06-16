@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
-import { WishlistItem } from '@/lib/supabase/types';
+import { WishlistItem } from '@/lib/supabase/types/types';
 
 export default function WishlistPage() {
   const { user, isLoading: authLoading } = useAuth();
@@ -125,19 +125,12 @@ export default function WishlistPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold">My Wishlist</h1>
-          <Link
-            href="/account"
-            className="text-primary hover:text-primary/80 text-sm font-medium"
-          >
+          <Link href="/account" className="text-primary hover:text-primary/80 text-sm font-medium">
             Back to Account
           </Link>
         </div>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">
-            {error}
-          </div>
-        )}
+        {error && <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">{error}</div>}
 
         {wishlistItems.length === 0 && !isLoading && !error ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
@@ -155,7 +148,9 @@ export default function WishlistPage() {
               />
             </svg>
             <h2 className="text-xl font-medium text-gray-900 mb-2">Your wishlist is empty</h2>
-            <p className="text-gray-500 mb-6">Save items you like to your wishlist and they&apos;ll appear here.</p>
+            <p className="text-gray-500 mb-6">
+              Save items you like to your wishlist and they&apos;ll appear here.
+            </p>
             <Link
               href="/products"
               className="inline-block bg-primary text-white py-2 px-6 rounded-md hover:bg-primary/90 transition-colors"
@@ -166,7 +161,7 @@ export default function WishlistPage() {
         ) : (
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <ul className="divide-y divide-gray-200">
-              {wishlistItems.map((item) => (
+              {wishlistItems.map(item => (
                 <li key={item.id} className="p-6">
                   <div className="flex flex-col sm:flex-row">
                     {/* Product image */}
@@ -187,7 +182,10 @@ export default function WishlistPage() {
                       <div className="flex flex-col sm:flex-row justify-between">
                         <div>
                           <h3 className="text-base font-medium text-gray-900">
-                            <Link href={`/products/${item.product?.slug || item.product_id}`} className="hover:text-primary">
+                            <Link
+                              href={`/products/${item.product?.slug || item.product_id}`}
+                              className="hover:text-primary"
+                            >
                               {item.product?.title || 'Product'}
                             </Link>
                           </h3>

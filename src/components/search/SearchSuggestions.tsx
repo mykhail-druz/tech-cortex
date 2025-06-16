@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Product } from '@/lib/supabase/types';
+import { Product } from '@/lib/supabase/types/types';
 import { searchProducts } from '@/lib/supabase/db';
 
 interface SearchSuggestionsProps {

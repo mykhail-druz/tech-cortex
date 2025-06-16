@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Review } from '@/lib/supabase/types';
+import { Review } from '@/lib/supabase/types/types';
 import { getProductReviews } from '@/lib/supabase/db';
 import ReviewItem from './ReviewItem';
 
@@ -32,12 +32,12 @@ export default function ReviewList({ productId, initialReviews, limit = 5 }: Rev
     setIsLoading(true);
     try {
       const { data, error } = await getProductReviews(productId);
-      
+
       if (error) {
         console.error('Error fetching reviews:', error);
         return;
       }
-      
+
       if (data) {
         setReviews(data);
         setHasMore(data.length >= limit);
@@ -104,7 +104,7 @@ export default function ReviewList({ productId, initialReviews, limit = 5 }: Rev
   return (
     <div>
       <div className="space-y-6">
-        {reviews.map((review) => (
+        {reviews.map(review => (
           <ReviewItem
             key={review.id}
             review={review}

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
 import { cn } from '@/lib/utils';
 import { getProducts, getCategories, searchProducts } from '@/lib/supabase/db';
-import { Product, Category } from '@/lib/supabase/types';
+import { Product, Category } from '@/lib/supabase/types/types';
 import { Spinner } from '@/components/ui/Spinner';
 
 // Define sorting options
@@ -148,7 +148,7 @@ export default function ProductsContent() {
   const handleCategoryChange = (category: string, subcategory: string = '') => {
     const updates: Record<string, string | null> = {
       category,
-      subcategory: subcategory || null
+      subcategory: subcategory || null,
     };
     updateFilters(updates);
   };
@@ -162,7 +162,7 @@ export default function ProductsContent() {
   const applyPriceFilter = () => {
     updateFilters({
       minPrice: localPriceRange[0] > 0 ? localPriceRange[0].toString() : null,
-      maxPrice: localPriceRange[1] < 2000 ? localPriceRange[1].toString() : null
+      maxPrice: localPriceRange[1] < 2000 ? localPriceRange[1].toString() : null,
     });
   };
 
@@ -194,7 +194,7 @@ export default function ProductsContent() {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8">
-        {query ? `Search Results for "${query}"` : "Product Catalog"}
+        {query ? `Search Results for "${query}"` : 'Product Catalog'}
       </h1>
 
       <div className="flex flex-col lg:flex-row gap-8">
@@ -215,7 +215,10 @@ export default function ProductsContent() {
                     placeholder="Search products..."
                     className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
-                  <button type="submit" className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary">
+                  <button
+                    type="submit"
+                    className="absolute right-2 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-primary"
+                  >
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
@@ -236,7 +239,7 @@ export default function ProductsContent() {
               {query && (
                 <div className="mt-2 flex items-center">
                   <span className="text-sm text-gray-600 mr-2">Searching for: "{query}"</span>
-                  <button 
+                  <button
                     onClick={() => updateFilters({ q: null })}
                     className="text-xs text-primary hover:text-primary/80"
                   >
@@ -251,7 +254,12 @@ export default function ProductsContent() {
               <h3 className="font-medium text-gray-900 mb-2">Categories</h3>
               {isCategoriesLoading ? (
                 <div className="py-2">
-                  <Spinner size="small" color="primary" text="Loading categories..." centered={false} />
+                  <Spinner
+                    size="small"
+                    color="primary"
+                    text="Loading categories..."
+                    centered={false}
+                  />
                 </div>
               ) : (
                 <ul className="space-y-2">
@@ -283,25 +291,29 @@ export default function ProductsContent() {
                       </button>
 
                       {/* Subcategories */}
-                      {categorySlug === category.slug && category.subcategories && category.subcategories.length > 0 && (
-                        <ul className="pl-4 space-y-1 mt-1">
-                          {category.subcategories.map(subcategory => (
-                            <li key={subcategory.id}>
-                              <button
-                                className={cn(
-                                  'w-full text-left py-1 px-2 rounded-md text-sm transition-colors',
-                                  subcategorySlug === subcategory.slug
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-gray-600 hover:bg-gray-100'
-                                )}
-                                onClick={() => handleCategoryChange(category.slug, subcategory.slug)}
-                              >
-                                {subcategory.name}
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
+                      {categorySlug === category.slug &&
+                        category.subcategories &&
+                        category.subcategories.length > 0 && (
+                          <ul className="pl-4 space-y-1 mt-1">
+                            {category.subcategories.map(subcategory => (
+                              <li key={subcategory.id}>
+                                <button
+                                  className={cn(
+                                    'w-full text-left py-1 px-2 rounded-md text-sm transition-colors',
+                                    subcategorySlug === subcategory.slug
+                                      ? 'bg-primary/10 text-primary'
+                                      : 'text-gray-600 hover:bg-gray-100'
+                                  )}
+                                  onClick={() =>
+                                    handleCategoryChange(category.slug, subcategory.slug)
+                                  }
+                                >
+                                  {subcategory.name}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
                     </li>
                   ))}
                 </ul>
@@ -348,7 +360,7 @@ export default function ProductsContent() {
               </label>
             </div>
 
-            <button 
+            <button
               onClick={applyPriceFilter}
               className="w-full py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
             >

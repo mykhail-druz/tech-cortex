@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
-import { Order, OrderStatus, PaymentStatus } from '@/lib/supabase/types';
+import { Order, OrderStatus, PaymentStatus } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 
 // Order Management Page
@@ -21,8 +21,8 @@ export default function OrdersManagement() {
     const fetchOrders = async () => {
       try {
         // Fetch orders from the database
-        const { data, error } = await import('@/lib/supabase/adminDb').then(
-          module => module.getAllOrders()
+        const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+          module.getAllOrders()
         );
 
         if (error) {
@@ -45,15 +45,19 @@ export default function OrdersManagement() {
   }, [user]);
 
   // Filter orders based on search term, status, and date
-  const filteredOrders = orders.filter((order) => {
-    const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch =
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.user_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.tracking_number && order.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()));
+      (order.tracking_number &&
+        order.tracking_number.toLowerCase().includes(searchTerm.toLowerCase()));
 
-    const matchesStatus = statusFilter ? order.status === statusFilter as OrderStatus : true;
+    const matchesStatus = statusFilter ? order.status === (statusFilter as OrderStatus) : true;
 
-    const matchesDate = dateFilter ? new Date(order.created_at).toLocaleDateString() === new Date(dateFilter).toLocaleDateString() : true;
+    const matchesDate = dateFilter
+      ? new Date(order.created_at).toLocaleDateString() ===
+        new Date(dateFilter).toLocaleDateString()
+      : true;
 
     return matchesSearch && matchesStatus && matchesDate;
   });
@@ -62,8 +66,8 @@ export default function OrdersManagement() {
   const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
     try {
       // Update order status in the database
-      const { data, error } = await import('@/lib/supabase/adminDb').then(
-        module => module.updateOrderStatus(orderId, newStatus)
+      const { data, error } = await import('@/lib/supabase/adminDb').then(module =>
+        module.updateOrderStatus(orderId, newStatus)
       );
 
       if (error) {
@@ -71,11 +75,13 @@ export default function OrdersManagement() {
       }
 
       // Update it in the state
-      setOrders(orders.map(order => 
-        order.id === orderId 
-          ? { ...order, status: newStatus, updated_at: new Date().toISOString() } 
-          : order
-      ));
+      setOrders(
+        orders.map(order =>
+          order.id === orderId
+            ? { ...order, status: newStatus, updated_at: new Date().toISOString() }
+            : order
+        )
+      );
 
       toast.success(`Order ${orderId} status updated to ${newStatus}`);
     } catch (error) {
@@ -114,7 +120,7 @@ export default function OrdersManagement() {
               className="w-full p-2 border border-gray-300 rounded-md"
               placeholder="Search by order ID, customer ID, or tracking number..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
           <div>
@@ -125,10 +131,10 @@ export default function OrdersManagement() {
               id="status"
               className="w-full p-2 border border-gray-300 rounded-md"
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={e => setStatusFilter(e.target.value)}
             >
               <option value="">All Statuses</option>
-              {Object.values(OrderStatus).map((status) => (
+              {Object.values(OrderStatus).map(status => (
                 <option key={status} value={status}>
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </option>
@@ -144,7 +150,7 @@ export default function OrdersManagement() {
               id="date"
               className="w-full p-2 border border-gray-300 rounded-md"
               value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
+              onChange={e => setDateFilter(e.target.value)}
             />
           </div>
         </div>
@@ -181,7 +187,7 @@ export default function OrdersManagement() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.length > 0 ? (
-                filteredOrders.map((order) => (
+                filteredOrders.map(order => (
                   <tr key={order.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.id}
@@ -201,12 +207,12 @@ export default function OrdersManagement() {
                           order.status === OrderStatus.DELIVERED
                             ? 'bg-green-100 text-green-800'
                             : order.status === OrderStatus.SHIPPED
-                            ? 'bg-blue-100 text-blue-800'
-                            : order.status === OrderStatus.PROCESSING
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : order.status === OrderStatus.PENDING
-                            ? 'bg-gray-100 text-gray-800'
-                            : 'bg-red-100 text-red-800'
+                              ? 'bg-blue-100 text-blue-800'
+                              : order.status === OrderStatus.PROCESSING
+                                ? 'bg-yellow-100 text-yellow-800'
+                                : order.status === OrderStatus.PENDING
+                                  ? 'bg-gray-100 text-gray-800'
+                                  : 'bg-red-100 text-red-800'
                         }`}
                       >
                         {order.status}
@@ -218,10 +224,10 @@ export default function OrdersManagement() {
                           order.payment_status === PaymentStatus.PAID
                             ? 'bg-green-100 text-green-800'
                             : order.payment_status === PaymentStatus.PENDING
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : order.payment_status === PaymentStatus.REFUNDED
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-red-100 text-red-800'
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : order.payment_status === PaymentStatus.REFUNDED
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-red-100 text-red-800'
                         }`}
                       >
                         {order.payment_status}
@@ -241,10 +247,12 @@ export default function OrdersManagement() {
                           </button>
                           <div className="absolute left-0 mt-2 w-48 bg-white rounded-md shadow-lg hidden group-hover:block z-10">
                             <div className="py-1">
-                              {Object.values(OrderStatus).map((status) => (
+                              {Object.values(OrderStatus).map(status => (
                                 <button
                                   key={status}
-                                  onClick={() => handleUpdateStatus(order.id, status as OrderStatus)}
+                                  onClick={() =>
+                                    handleUpdateStatus(order.id, status as OrderStatus)
+                                  }
                                   className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                                   disabled={order.status === status}
                                 >

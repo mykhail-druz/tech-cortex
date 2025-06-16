@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Review } from '@/lib/supabase/types';
+import { Review } from '@/lib/supabase/types/types';
 import { getProductReviews } from '@/lib/supabase/db';
 import ReviewList from './ReviewList';
 import AddReviewForm from './AddReviewForm';
@@ -91,8 +91,8 @@ export default function ReviewSection({
   const sortReviews = (reviewsToSort: Review[]): Review[] => {
     switch (sortOption) {
       case 'newest':
-        return [...reviewsToSort].sort((a, b) => 
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        return [...reviewsToSort].sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
       case 'highest':
         return [...reviewsToSort].sort((a, b) => b.rating - a.rating);
@@ -144,10 +144,7 @@ export default function ReviewSection({
       {/* Add review button or form */}
       {showAddReview ? (
         <div className="mb-8">
-          <AddReviewForm
-            productId={productId}
-            onReviewAdded={handleReviewAdded}
-          />
+          <AddReviewForm productId={productId} onReviewAdded={handleReviewAdded} />
         </div>
       ) : (
         <div className="mb-8">
@@ -164,7 +161,7 @@ export default function ReviewSection({
       <div className="mb-6 flex flex-wrap gap-4">
         <div className="flex items-center">
           <div className="relative">
-            <button 
+            <button
               onClick={() => setShowFilters(!showFilters)}
               className="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-md bg-white hover:bg-gray-50"
             >
@@ -196,7 +193,9 @@ export default function ReviewSection({
                           </svg>
                         ))}
                       </div>
-                      <span>{rating} {rating === 1 ? 'Star' : 'Stars'}</span>
+                      <span>
+                        {rating} {rating === 1 ? 'Star' : 'Stars'}
+                      </span>
                     </button>
                   ))}
                   {filterRating !== null && (
@@ -216,7 +215,7 @@ export default function ReviewSection({
         <div className="relative">
           <select
             value={sortOption}
-            onChange={(e) => setSortOption(e.target.value as 'newest' | 'highest' | 'lowest')}
+            onChange={e => setSortOption(e.target.value as 'newest' | 'highest' | 'lowest')}
             className="appearance-none pl-4 pr-10 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-primary focus:border-primary"
           >
             <option value="newest">Newest First</option>
@@ -231,10 +230,7 @@ export default function ReviewSection({
         {filterRating !== null && (
           <div className="flex items-center bg-primary/10 text-primary px-3 py-1 rounded-full text-sm">
             <span>Showing {filterRating}-star reviews</span>
-            <button 
-              onClick={() => setFilterRating(null)}
-              className="ml-2 focus:outline-none"
-            >
+            <button onClick={() => setFilterRating(null)} className="ml-2 focus:outline-none">
               ×
             </button>
           </div>
@@ -242,10 +238,7 @@ export default function ReviewSection({
       </div>
 
       {/* Reviews list */}
-      <ReviewList
-        productId={productId}
-        initialReviews={getSortedAndFilteredReviews()}
-      />
+      <ReviewList productId={productId} initialReviews={getSortedAndFilteredReviews()} />
     </div>
   );
 }

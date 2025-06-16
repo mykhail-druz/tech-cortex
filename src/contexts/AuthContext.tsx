@@ -1,12 +1,13 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { Session, User } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
 import * as authService from '@/lib/supabase/auth';
-import { UserProfile } from '@/lib/supabase/types';
+import { UserProfile } from '@/lib/supabase/types/types';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
+import debounce from 'lodash.debounce';
 
 // Define the context type
 type AuthContextType = {
@@ -48,49 +49,134 @@ const AuthContext = createContext<AuthContextType>({
   updateProfile: async () => ({ error: new Error('AuthContext not initialized') }),
 });
 
+// Cache duration in milliseconds (30 seconds)
+const CACHE_DURATION = 30000;
+
 // Provider component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const router = useRouter();
 
-
-// Initialize auth state
-  useEffect(() => {
-    // НЕ инициализируем auth контекст на странице reset-password для безопасности
+  // Initialize auth state
+  const initializeAuth = useCallback(async () => {
+    // Skip initialization on reset-password page
     if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
       console.log('Skipping auth initialization on reset-password page');
       setIsLoading(false);
       return;
     }
 
-    const initializeAuth = async () => {
-      try {
-        // Get current session
-        const { session: currentSession } = await authService.getSession();
-        setSession(currentSession);
+    // If already initialized, don't initialize again
+    if (isInitialized) {
+      return;
+    }
 
-        if (currentSession?.user) {
-          setUser(currentSession.user);
+    setIsLoading(true);
 
-          // Fetch user profile
-          const { data: userProfile } = await dbService.getUserProfile(currentSession.user.id);
-          setProfile(userProfile);
+    try {
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
+      // Check cache first
+      const cachedSessionData = sessionStorage.getItem('auth_session_data');
+      if (cachedSessionData) {
+        const { data, timestamp } = JSON.parse(cachedSessionData);
+        if (Date.now() - timestamp < CACHE_DURATION) {
+          // Use cached data
+          console.log('Using cached session data');
+          setSession(data.session);
+          setUser(data.user);
+          setProfile(data.profile);
+          setIsLoading(false);
+          setIsInitialized(true);
+          return;
+        } else {
+          // Cache expired, remove it
+          sessionStorage.removeItem('auth_session_data');
         }
-      } catch (error) {
+      }
+
+      // Get current session
+      const { session: currentSession } = await authService.getSession();
+      setSession(currentSession);
+
+      if (currentSession?.user) {
+        setUser(currentSession.user);
+
+        // Fetch user profile
+        const { data: userProfile } = await dbService.getUserProfile(currentSession.user.id, { signal });
+        setProfile(userProfile);
+
+        // Cache the data
+        sessionStorage.setItem('auth_session_data', JSON.stringify({
+          data: {
+            session: currentSession,
+            user: currentSession.user,
+            profile: userProfile
+          },
+          timestamp: Date.now()
+        }));
+      }
+
+      setIsInitialized(true);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
         console.error('Error initializing auth:', error);
-      } finally {
-        setIsLoading(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isInitialized]);
+
+  // Debounced version of initializeAuth
+  const debouncedInitializeAuth = useCallback(
+    debounce(() => {
+      initializeAuth();
+    }, 300),
+    [initializeAuth]
+  );
+
+  // Handle visibility change
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        debouncedInitializeAuth();
       }
     };
 
+    // Initialize auth on first load
     initializeAuth();
 
-    // Set up auth state change listener (только если НЕ на reset-password странице)
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Clean up
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [initializeAuth, debouncedInitializeAuth]);
+
+  // Set up auth state change listener
+  useEffect(() => {
+    // Skip on reset-password page
+    if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
+      return;
+    }
+
     const { data: authListener } = authService.onAuthStateChange(async (event, session) => {
-      // Дополнительная проверка внутри listener
+      // Additional check inside listener
       if (typeof window !== 'undefined' && window.location.pathname === '/auth/reset-password') {
         console.log('Ignoring auth state change on reset-password page');
         return;
@@ -100,38 +186,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(session?.user || null);
 
       if (session?.user) {
-        // Fetch or create user profile
-        const { data: userProfile } = await dbService.getUserProfile(session.user.id);
+        // Cancel any previous requests
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const signal = abortControllerRef.current.signal;
 
-        if (!userProfile) {
-          // Create profile if it doesn't exist
-          const metadata = session.user.user_metadata;
+        try {
+          // Fetch or create user profile
+          const { data: userProfile } = await dbService.getUserProfile(session.user.id, { signal });
 
-          // Extract user data from metadata - handles both email and OAuth sign-ins
-          const userData = {
-            first_name: metadata?.first_name || metadata?.given_name || metadata?.name?.split(' ')[0] || '',
-            last_name: metadata?.last_name || metadata?.family_name || (metadata?.name?.split(' ').length > 1 ? metadata?.name?.split(' ').slice(1).join(' ') : '') || '',
-          };
+          if (!userProfile) {
+            // Create a profile if it doesn't exist
+            const metadata = session.user.user_metadata;
 
-          console.log('Creating user profile for', session.user.id, 'with data:', userData);
+            // Extract user data from metadata - handles both email and OAuth sign-ins
+            const userData = {
+              first_name:
+                metadata?.first_name || metadata?.given_name || metadata?.name?.split(' ')[0] || '',
+              last_name:
+                metadata?.last_name ||
+                metadata?.family_name ||
+                (metadata?.name?.split(' ').length > 1
+                  ? metadata?.name?.split(' ').slice(1).join(' ')
+                  : '') ||
+                '',
+            };
 
-          // Try to create profile using admin service to bypass RLS
-          const { error: profileError } = await adminDbService.createUserProfile(session.user.id, userData);
+            console.log('Creating user profile for', session.user.id, 'with data:', userData);
 
-          if (profileError) {
-            console.error('Error creating user profile with admin service:', profileError);
-            // Fallback to regular auth service
-            await authService.createUserProfile(session.user.id, userData);
+            // Try to create profile using admin service to bypass RLS
+            const { error: profileError } = await adminDbService.createUserProfile(
+              session.user.id,
+              userData
+            );
+
+            if (profileError) {
+              console.error('Error creating user profile with admin service:', profileError);
+              // Fallback to regular auth service
+              await authService.createUserProfile(session.user.id, userData);
+            }
+
+            // Fetch the newly created profile
+            const { data: newProfile } = await dbService.getUserProfile(session.user.id, { signal });
+            setProfile(newProfile);
+
+            // Cache the data
+            sessionStorage.setItem('auth_session_data', JSON.stringify({
+              data: {
+                session,
+                user: session.user,
+                profile: newProfile
+              },
+              timestamp: Date.now()
+            }));
+          } else {
+            setProfile(userProfile);
+
+            // Cache the data
+            sessionStorage.setItem('auth_session_data', JSON.stringify({
+              data: {
+                session,
+                user: session.user,
+                profile: userProfile
+              },
+              timestamp: Date.now()
+            }));
           }
-
-          // Fetch the newly created profile
-          const { data: newProfile } = await dbService.getUserProfile(session.user.id);
-          setProfile(newProfile);
-        } else {
-          setProfile(userProfile);
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            console.error('Error handling auth state change:', error);
+          }
         }
       } else {
         setProfile(null);
+        // Clear cache when user logs out
+        sessionStorage.removeItem('auth_session_data');
       }
     });
 
@@ -165,8 +296,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Create user profile
       if (user) {
         try {
-          // Try to create profile using admin service to bypass RLS
-          const { error: profileError } = await adminDbService.createUserProfile(user.id, metadata || {});
+          // Try to create a profile using admin service to bypass RLS
+          const { error: profileError } = await adminDbService.createUserProfile(
+            user.id,
+            metadata || {}
+          );
 
           if (profileError) {
             console.error('Error creating user profile with admin service:', profileError);
@@ -230,6 +364,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       if (!user) return { error: new Error('User not authenticated') };
 
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       // Update user metadata if first_name or last_name is provided
       if (profileData.first_name || profileData.last_name) {
         const metadata = {
@@ -244,13 +385,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (!error) {
         // Refresh profile data
-        const { data: updatedProfile } = await dbService.getUserProfile(user.id);
+        const { data: updatedProfile } = await dbService.getUserProfile(user.id, { signal });
         setProfile(updatedProfile);
+
+        // Update cache with new profile data
+        const cachedSessionData = sessionStorage.getItem('auth_session_data');
+        if (cachedSessionData) {
+          const { data, timestamp } = JSON.parse(cachedSessionData);
+          sessionStorage.setItem('auth_session_data', JSON.stringify({
+            data: {
+              ...data,
+              profile: updatedProfile
+            },
+            timestamp: Date.now()
+          }));
+        }
       }
 
       return { error };
     } catch (error) {
-      return { error: error as Error };
+      if (error.name !== 'AbortError') {
+        return { error: error as Error };
+      }
+      return { error: null };
     }
   };
 
@@ -307,4 +464,3 @@ export const useAuth = () => {
 
   return context;
 };
-

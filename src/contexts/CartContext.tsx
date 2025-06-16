@@ -1,9 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import * as dbService from '@/lib/supabase/db';
-import { CartItem, Product } from '@/lib/supabase/types';
+import { CartItem, Product } from '@/lib/supabase/types/types';
+import debounce from 'lodash.debounce';
 
 // Define the context type
 type CartContextType = {
@@ -32,6 +33,9 @@ const CartContext = createContext<CartContextType>({
 // Local storage key for guest cart
 const GUEST_CART_KEY = 'techcortex_guest_cart';
 
+// Cache duration in milliseconds (30 seconds)
+const CACHE_DURATION = 30000;
+
 // Guest cart item type
 type GuestCartItem = {
   id: string;
@@ -44,6 +48,8 @@ type GuestCartItem = {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { user, isLoading: authLoading } = useAuth();
 
   // Calculate derived values
@@ -53,48 +59,120 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     0
   );
 
-  // Load cart items when auth state changes
-  useEffect(() => {
-    const loadCartItems = async () => {
-      if (authLoading) return;
+  // Load cart items
+  const loadCartItems = useCallback(async () => {
+    if (authLoading) return;
 
-      setIsLoading(true);
+    // If already initialized and not forced, don't load again
+    if (isInitialized && !isLoading) return;
 
-      try {
-        if (user) {
-          // Logged in user: load cart from database
-          const { data } = await dbService.getCartItems(user.id);
-          setItems(data || []);
+    setIsLoading(true);
 
-          // Merge any guest cart items into the user's cart
-          const guestCart = loadGuestCart();
-          if (guestCart.length > 0) {
-            // Add each guest cart item to the user's cart
-            for (const item of guestCart) {
-              await dbService.addToCart(user.id, item.product_id, item.quantity);
-            }
+    try {
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
 
-            // Clear the guest cart
-            clearGuestCart();
+      if (user) {
+        // Logged in user: check cache first
+        const cacheKey = `cart_items_${user.id}`;
+        const cachedCartData = sessionStorage.getItem(cacheKey);
 
-            // Reload the cart
-            const { data: updatedData } = await dbService.getCartItems(user.id);
-            setItems(updatedData || []);
+        if (cachedCartData) {
+          const { data, timestamp } = JSON.parse(cachedCartData);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            // Use cached data
+            console.log('Using cached cart data');
+            setItems(data || []);
+            setIsLoading(false);
+            setIsInitialized(true);
+            return;
+          } else {
+            // Cache expired, remove it
+            sessionStorage.removeItem(cacheKey);
           }
-        } else {
-          // Guest user: load cart from local storage
-          const guestCart = loadGuestCart();
-          setItems(guestCart as CartItem[]);
         }
-      } catch (error) {
+
+        // Load cart from database
+        const { data } = await dbService.getCartItems(user.id, { signal });
+        setItems(data || []);
+
+        // Cache the data
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: data || [],
+          timestamp: Date.now()
+        }));
+
+        // Merge any guest cart items into the user's cart
+        const guestCart = loadGuestCart();
+        if (guestCart.length > 0) {
+          // Add each guest cart item to the user's cart
+          for (const item of guestCart) {
+            await dbService.addToCart(user.id, item.product_id, item.quantity);
+          }
+
+          // Clear the guest cart
+          clearGuestCart();
+
+          // Reload the cart
+          const { data: updatedData } = await dbService.getCartItems(user.id, { signal });
+          setItems(updatedData || []);
+
+          // Update cache
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            data: updatedData || [],
+            timestamp: Date.now()
+          }));
+        }
+      } else {
+        // Guest user: load cart from local storage
+        const guestCart = loadGuestCart();
+        setItems(guestCart as CartItem[]);
+      }
+
+      setIsInitialized(true);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
         console.error('Error loading cart items:', error);
-      } finally {
-        setIsLoading(false);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, authLoading, isInitialized, isLoading]);
+
+  // Debounced version of loadCartItems
+  const debouncedLoadCartItems = useCallback(
+    debounce(() => {
+      loadCartItems();
+    }, 300),
+    [loadCartItems]
+  );
+
+  // Handle visibility change and initial load
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        debouncedLoadCartItems();
       }
     };
 
+    // Initial load
     loadCartItems();
-  }, [user, authLoading]);
+
+    // Add visibility change listener
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // Clean up
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [loadCartItems, debouncedLoadCartItems]);
 
   // Helper functions for guest cart
   const loadGuestCart = (): GuestCartItem[] => {
@@ -119,14 +197,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Add item to cart
   const addItem = async (productId: string, quantity: number) => {
     try {
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       if (user) {
         // Logged in user: add to database
         const { error } = await dbService.addToCart(user.id, productId, quantity);
         if (error) return { error };
 
         // Reload cart
-        const { data } = await dbService.getCartItems(user.id);
+        const { data } = await dbService.getCartItems(user.id, { signal });
         setItems(data || []);
+
+        // Update cache
+        const cacheKey = `cart_items_${user.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: data || [],
+          timestamp: Date.now()
+        }));
       } else {
         // Guest user: add to local storage
         const guestCart = loadGuestCart();
@@ -140,7 +232,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } else {
           // Add new item
           // Fetch product details
-          const { data: products } = await dbService.getProducts();
+          const { data: products } = await dbService.getProducts({ signal });
           const product = products?.find(p => p.id === productId);
 
           if (!product) {
@@ -161,7 +253,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      if (error.name !== 'AbortError') {
+        return { error: error as Error };
+      }
+      return { error: null };
     }
   };
 
@@ -172,14 +267,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return removeItem(itemId);
       }
 
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       if (user) {
         // Logged in user: update in database
         const { error } = await dbService.updateCartItemQuantity(itemId, quantity);
         if (error) return { error };
 
         // Reload cart
-        const { data } = await dbService.getCartItems(user.id);
+        const { data } = await dbService.getCartItems(user.id, { signal });
         setItems(data || []);
+
+        // Update cache
+        const cacheKey = `cart_items_${user.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: data || [],
+          timestamp: Date.now()
+        }));
       } else {
         // Guest user: update in local storage
         const guestCart = loadGuestCart();
@@ -194,21 +303,38 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      if (error.name !== 'AbortError') {
+        return { error: error as Error };
+      }
+      return { error: null };
     }
   };
 
   // Remove item from cart
   const removeItem = async (itemId: string) => {
     try {
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       if (user) {
         // Logged in user: remove from database
         const { error } = await dbService.removeFromCart(itemId);
         if (error) return { error };
 
         // Reload cart
-        const { data } = await dbService.getCartItems(user.id);
+        const { data } = await dbService.getCartItems(user.id, { signal });
         setItems(data || []);
+
+        // Update cache
+        const cacheKey = `cart_items_${user.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: data || [],
+          timestamp: Date.now()
+        }));
       } else {
         // Guest user: remove from local storage
         const guestCart = loadGuestCart();
@@ -219,7 +345,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
-      return { error: error as Error };
+      if (error.name !== 'AbortError') {
+        return { error: error as Error };
+      }
+      return { error: null };
     }
   };
 
@@ -227,6 +356,14 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = async () => {
     try {
       console.log('Clearing cart...');
+
+      // Cancel any previous requests
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       if (user) {
         // Logged in user: clear in database
         const { error } = await dbService.clearCart(user.id);
@@ -237,6 +374,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log('Cart cleared in database');
         setItems([]);
+
+        // Update cache
+        const cacheKey = `cart_items_${user.id}`;
+        sessionStorage.setItem(cacheKey, JSON.stringify({
+          data: [],
+          timestamp: Date.now()
+        }));
       } else {
         // Guest user: clear in local storage
         clearGuestCart();
@@ -246,8 +390,11 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       return { error: null };
     } catch (error) {
-      console.error('Unexpected error in clearCart:', error);
-      return { error: error as Error };
+      if (error.name !== 'AbortError') {
+        console.error('Unexpected error in clearCart:', error);
+        return { error: error as Error };
+      }
+      return { error: null };
     }
   };
 
