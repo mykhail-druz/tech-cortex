@@ -12,7 +12,7 @@ import { COMPONENT_POWER_CONSUMPTION, PSU_HEADROOM_PERCENTAGE } from './constant
  */
 export class CompatibilityEngine {
   /**
-   * Get specification value from product
+   * Get specification value from the product
    */
   private static getSpecValue(
     product: ProductWithDetails,
@@ -190,10 +190,10 @@ export class CompatibilityEngine {
         return [
           {
             type: 'warning',
-            component1: 'Процессор',
-            component2: 'Материнская плата',
-            message: 'Отсутствуют правила CPU-Motherboard',
-            details: 'Создайте правило для processors → motherboards в админке',
+            component1: 'CPU',
+            component2: 'Motherboard',
+            message: 'No CPU-Motherboard rules',
+            details: 'Create a rule for processors → motherboards in the admin panel.',
             severity: 'medium',
           },
         ];
@@ -228,10 +228,10 @@ export class CompatibilityEngine {
         if (!cpuValue || !mbValue) {
           issues.push({
             type: 'warning',
-            component1: 'Процессор',
-            component2: 'Материнская плата',
-            message: `Отсутствует информация о ${primarySpecName}`,
-            details: `CPU ${primarySpecName}: ${cpuValue || 'не найден'}, MB ${secondarySpecName}: ${mbValue || 'не найден'}`,
+            component1: 'CPU',
+            component2: 'Motherboard',
+            message: `No information available about ${primarySpecName}`,
+            details: `CPU ${primarySpecName}: ${cpuValue || 'Not found'}, MB ${secondarySpecName}: ${mbValue || 'не найден'}`,
             severity: 'medium',
           });
           continue;
@@ -240,10 +240,10 @@ export class CompatibilityEngine {
         if (rule.rule_type === 'exact_match' && cpuValue !== mbValue) {
           issues.push({
             type: 'error',
-            component1: 'Процессор',
-            component2: 'Материнская плата',
-            message: `Несовместимые ${primarySpecName}`,
-            details: `Процессор: ${cpuValue}, Материнская плата: ${mbValue}`,
+            component1: 'CPU',
+            component2: 'Motherboard',
+            message: `Incompatible ${primarySpecName}`,
+            details: `CPU: ${cpuValue}, Motherboard: ${mbValue}`,
             severity: 'critical',
           });
         } else if (cpuValue === mbValue) {
@@ -254,10 +254,10 @@ export class CompatibilityEngine {
       console.error('❌ Error checking CPU-MB compatibility:', error);
       issues.push({
         type: 'warning',
-        component1: 'Процессор',
-        component2: 'Материнская плата',
-        message: 'Ошибка проверки совместимости',
-        details: 'Внутренняя ошибка системы',
+        component1: 'CPU',
+        component2: 'Motherboard',
+        message: 'Compatibility check error',
+        details: 'Internal system error',
         severity: 'medium',
       });
     }
@@ -280,10 +280,10 @@ export class CompatibilityEngine {
     if (!memoryType || !mbMemoryType) {
       issues.push({
         type: 'warning',
-        component1: 'Память',
-        component2: 'Материнская плата',
-        message: 'Отсутствует информация о типе памяти',
-        details: 'Не удается проверить совместимость типов памяти',
+        component1: 'RAM',
+        component2: 'Motherboard',
+        message: 'No information about memory type',
+        details: 'Unable to verify memory type compatibility',
         severity: 'medium',
       });
       return issues;
@@ -292,10 +292,10 @@ export class CompatibilityEngine {
     if (memoryType !== mbMemoryType) {
       issues.push({
         type: 'error',
-        component1: 'Память',
-        component2: 'Материнская плата',
-        message: 'Несовместимые типы памяти',
-        details: `Память: ${memoryType}, Материнская плата: ${mbMemoryType}`,
+        component1: 'RAM',
+        component2: 'Motherboard',
+        message: 'Incompatible memory types',
+        details: `RAM: ${memoryType}, Motherboard: ${mbMemoryType}`,
         severity: 'critical',
       });
     }
@@ -316,10 +316,10 @@ export class CompatibilityEngine {
     if (!psuWattage) {
       issues.push({
         type: 'warning',
-        component1: 'Блок питания',
-        component2: 'Система',
-        message: 'Отсутствует информация о мощности БП',
-        details: 'Не удается проверить достаточность мощности',
+        component1: 'Power Supply Unity',
+        component2: 'System',
+        message: 'No information about the power supply capacity',
+        details: 'Unable to verify sufficient power',
         severity: 'medium',
       });
       return issues;
@@ -331,19 +331,19 @@ export class CompatibilityEngine {
     if (psuWattage < recommendedPower) {
       issues.push({
         type: 'error',
-        component1: 'Блок питания',
-        component2: 'Система',
-        message: 'Недостаточная мощность блока питания',
-        details: `Требуется: ${Math.ceil(recommendedPower)}W, Доступно: ${psuWattage}W`,
+        component1: 'Power supply unit',
+        component2: 'System',
+        message: 'Insufficient power supply unit capacity',
+        details: `Требуется: ${Math.ceil(recommendedPower)}W, Available: ${psuWattage}W`,
         severity: 'critical',
       });
     } else if (psuWattage < totalPowerConsumption * 1.1) {
       issues.push({
         type: 'warning',
-        component1: 'Блок питания',
-        component2: 'Система',
-        message: 'Малый запас мощности БП',
-        details: `Рекомендуется БП мощностью от ${Math.ceil(recommendedPower)}W`,
+        component1: 'Power supply unit',
+        component2: 'System',
+        message: 'Low power reserve of the power supply unit',
+        details: `A power supply with a capacity of ${Math.ceil(recommendedPower)}W`,
         severity: 'medium',
       });
     }
@@ -369,10 +369,10 @@ export class CompatibilityEngine {
       if (!caseFormFactors.includes(mbFormFactor)) {
         issues.push({
           type: 'error',
-          component1: 'Корпус',
-          component2: 'Материнская плата',
-          message: 'Несовместимый форм-фактор',
-          details: `Корпус не поддерживает ${mbFormFactor}`,
+          component1: 'Case',
+          component2: 'Motherboard',
+          message: 'Incompatible form factor',
+          details: `The case does not support ${mbFormFactor}`,
           severity: 'critical',
         });
       }
