@@ -103,9 +103,9 @@ export default function AddProductPage() {
 
       // For templates, always use the parent category (selectedCategory), not the subcategory
       if (selectedCategory?.slug) {
-        loadNewSpecificationSystem(selectedCategory.slug, targetCategoryId);
+        loadNewSpecificationSystem(selectedCategory.slug, selectedCategory.id);
       } else {
-        loadLegacySpecificationSystem(targetCategoryId);
+        loadLegacySpecificationSystem(formData.category_id);
       }
     } else {
       setAvailableSubcategories([]);
@@ -409,7 +409,7 @@ export default function AddProductPage() {
       // Подготавливаем данные продукта
       const productData = {
         ...formData,
-        category_id: finalCategoryId,
+        category_id: formData.category_id,
         subcategory_id: formData.subcategory_id || undefined,
         main_image_url: mainImageUrl,
         price: Number(formData.price),
@@ -419,7 +419,16 @@ export default function AddProductPage() {
           : null,
       };
 
-      console.log('Prepared product data:', JSON.stringify(productData, null, 2));
+      console.log('Prepared product data:', {
+        title: productData.title,
+        slug: productData.slug,
+        category_id: productData.category_id,
+        subcategory_id: productData.subcategory_id,
+        brand: productData.brand,
+        price: productData.price,
+        main_image_url: productData.main_image_url,
+      });
+
       console.log('main_image_url in product data:', productData.main_image_url);
 
       let createdProduct;
