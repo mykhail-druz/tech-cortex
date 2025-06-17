@@ -73,33 +73,21 @@ function AboutUsContent() {
   // Company milestones
   const milestones: Milestone[] = [
     {
-      year: '2015',
+      year: '2022',
       title: 'Foundation',
       description:
         'TechCortex was founded with a mission to provide high-quality computer hardware to tech enthusiasts.',
     },
     {
-      year: '2017',
+      year: '2024',
       title: 'Online Store Launch',
       description: 'We launched our online store, making our products accessible nationwide.',
     },
     {
-      year: '2019',
+      year: '2025',
       title: 'Expansion',
       description:
         'Expanded our product range to include premium gaming hardware and custom PC builds.',
-    },
-    {
-      year: '2021',
-      title: 'Customer Service Excellence Award',
-      description:
-        'Recognized for our outstanding customer service with a national industry award.',
-    },
-    {
-      year: '2023',
-      title: 'Sustainability Initiative',
-      description:
-        'Launched our sustainability program, focusing on eco-friendly packaging and responsible recycling.',
     },
   ];
 
@@ -111,7 +99,7 @@ function AboutUsContent() {
           <div className="max-w-3xl mx-auto text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">About TechCortex</h1>
             <p className="text-lg text-gray-600 mb-8">
-              Your trusted partner in premium computer hardware since 2015
+              Your trusted partner in premium computer hardware since 2022
             </p>
           </div>
         </div>
@@ -141,33 +129,33 @@ function AboutUsContent() {
               </div>
               {/* Try to load the image, but the fallback will display if it fails */}
               <ClientImage
-                src="/about/our-story.jpg"
+                src="/about/our-story.webp"
                 alt="TechCortex office"
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"
                 className="object-cover"
                 priority
-                fallbackContent={null} // This will make the fallback div visible when image fails to load
+                fallbackContent={null}
               />
             </div>
             <div>
               <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
               <p className="text-gray-600 mb-4">
                 TechCortex was born from a passion for technology and a vision to make high-quality
-                computer hardware accessible to everyone. Founded in 2015 by Alex Chen, a tech
-                enthusiast with a background in computer engineering, our journey began in a small
-                garage with a handful of carefully selected products.
+                computer hardware accessible to everyone. Founded in 2022 by two computer
+                enthusiasts, our journey began with a simple mission: to bring top-tier components
+                to users without compromise.
               </p>
               <p className="text-gray-600 mb-4">
                 What started as a small operation quickly grew as customers recognized our
-                commitment to quality and service. Today, TechCortex is a leading provider of
-                premium computer hardware in the United States, serving thousands of customers from
-                tech enthusiasts to professional organizations.
+                dedication to quality and service. Today, TechCortex is a leading provider of
+                premium computer hardware in the United States, serving thousands of customers -
+                from tech hobbyists to professional organizations.
               </p>
               <p className="text-gray-600">
                 Despite our growth, we&#39;ve never lost sight of our founding principles: offering
-                only the highest quality products, providing exceptional customer service, and
-                fostering a community of tech enthusiasts who share our passion.
+                only the highest quality products, providing exceptional customer support, and
+                fostering a community of like-minded tech enthusiasts who share our passion.
               </p>
             </div>
           </div>
@@ -262,50 +250,6 @@ function AboutUsContent() {
       </section>
 
       {/* Meet Our Team Section */}
-      <section className="mb-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">Meet Our Team</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teamMembers.map((member, index) => (
-              <div key={index} className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="relative h-64 w-full bg-gray-100">
-                  {/* Fallback content if image is not available */}
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="text-center p-6">
-                      <svg
-                        className="h-12 w-12 text-gray-400 mx-auto mb-2"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      <p className="text-gray-500 text-sm">{member.name}</p>
-                    </div>
-                  </div>
-                  {/* Try to load the image, but the fallback will display if it fails */}
-                  <ClientImage
-                    src={member.imageUrl}
-                    alt={member.name}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                    className="object-cover"
-                    fallbackContent={null} // This will make the fallback div visible when image fails to load
-                  />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-1">{member.name}</h3>
-                  <p className="text-primary font-medium mb-3">{member.role}</p>
-                  <p className="text-gray-600 text-sm">{member.bio}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Why Choose Us Section */}
       <section className="mb-16 bg-gray-50 py-16">
