@@ -8,7 +8,7 @@ type StripePaymentElementProps = {
   onPaymentSuccess: (paymentIntentId: string) => void;
   onPaymentError: (error: string) => void;
   isSubmitting: boolean;
-  onSubmit?: (e: React.FormEvent) => void;
+  onSubmit?: (e: React.FormEvent) => Promise<boolean>; // Изменяем на async функцию, которая возвращает результат валидации
 };
 
 export default function StripePaymentElement({
@@ -97,9 +97,14 @@ export default function StripePaymentElement({
   const handlePayButtonClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Call onSubmit if provided to create the order first
+    // Call onSubmit if provided to validate the form first
     if (onSubmit) {
-      onSubmit(e as unknown as React.FormEvent);
+      const isValid = await onSubmit(e as unknown as React.FormEvent);
+
+      // Если валидация не прошла - НЕ продолжаем с платежом
+      if (!isValid) {
+        return;
+      }
 
       // Add a small delay to ensure the order is created before processing payment
       await new Promise(resolve => setTimeout(resolve, 500));

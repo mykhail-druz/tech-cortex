@@ -12,6 +12,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentElement from '@/components/checkout/StripePaymentElement';
 import { Spinner, ButtonSpinner } from '@/components/ui/Spinner';
+import { FaCheck, FaTimes } from 'react-icons/fa';
 
 type CheckoutFormData = {
   firstName: string;
@@ -32,7 +33,11 @@ type CheckoutFormData = {
   billingZipCode: string;
   billingCountry: string;
   paymentMethod: 'credit_card' | 'paypal';
-  // Card details are handled by Stripe Elements
+  agreeToTerms: boolean;
+};
+
+type ValidationErrors = {
+  [key: string]: string;
 };
 
 // Initialize Stripe
@@ -45,6 +50,8 @@ export default function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
+  const [paymentCompleted, setPaymentCompleted] = useState(false); // Добавляем флаг завершения платежа
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: '',
     lastName: '',
@@ -64,15 +71,16 @@ export default function CheckoutPage() {
     billingZipCode: '',
     billingCountry: 'US',
     paymentMethod: 'credit_card',
+    agreeToTerms: false,
   });
   const router = useRouter();
 
-  // Redirect to cart if cart is empty
+  // Redirect to cart if cart is empty BUT NOT if payment was completed
   useEffect(() => {
-    if (!cartLoading && items.length === 0) {
+    if (!cartLoading && items.length === 0 && !paymentCompleted) {
       router.push('/cart');
     }
-  }, [cartLoading, items, router]);
+  }, [cartLoading, items, router, paymentCompleted]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -166,6 +174,44 @@ export default function CheckoutPage() {
     createPaymentIntent();
   }, [cartLoading, items, subtotal, clientSecret, user]);
 
+  // Real-time validation
+  const validateField = (name: string, value: string | boolean): string => {
+    switch (name) {
+      case 'firstName':
+      case 'lastName':
+        return typeof value === 'string' && !value.trim() ? 'This field is required' : '';
+      case 'email':
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return typeof value === 'string' && !emailRegex.test(value)
+          ? 'Please enter a valid email address'
+          : '';
+      case 'phone':
+        const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/;
+        return typeof value === 'string' && !phoneRegex.test(value)
+          ? 'Please enter a valid phone number'
+          : '';
+      case 'address':
+      case 'city':
+      case 'state':
+      case 'zipCode':
+        return typeof value === 'string' && !value.trim() ? 'This field is required' : '';
+      case 'billingAddress':
+      case 'billingCity':
+      case 'billingState':
+      case 'billingZipCode':
+        if (!formData.sameAsBilling) {
+          return typeof value === 'string' && !value.trim() ? 'This field is required' : '';
+        }
+        return '';
+      case 'agreeToTerms':
+        return typeof value === 'boolean' && !value
+          ? 'You must agree to the terms and conditions'
+          : '';
+      default:
+        return '';
+    }
+  };
+
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
@@ -175,34 +221,80 @@ export default function CheckoutPage() {
     if (type === 'checkbox') {
       const checked = (e.target as HTMLInputElement).checked;
       setFormData(prev => ({ ...prev, [name]: checked }));
+
+      // Validate checkbox fields
+      if (name === 'agreeToTerms') {
+        const error = validateField(name, checked);
+        setValidationErrors(prev => ({ ...prev, [name]: error }));
+      }
       return;
     }
 
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Real-time validation for text fields
+    const error = validateField(name, value);
+    setValidationErrors(prev => ({ ...prev, [name]: error }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const validateForm = (): boolean => {
+    const errors: ValidationErrors = {};
+
+    // Validate required fields
+    const requiredFields: (keyof CheckoutFormData)[] = [
+      'firstName',
+      'lastName',
+      'email',
+      'phone',
+      'address',
+      'city',
+      'state',
+      'zipCode',
+    ];
+
+    requiredFields.forEach(field => {
+      const error = validateField(field, formData[field]);
+      if (error) errors[field] = error;
+    });
+
+    // Validate billing fields if different from shipping
+    if (!formData.sameAsBilling) {
+      const billingFields: (keyof CheckoutFormData)[] = [
+        'billingAddress',
+        'billingCity',
+        'billingState',
+        'billingZipCode',
+      ];
+      billingFields.forEach(field => {
+        const error = validateField(field, formData[field]);
+        if (error) errors[field] = error;
+      });
+    }
+
+    // Validate terms agreement
+    const termsError = validateField('agreeToTerms', formData.agreeToTerms);
+    if (termsError) errors.agreeToTerms = termsError;
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Изменяем handleSubmit чтобы возвращать результат валидации
+  const handleSubmit = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
     setError(null);
+
+    // Validate form before submission
+    if (!validateForm()) {
+      setError('Please fill in all required fields correctly');
+      return false; // Возвращаем false если валидация не прошла
+    }
+
     setIsSubmitting(true);
 
     try {
       if (!user) {
         throw new Error('You must be logged in to complete checkout');
-      }
-
-      // Validate form data
-      if (
-        !formData.firstName ||
-        !formData.lastName ||
-        !formData.email ||
-        !formData.phone ||
-        !formData.address ||
-        !formData.city ||
-        !formData.state ||
-        !formData.zipCode
-      ) {
-        throw new Error('Please fill in all required fields');
       }
 
       // Format shipping address
@@ -222,7 +314,7 @@ export default function CheckoutPage() {
         throw new Error('Payment processing is not ready. Please try again in a moment.');
       }
 
-      // Create order with payment intent ID
+      // Create order with all required fields including tracking_number and notes
       const order = {
         user_id: user.id,
         status: OrderStatus.PENDING,
@@ -232,6 +324,8 @@ export default function CheckoutPage() {
         payment_method: formData.paymentMethod === 'credit_card' ? 'stripe' : 'paypal',
         payment_status: PaymentStatus.PENDING,
         payment_intent_id: paymentIntentId,
+        tracking_number: null, // Will be added when order is shipped
+        notes: null,
       };
 
       console.log('Order payment_intent_id:', paymentIntentId);
@@ -246,7 +340,7 @@ export default function CheckoutPage() {
 
       console.log('Creating order with data:', { order, orderItems });
 
-      // Create order in database
+      // Create order in a database
       const { data: createdOrder, error: orderError } = await dbService.createOrder(
         order,
         orderItems
@@ -259,22 +353,21 @@ export default function CheckoutPage() {
 
       console.log('Order created successfully:', createdOrder);
 
-      // The actual payment processing is handled by the StripePaymentElement component
-      // We don't need to clear the cart or redirect here, as that will be handled
-      // by the onPaymentSuccess callback
-
       // If we're using PayPal, we would handle that differently
       if (formData.paymentMethod === 'paypal') {
+        // Set payment completed flag BEFORE clearing cart
+        setPaymentCompleted(true);
         // For now, just simulate a successful PayPal payment
         await clearCart();
-        // Temporarily removed redirection as requested
-        // router.push(`/account/orders/${createdOrder?.id}?success=true`);
         console.log('PayPal payment processed successfully. Redirection disabled as requested.');
       }
+
+      return true; // Возвращаем true если всё прошло успешно
     } catch (err) {
       console.error('Checkout error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setIsSubmitting(false);
+      return false; // Возвращаем false если произошла ошибка
     }
   };
 
@@ -283,16 +376,21 @@ export default function CheckoutPage() {
     try {
       console.log('Payment successful, updating order status for payment intent:', paymentIntentId);
 
+      // Set payment completed flag BEFORE clearing cart
+      setPaymentCompleted(true);
+
       // Log all orders to see what's in the database
       const { data: allOrders, error: ordersError } = await dbService.getUserOrders(user?.id || '');
       if (ordersError) {
         console.error('Error fetching user orders:', ordersError);
       } else {
         console.log('All user orders:', allOrders);
-        console.log(
-          'Orders with matching payment_intent_id:',
-          allOrders.filter(order => order.payment_intent_id === paymentIntentId)
-        );
+        if (allOrders) {
+          console.log(
+            'Orders with matching payment_intent_id:',
+            allOrders.filter(order => order.payment_intent_id === paymentIntentId)
+          );
+        }
       }
 
       // Update the order payment status to PAID
@@ -307,33 +405,22 @@ export default function CheckoutPage() {
 
       if (updateError) {
         console.error('Error updating order status:', updateError);
-        // Continue with the checkout process even if the update fails
-        // The order will still be created, just not marked as paid
       } else {
         console.log('Order status updated successfully:', updatedOrder);
       }
 
       // Clear cart
       await clearCart();
-
-      // Temporarily removed redirection as requested in the issue
       console.log('Payment processed successfully. Redirection disabled as requested.');
-      // if (updatedOrder) {
-      //   // If we have the order ID, redirect to the specific order page
-      //   router.push(`/account/orders/${updatedOrder.id}?success=true`);
-      // } else {
-      //   // Fallback to the orders list page
-      //   router.push(`/account/orders?success=true`);
-      // }
     } catch (err) {
       console.error('Payment success handling error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
 
-      // Even if there's an error, try to clear the cart (redirection removed)
+      // Even if there's an error, try to clear the cart
       try {
+        // Set payment completed flag BEFORE clearing cart
+        setPaymentCompleted(true);
         await clearCart();
-        // Temporarily removed redirection as requested
-        // router.push(`/account/orders?success=true`);
         console.log('Cart cleared after error. Redirection disabled as requested.');
       } catch (clearErr) {
         console.error('Error clearing cart after payment:', clearErr);
@@ -355,6 +442,20 @@ export default function CheckoutPage() {
     }).format(price);
   };
 
+  // Helper function to get field classes
+  const getFieldClasses = (fieldName: string, baseClasses: string = '') => {
+    const hasError = validationErrors[fieldName];
+    const hasValue = formData[fieldName as keyof CheckoutFormData];
+
+    return `${baseClasses} ${
+      hasError
+        ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+        : hasValue && !hasError
+          ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
+          : 'border-gray-300 focus:ring-primary focus:border-primary'
+    }`;
+  };
+
   if (cartLoading || authLoading) {
     return (
       <div className="container mx-auto px-4 py-12">
@@ -368,12 +469,49 @@ export default function CheckoutPage() {
     );
   }
 
+  // Показываем сообщение об успешном платеже если платеж завершен
+  if (paymentCompleted) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+            <div className="mb-6">
+              <FaCheck className="mx-auto h-16 w-16 text-green-500" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful!</h1>
+            <p className="text-lg text-gray-600 mb-8">
+              Thank you for your order. Your payment has been processed successfully.
+            </p>
+            <div className="space-y-4">
+              <Link
+                href="/account/orders"
+                className="inline-block bg-primary text-white px-6 py-3 rounded-md hover:bg-primary/90 transition-colors"
+              >
+                View My Orders
+              </Link>
+              <div>
+                <Link href="/" className="text-primary hover:text-primary/80 font-medium">
+                  Continue Shopping
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-8">Checkout</h1>
 
-        {error && <div className="bg-red-50 text-red-600 p-4 rounded-md mb-6">{error}</div>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-center">
+            <FaTimes className="mr-2 flex-shrink-0" />
+            {error}
+          </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Checkout form */}
@@ -390,15 +528,26 @@ export default function CheckoutPage() {
                     >
                       First Name *
                     </label>
-                    <input
-                      type="text"
-                      id="firstName"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="firstName"
+                        name="firstName"
+                        value={formData.firstName}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'firstName',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.firstName && !validationErrors.firstName && (
+                        <FaCheck className="absolute right-3 top-3 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.firstName && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.firstName}</p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -407,43 +556,76 @@ export default function CheckoutPage() {
                     >
                       Last Name *
                     </label>
-                    <input
-                      type="text"
-                      id="lastName"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="lastName"
+                        name="lastName"
+                        value={formData.lastName}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'lastName',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.lastName && !validationErrors.lastName && (
+                        <FaCheck className="absolute right-3 top-3 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.lastName && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.lastName}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                       Email Address *
                     </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'email',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.email && !validationErrors.email && (
+                        <FaCheck className="absolute right-3 top-3 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.email && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.email}</p>
+                    )}
                   </div>
                   <div>
                     <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                       Phone Number *
                     </label>
-                    <input
-                      type="tel"
-                      id="phone"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                    <div className="relative">
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'phone',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.phone && !validationErrors.phone && (
+                        <FaCheck className="absolute right-3 top-3 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.phone && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.phone}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -459,15 +641,26 @@ export default function CheckoutPage() {
                     >
                       Street Address *
                     </label>
-                    <input
-                      type="text"
-                      id="address"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        id="address"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'address',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.address && !validationErrors.address && (
+                        <FaCheck className="absolute right-3 top-3 text-green-500" />
+                      )}
+                    </div>
+                    {validationErrors.address && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.address}</p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -493,15 +686,26 @@ export default function CheckoutPage() {
                       >
                         City *
                       </label>
-                      <input
-                        type="text"
-                        id="city"
-                        name="city"
-                        value={formData.city}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="city"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleInputChange}
+                          required
+                          className={getFieldClasses(
+                            'city',
+                            'w-full px-3 py-2 border rounded-md focus:outline-none'
+                          )}
+                        />
+                        {formData.city && !validationErrors.city && (
+                          <FaCheck className="absolute right-3 top-3 text-green-500" />
+                        )}
+                      </div>
+                      {validationErrors.city && (
+                        <p className="mt-1 text-xs text-red-500">{validationErrors.city}</p>
+                      )}
                     </div>
                     <div>
                       <label
@@ -510,15 +714,26 @@ export default function CheckoutPage() {
                       >
                         State/Province *
                       </label>
-                      <input
-                        type="text"
-                        id="state"
-                        name="state"
-                        value={formData.state}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="state"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          required
+                          className={getFieldClasses(
+                            'state',
+                            'w-full px-3 py-2 border rounded-md focus:outline-none'
+                          )}
+                        />
+                        {formData.state && !validationErrors.state && (
+                          <FaCheck className="absolute right-3 top-3 text-green-500" />
+                        )}
+                      </div>
+                      {validationErrors.state && (
+                        <p className="mt-1 text-xs text-red-500">{validationErrors.state}</p>
+                      )}
                     </div>
                     <div>
                       <label
@@ -527,15 +742,26 @@ export default function CheckoutPage() {
                       >
                         ZIP/Postal Code *
                       </label>
-                      <input
-                        type="text"
-                        id="zipCode"
-                        name="zipCode"
-                        value={formData.zipCode}
-                        onChange={handleInputChange}
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="zipCode"
+                          name="zipCode"
+                          value={formData.zipCode}
+                          onChange={handleInputChange}
+                          required
+                          className={getFieldClasses(
+                            'zipCode',
+                            'w-full px-3 py-2 border rounded-md focus:outline-none'
+                          )}
+                        />
+                        {formData.zipCode && !validationErrors.zipCode && (
+                          <FaCheck className="absolute right-3 top-3 text-green-500" />
+                        )}
+                      </div>
+                      {validationErrors.zipCode && (
+                        <p className="mt-1 text-xs text-red-500">{validationErrors.zipCode}</p>
+                      )}
                     </div>
                     <div>
                       <label
@@ -588,15 +814,28 @@ export default function CheckoutPage() {
                       >
                         Street Address *
                       </label>
-                      <input
-                        type="text"
-                        id="billingAddress"
-                        name="billingAddress"
-                        value={formData.billingAddress}
-                        onChange={handleInputChange}
-                        required={!formData.sameAsBilling}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          id="billingAddress"
+                          name="billingAddress"
+                          value={formData.billingAddress}
+                          onChange={handleInputChange}
+                          required={!formData.sameAsBilling}
+                          className={getFieldClasses(
+                            'billingAddress',
+                            'w-full px-3 py-2 border rounded-md focus:outline-none'
+                          )}
+                        />
+                        {formData.billingAddress && !validationErrors.billingAddress && (
+                          <FaCheck className="absolute right-3 top-3 text-green-500" />
+                        )}
+                      </div>
+                      {validationErrors.billingAddress && (
+                        <p className="mt-1 text-xs text-red-500">
+                          {validationErrors.billingAddress}
+                        </p>
+                      )}
                     </div>
                     <div>
                       <label
@@ -622,15 +861,28 @@ export default function CheckoutPage() {
                         >
                           City *
                         </label>
-                        <input
-                          type="text"
-                          id="billingCity"
-                          name="billingCity"
-                          value={formData.billingCity}
-                          onChange={handleInputChange}
-                          required={!formData.sameAsBilling}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="billingCity"
+                            name="billingCity"
+                            value={formData.billingCity}
+                            onChange={handleInputChange}
+                            required={!formData.sameAsBilling}
+                            className={getFieldClasses(
+                              'billingCity',
+                              'w-full px-3 py-2 border rounded-md focus:outline-none'
+                            )}
+                          />
+                          {formData.billingCity && !validationErrors.billingCity && (
+                            <FaCheck className="absolute right-3 top-3 text-green-500" />
+                          )}
+                        </div>
+                        {validationErrors.billingCity && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {validationErrors.billingCity}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label
@@ -639,15 +891,28 @@ export default function CheckoutPage() {
                         >
                           State/Province *
                         </label>
-                        <input
-                          type="text"
-                          id="billingState"
-                          name="billingState"
-                          value={formData.billingState}
-                          onChange={handleInputChange}
-                          required={!formData.sameAsBilling}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="billingState"
+                            name="billingState"
+                            value={formData.billingState}
+                            onChange={handleInputChange}
+                            required={!formData.sameAsBilling}
+                            className={getFieldClasses(
+                              'billingState',
+                              'w-full px-3 py-2 border rounded-md focus:outline-none'
+                            )}
+                          />
+                          {formData.billingState && !validationErrors.billingState && (
+                            <FaCheck className="absolute right-3 top-3 text-green-500" />
+                          )}
+                        </div>
+                        {validationErrors.billingState && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {validationErrors.billingState}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label
@@ -656,15 +921,28 @@ export default function CheckoutPage() {
                         >
                           ZIP/Postal Code *
                         </label>
-                        <input
-                          type="text"
-                          id="billingZipCode"
-                          name="billingZipCode"
-                          value={formData.billingZipCode}
-                          onChange={handleInputChange}
-                          required={!formData.sameAsBilling}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
-                        />
+                        <div className="relative">
+                          <input
+                            type="text"
+                            id="billingZipCode"
+                            name="billingZipCode"
+                            value={formData.billingZipCode}
+                            onChange={handleInputChange}
+                            required={!formData.sameAsBilling}
+                            className={getFieldClasses(
+                              'billingZipCode',
+                              'w-full px-3 py-2 border rounded-md focus:outline-none'
+                            )}
+                          />
+                          {formData.billingZipCode && !validationErrors.billingZipCode && (
+                            <FaCheck className="absolute right-3 top-3 text-green-500" />
+                          )}
+                        </div>
+                        {validationErrors.billingZipCode && (
+                          <p className="mt-1 text-xs text-red-500">
+                            {validationErrors.billingZipCode}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label
@@ -729,21 +1007,15 @@ export default function CheckoutPage() {
                   {formData.paymentMethod === 'credit_card' && (
                     <div className="mt-4">
                       {clientSecret ? (
-                        <>
-                          <Elements stripe={stripePromise} options={{ clientSecret }}>
-                            <StripePaymentElement
-                              clientSecret={clientSecret}
-                              onPaymentSuccess={handlePaymentSuccess}
-                              onPaymentError={handlePaymentError}
-                              isSubmitting={isSubmitting}
-                              onSubmit={handleSubmit}
-                            />
-                          </Elements>
-                          <p className="mt-2 text-xs text-gray-500">
-                            Your payment information is secured by Stripe. We do not store your card
-                            details.
-                          </p>
-                        </>
+                        <Elements stripe={stripePromise} options={{ clientSecret }}>
+                          <StripePaymentElement
+                            clientSecret={clientSecret}
+                            onPaymentSuccess={handlePaymentSuccess}
+                            onPaymentError={handlePaymentError}
+                            isSubmitting={isSubmitting}
+                            onSubmit={handleSubmit}
+                          />
+                        </Elements>
                       ) : (
                         <div className="animate-pulse bg-gray-200 h-40 rounded-md flex items-center justify-center">
                           <p className="text-gray-500">Loading payment form...</p>
@@ -754,32 +1026,53 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              {/* Submit button */}
+              {/* Terms and submit */}
               <div className="p-6">
+                <div className="mb-4">
+                  <div className="flex items-start">
+                    <input
+                      type="checkbox"
+                      id="agreeToTerms"
+                      name="agreeToTerms"
+                      checked={formData.agreeToTerms}
+                      onChange={handleInputChange}
+                      className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded mt-0.5"
+                    />
+                    <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-700">
+                      I agree to the{' '}
+                      <Link href="/terms" className="text-primary hover:underline" target="_blank">
+                        Terms of Service
+                      </Link>{' '}
+                      and{' '}
+                      <Link
+                        href="/privacy"
+                        className="text-primary hover:underline"
+                        target="_blank"
+                      >
+                        Privacy Policy
+                      </Link>{' '}
+                      *
+                    </label>
+                  </div>
+                  {validationErrors.agreeToTerms && (
+                    <p className="mt-1 text-xs text-red-500">{validationErrors.agreeToTerms}</p>
+                  )}
+                </div>
+
                 {formData.paymentMethod === 'paypal' && (
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || !formData.agreeToTerms}
                     className="w-full bg-primary text-white py-3 px-4 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                   >
                     {isSubmitting ? (
                       <ButtonSpinner color="white" buttonText="Processing..." />
                     ) : (
-                      'Pay with PayPal'
+                      `Pay ${formatPrice(subtotal * 1.1)} with PayPal`
                     )}
                   </button>
                 )}
                 {/* For credit card, the payment button is inside the StripePaymentElement */}
-                <p className="mt-4 text-sm text-gray-500 text-center">
-                  By placing your order, you agree to our{' '}
-                  <Link href="/terms" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link href="/privacy" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </p>
               </div>
             </form>
           </div>
@@ -799,11 +1092,11 @@ export default function CheckoutPage() {
                           alt={item.product?.title || 'Product'}
                           fill
                           sizes="64px"
-                          className="object-contain"
+                          className="object-contain rounded"
                         />
                       </div>
                       <div className="ml-4 flex-1">
-                        <h3 className="text-sm font-medium text-gray-900">
+                        <h3 className="text-sm font-medium text-gray-900 line-clamp-2">
                           {item.product?.title || 'Product'}
                         </h3>
                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
@@ -818,32 +1111,34 @@ export default function CheckoutPage() {
                 </ul>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex justify-between">
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
                   <span className="font-medium">{formatPrice(subtotal)}</span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">Free</span>
+                  <span className="font-medium text-green-600">Free</span>
                 </div>
 
-                <div className="flex justify-between">
+                <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax</span>
                   <span className="font-medium">{formatPrice(subtotal * 0.1)}</span>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 flex justify-between">
-                  <span className="text-lg font-medium">Total</span>
-                  <span className="text-lg font-bold">{formatPrice(subtotal * 1.1)}</span>
+                <div className="border-t border-gray-200 pt-3 flex justify-between">
+                  <span className="text-lg font-semibold">Total</span>
+                  <span className="text-lg font-bold text-primary">
+                    {formatPrice(subtotal * 1.1)}
+                  </span>
                 </div>
               </div>
 
               <div className="mt-6">
                 <Link
                   href="/cart"
-                  className="text-primary hover:text-primary/80 text-sm font-medium flex items-center"
+                  className="text-primary hover:text-primary/80 text-sm font-medium flex items-center justify-center"
                 >
                   <svg
                     className="mr-2 h-4 w-4"

@@ -778,6 +778,22 @@ export const createOrder = async (
       return { data: null, error };
     }
 
+    // Validate that shipping address contains required information
+    const addressLines = order.shipping_address.split('\n');
+    if (addressLines.length < 3) {
+      const error = new Error('Invalid shipping address format');
+      console.error('Order validation error:', error);
+      return { data: null, error };
+    }
+
+    // Check if the address line contains state information
+    const cityStateZipLine = addressLines[2]; // "City, State ZipCode"
+    if (!cityStateZipLine || !cityStateZipLine.includes(',')) {
+      const error = new Error('State/Province is required in shipping address');
+      console.error('Order validation error:', error);
+      return { data: null, error };
+    }
+
     // Log the payment intent ID specifically
     console.log('Order payment_intent_id before insert:', order.payment_intent_id);
 
@@ -1639,7 +1655,7 @@ export const getCompatibleProducts = async (
 
       // Фильтруем продукты по совместимости асинхронно
       const compatibilityChecks = await Promise.all(
-        products.map(async (product) => {
+        products.map(async product => {
           try {
             // Создаем временную конфигурацию для тестирования
             const testConfiguration = {
@@ -1648,7 +1664,8 @@ export const getCompatibleProducts = async (
             };
 
             // Проверяем совместимость (await для асинхронного метода)
-            const validationResult = await CompatibilityEngine.validateConfiguration(testConfiguration);
+            const validationResult =
+              await CompatibilityEngine.validateConfiguration(testConfiguration);
 
             // Продукт совместим если нет критических ошибок
             const hasCriticalIssues = validationResult.issues.some(
