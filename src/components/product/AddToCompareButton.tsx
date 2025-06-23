@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCompare } from '@/contexts/CompareContext';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 
 interface AddToCompareButtonProps {
   productId: string;
@@ -35,7 +35,7 @@ const AddToCompareButton: React.FC<AddToCompareButtonProps> = ({
     return (
       <div className="relative">
         <button
-          onClick={(e) => {
+          onClick={e => {
             e.preventDefault();
             e.stopPropagation();
             handleToggleCompare();
@@ -51,8 +51,8 @@ const AddToCompareButton: React.FC<AddToCompareButtonProps> = ({
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className={cn(
-              "h-5 w-5 transition-transform duration-300",
-              isInList ? "scale-110" : "scale-100"
+              'h-5 w-5 transition-transform duration-300',
+              isInList ? 'scale-110' : 'scale-100'
             )}
             fill="none"
             viewBox="0 0 24 24"
@@ -105,8 +105,8 @@ const AddToCompareButton: React.FC<AddToCompareButtonProps> = ({
       <svg
         xmlns="http://www.w3.org/2000/svg"
         className={cn(
-          "h-5 w-5 transition-transform duration-300",
-          isInList ? "scale-110" : "scale-100"
+          'h-5 w-5 transition-transform duration-300',
+          isInList ? 'scale-110' : 'scale-100'
         )}
         fill="none"
         viewBox="0 0 24 24"

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { useCart } from '@/contexts/CartContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Product } from '@/lib/supabase/types/types';
@@ -197,8 +197,8 @@ export default function ProductCard(props: ProductCardProps) {
   return (
     <div
       className={cn(
-        'group bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden transition-all duration-300 hover:shadow-md',
-        layout === 'grid' ? 'flex flex-col h-[400px]' : 'flex flex-row h-[200px]'
+        'group bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-primary/20 transform hover:-translate-y-1',
+        layout === 'grid' ? 'flex flex-col h-[420px]' : 'flex flex-row h-[220px]'
       )}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -206,18 +206,18 @@ export default function ProductCard(props: ProductCardProps) {
       <Link
         href={`/products/${slug}`}
         className={cn(
-          'block',
-          layout === 'grid' ? 'h-48 w-full' : 'h-full w-[200px] flex-shrink-0'
+          'block relative',
+          layout === 'grid' ? 'h-52 w-full' : 'h-full w-[220px] flex-shrink-0'
         )}
       >
         <div
           className={cn(
-            'relative overflow-hidden bg-gray-100',
-            layout === 'grid' ? 'h-48 w-full' : 'h-full w-full'
+            'relative overflow-hidden bg-gray-50',
+            layout === 'grid' ? 'h-52 w-full' : 'h-full w-full'
           )}
         >
           {/* Изображение */}
-          <div className="relative h-full w-full">
+          <div className="relative h-full w-full p-3">
             {image ? (
               <Image
                 src={image}
@@ -225,26 +225,29 @@ export default function ProductCard(props: ProductCardProps) {
                 fill
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 className={cn(
-                  'object-contain transition-transform duration-300',
-                  isHovering ? 'scale-105' : 'scale-100'
+                  'object-contain transition-all duration-500',
+                  isHovering ? 'scale-110' : 'scale-100'
                 )}
               />
             ) : (
-              <div className="w-full h-full bg-gray-200 flex items-center justify-center">
+              <div className="w-full h-full bg-gray-100 flex items-center justify-center rounded-lg">
                 <span className="text-gray-400">No Image</span>
               </div>
             )}
           </div>
 
+          {/* Overlay effect on hover */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+
           {/* Бейджи */}
-          <div className="absolute top-2 left-2 flex flex-col gap-1">
+          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
             {oldPrice && oldPrice > price && (
-              <span className="bg-red-500 text-white text-xs font-medium px-2 py-1 rounded">
-                Sale
+              <span className="bg-gradient-to-r from-red-500 to-pink-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+                {Math.round(((oldPrice - price) / oldPrice) * 100)}% OFF
               </span>
             )}
             {!inStock && (
-              <span className="bg-gray-600 text-white text-xs font-medium px-4 py-1 rounded">
+              <span className="bg-gray-800 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm">
                 Out of Stock
               </span>
             )}
@@ -252,7 +255,7 @@ export default function ProductCard(props: ProductCardProps) {
 
           {/* Action buttons in top right */}
           <div
-            className="absolute top-2 right-2 z-10 flex flex-col gap-2"
+            className="absolute top-3 right-3 z-10 flex flex-col gap-2.5"
             onClick={e => e.stopPropagation()}
           >
             <AddToWishlistButton productId={id} variant="icon" />
@@ -262,18 +265,18 @@ export default function ProductCard(props: ProductCardProps) {
       </Link>
 
       <div
-        className={cn('flex flex-col flex-grow', layout === 'grid' ? 'p-4' : 'p-4 justify-between')}
+        className={cn('flex flex-col flex-grow', layout === 'grid' ? 'p-5' : 'p-5 justify-between')}
       >
         <div>
           {/* Бренд */}
-          {brand && <p className="text-xs text-gray-500 mb-1">{brand}</p>}
+          {brand && <p className="text-gray-500 text-sm mb-1.5">{brand}</p>}
 
           {/* Название */}
           <Link href={`/products/${slug}`}>
             <h3
               className={cn(
-                'font-medium text-gray-900 hover:text-primary transition-colors line-clamp-2',
-                layout === 'grid' ? 'mb-1' : 'mb-2'
+                'font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 text-lg',
+                layout === 'grid' ? 'mb-1.5' : 'mb-2'
               )}
             >
               {title}
@@ -282,11 +285,13 @@ export default function ProductCard(props: ProductCardProps) {
 
           {/* Рейтинг (только если есть отзывы) */}
           {rating > 0 && (
-            <div className="flex items-center mb-2">
-              {renderRating(rating)}
-              <span className="text-xs text-gray-500 ml-1">({rating.toFixed(1)})</span>
+            <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-lg w-fit mb-3">
+              <div className="flex">{renderRating(rating)}</div>
+              <span className="text-gray-700 font-medium text-sm ml-1">
+                {rating.toFixed(1)}
+              </span>
               {review_count > 0 && (
-                <span className="text-xs text-gray-400 ml-1">({review_count})</span>
+                <span className="text-gray-500 text-xs ml-1">({review_count})</span>
               )}
             </div>
           )}
@@ -294,10 +299,10 @@ export default function ProductCard(props: ProductCardProps) {
 
         <div className={layout === 'list' ? 'flex items-center justify-between' : ''}>
           {/* Цена */}
-          <div className="flex items-center mb-2">
-            <span className="font-semibold text-gray-900">{formatPrice(price)}</span>
+          <div className="flex flex-col mb-4">
+            <span className="text-gray-900 font-bold text-lg">{formatPrice(price)}</span>
             {oldPrice && oldPrice > price && (
-              <span className="ml-2 text-sm text-gray-500 line-through">
+              <span className="text-gray-500 text-sm line-through">
                 {formatPrice(oldPrice)}
               </span>
             )}
@@ -308,13 +313,31 @@ export default function ProductCard(props: ProductCardProps) {
             onClick={addToCart}
             disabled={!inStock}
             className={cn(
-              'py-2 px-3 rounded-md text-sm font-medium transition-colors w-full',
+              'py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-300 w-full flex items-center justify-center',
               inStock
-                ? 'bg-primary text-white hover:bg-primary/90'
+                ? 'bg-primary text-white hover:bg-primary/90 shadow-md hover:shadow-lg hover:shadow-primary/20'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             )}
           >
-            {inStock ? 'Add to Cart' : 'Out of Stock'}
+            {inStock ? (
+              <>
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  className="h-4 w-4 mr-2" 
+                  fill="none" 
+                  viewBox="0 0 24 24" 
+                  stroke="currentColor"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" 
+                  />
+                </svg>
+                Add to Cart
+              </>
+            ) : 'Out of Stock'}
           </button>
         </div>
       </div>

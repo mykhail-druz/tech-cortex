@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { getProducts, getCategories } from '@/lib/supabase/db';
 import { Product, Category } from '@/lib/supabase/types/types';
 

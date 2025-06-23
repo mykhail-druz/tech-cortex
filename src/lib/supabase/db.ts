@@ -1251,30 +1251,6 @@ export const isInWishlist = async (userId: string, productId: string): Promise<b
   return !!data;
 };
 
-// Homepage Content
-export const getHomepageContent = async (): Promise<SelectResponse<HomepageContent>> => {
-  const response = await supabase
-    .from('homepage_content')
-    .select('*')
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-
-  return { data: response.data, error: response.error };
-};
-
-export const getHomepageContentBySection = async (
-  section: string
-): Promise<SelectResponse<HomepageContent>> => {
-  const response = await supabase
-    .from('homepage_content')
-    .select('*')
-    .eq('section', section)
-    .eq('is_active', true)
-    .order('display_order', { ascending: true });
-
-  return { data: response.data, error: response.error };
-};
-
 // Navigation Links
 export const getNavigationLinks = async (
   groupName?: string

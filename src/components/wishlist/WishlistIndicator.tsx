@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 
 interface WishlistIndicatorProps {
   className?: string;

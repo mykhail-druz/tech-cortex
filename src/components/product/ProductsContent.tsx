@@ -3,7 +3,7 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { getProducts, getCategories, searchProducts } from '@/lib/supabase/db';
 import { Product, Category } from '@/lib/supabase/types/types';
 import { Spinner } from '@/components/ui/Spinner';

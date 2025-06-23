@@ -4,19 +4,19 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCompare } from '@/contexts/CompareContext';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import { useRouter } from 'next/navigation';
 
 export default function ComparePage() {
-  const { 
-    items, 
-    removeItem, 
-    clearCompareList, 
-    isLoading, 
+  const {
+    items,
+    removeItem,
+    clearCompareList,
+    isLoading,
     currentCategory,
     categoryName,
     setViewCategory,
-    getAvailableCategories 
+    getAvailableCategories,
   } = useCompare();
   const router = useRouter();
   // We no longer need to track selected specs as all specs are always visible
@@ -37,14 +37,16 @@ export default function ComparePage() {
   const availableCategories = getAvailableCategories();
 
   // Filter items by selected category
-  const filteredItems = selectedCategoryId 
+  const filteredItems = selectedCategoryId
     ? items.filter(item => item.product.category_id === selectedCategoryId)
     : items;
 
-
   // Get all unique specification names across all products, grouped by template
   const getAllSpecNames = () => {
-    const specMap = new Map<string, { name: string; displayName: string; templateId: string | null }>();
+    const specMap = new Map<
+      string,
+      { name: string; displayName: string; templateId: string | null }
+    >();
 
     filteredItems.forEach(item => {
       item.product.specifications?.forEach(spec => {
@@ -55,7 +57,7 @@ export default function ComparePage() {
             specMap.set(key, {
               name: spec.template.name,
               displayName: spec.template.display_name,
-              templateId: spec.template.id
+              templateId: spec.template.id,
             });
           }
         } else {
@@ -65,7 +67,7 @@ export default function ComparePage() {
             specMap.set(key, {
               name: spec.name,
               displayName: spec.name,
-              templateId: null
+              templateId: null,
             });
           }
         }
@@ -103,7 +105,10 @@ export default function ComparePage() {
   };
 
   // Get specification value for a product
-  const getSpecValue = (productId: string, specInfo: { name: string; templateId: string | null }) => {
+  const getSpecValue = (
+    productId: string,
+    specInfo: { name: string; templateId: string | null }
+  ) => {
     const product = items.find(item => item.product.id === productId)?.product;
     if (!product || !product.specifications) return 'N/A';
 
@@ -157,17 +162,22 @@ export default function ComparePage() {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Product Comparison</h1>
-          <p className="text-gray-600 mb-6">No products in the selected category. Please select a different category or add more products.</p>
+          <p className="text-gray-600 mb-6">
+            No products in the selected category. Please select a different category or add more
+            products.
+          </p>
 
           {/* Category selector */}
           {availableCategories.length > 0 && (
             <div className="relative mb-4">
               <select
                 value={selectedCategoryId || ''}
-                onChange={(e) => handleCategoryChange(e.target.value)}
+                onChange={e => handleCategoryChange(e.target.value)}
                 className="appearance-none bg-white border border-gray-300 rounded-md py-2 pl-4 pr-10 text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               >
-                <option value="" disabled>Select category</option>
+                <option value="" disabled>
+                  Select category
+                </option>
                 {availableCategories.map(category => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -176,7 +186,11 @@ export default function ComparePage() {
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
             </div>
@@ -212,7 +226,8 @@ export default function ComparePage() {
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Product Comparison</h1>
           {categoryName && (
             <p className="text-gray-600">
-              Comparing products in <span className="font-medium text-primary">{categoryName}</span> category
+              Comparing products in <span className="font-medium text-primary">{categoryName}</span>{' '}
+              category
             </p>
           )}
         </div>
@@ -222,10 +237,12 @@ export default function ComparePage() {
             <div className="relative">
               <select
                 value={selectedCategoryId || ''}
-                onChange={(e) => handleCategoryChange(e.target.value)}
+                onChange={e => handleCategoryChange(e.target.value)}
                 className="appearance-none bg-white border border-gray-300 rounded-md py-2 pl-4 pr-10 text-gray-700 font-medium hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               >
-                <option value="" disabled>Select category</option>
+                <option value="" disabled>
+                  Select category
+                </option>
                 {availableCategories.map(category => (
                   <option key={category.id} value={category.id}>
                     {category.name}
@@ -234,7 +251,11 @@ export default function ComparePage() {
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  <path
+                    fillRule="evenodd"
+                    d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </div>
             </div>
@@ -261,15 +282,29 @@ export default function ComparePage() {
             <tr className="border-b border-gray-200">
               <th className="p-4 text-left text-gray-600 font-medium w-1/5">Product</th>
               {filteredItems.map(item => (
-                <th key={item.product.id} className="p-4 text-center" style={{ width: `${80 / filteredItems.length}%` }}>
+                <th
+                  key={item.product.id}
+                  className="p-4 text-center"
+                  style={{ width: `${80 / filteredItems.length}%` }}
+                >
                   <div className="relative">
                     <button
                       onClick={() => removeItem(item.product.id)}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
                       aria-label="Remove from comparison"
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -284,7 +319,10 @@ export default function ComparePage() {
               {filteredItems.map(item => (
                 <td key={item.product.id} className="p-4 text-center">
                   <Link href={`/products/${item.product.slug}`} className="block mx-auto">
-                    <div className="relative h-40 mx-auto" style={{ width: '160px', aspectRatio: '1/1' }}>
+                    <div
+                      className="relative h-40 mx-auto"
+                      style={{ width: '160px', aspectRatio: '1/1' }}
+                    >
                       <Image
                         src={item.product.main_image_url || '/placeholder-product.jpg'}
                         alt={item.product.title}
@@ -301,7 +339,10 @@ export default function ComparePage() {
               <td className="p-4 text-gray-600 font-medium">Name</td>
               {filteredItems.map(item => (
                 <td key={item.product.id} className="p-4 text-center">
-                  <Link href={`/products/${item.product.slug}`} className="font-medium text-gray-900 hover:text-primary">
+                  <Link
+                    href={`/products/${item.product.slug}`}
+                    className="font-medium text-gray-900 hover:text-primary"
+                  >
                     {item.product.title}
                   </Link>
                 </td>
@@ -314,9 +355,13 @@ export default function ComparePage() {
               {filteredItems.map(item => (
                 <td key={item.product.id} className="p-4 text-center">
                   <div className="flex flex-col items-center">
-                    <span className="font-semibold text-gray-900">{formatPrice(item.product.price)}</span>
+                    <span className="font-semibold text-gray-900">
+                      {formatPrice(item.product.price)}
+                    </span>
                     {item.product.old_price > 0 && (
-                      <span className="text-sm text-gray-500 line-through">{formatPrice(item.product.old_price)}</span>
+                      <span className="text-sm text-gray-500 line-through">
+                        {formatPrice(item.product.old_price)}
+                      </span>
                     )}
                   </div>
                 </td>
@@ -386,14 +431,9 @@ export default function ComparePage() {
               const specId = spec.templateId || spec.name;
               return (
                 <tr key={specId} className="border-b border-gray-200">
-                  <td className="p-4 text-gray-600 font-medium">
-                    {spec.displayName}
-                  </td>
+                  <td className="p-4 text-gray-600 font-medium">{spec.displayName}</td>
                   {filteredItems.map(item => (
-                    <td 
-                      key={`${item.product.id}-${specId}`} 
-                      className="p-4 text-center"
-                    >
+                    <td key={`${item.product.id}-${specId}`} className="p-4 text-center">
                       {getSpecValue(item.product.id, spec)}
                     </td>
                   ))}
@@ -407,7 +447,7 @@ export default function ComparePage() {
               {filteredItems.map(item => (
                 <td key={item.product.id} className="p-4 text-center">
                   <div className="flex flex-col gap-2">
-                    <Link 
+                    <Link
                       href={`/products/${item.product.slug}`}
                       className="px-4 py-2 bg-primary text-white rounded-md font-medium hover:bg-primary-dark transition-colors text-center"
                     >

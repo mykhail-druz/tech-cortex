@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 import ProductGrid from '@/components/product/ProductGrid';
 import { getProductBySlug, getRelatedProducts } from '@/lib/supabase/db';
 import { ProductWithDetails, Product } from '@/lib/supabase/types/types';

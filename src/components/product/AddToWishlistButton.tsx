@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useWishlist } from '@/contexts/WishlistContext';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 
 interface AddToWishlistButtonProps {
   productId: string;
@@ -39,7 +39,7 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
     return (
       <div className="relative">
         <button
-          onClick={(e) => {
+          onClick={e => {
             e.preventDefault();
             e.stopPropagation();
             handleToggleWishlist();
@@ -55,8 +55,8 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className={cn(
-              "h-5 w-5 transition-transform duration-300",
-              isInList ? "scale-110" : "scale-100"
+              'h-5 w-5 transition-transform duration-300',
+              isInList ? 'scale-110' : 'scale-100'
             )}
             fill={isInList ? 'currentColor' : 'none'}
             viewBox="0 0 24 24"
@@ -109,8 +109,8 @@ const AddToWishlistButton: React.FC<AddToWishlistButtonProps> = ({
       <svg
         xmlns="http://www.w3.org/2000/svg"
         className={cn(
-          "h-5 w-5 transition-transform duration-300",
-          isInList ? "scale-110" : "scale-100"
+          'h-5 w-5 transition-transform duration-300',
+          isInList ? 'scale-110' : 'scale-100'
         )}
         fill={isInList ? 'currentColor' : 'none'}
         viewBox="0 0 24 24"

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useCompare } from '@/contexts/CompareContext';
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/utils';
 
 interface CompareIndicatorProps {
   className?: string;
