@@ -75,14 +75,14 @@ export default function CheckoutPage() {
   });
   const router = useRouter();
 
-  // Redirect to cart if cart is empty BUT NOT if payment was completed
+  // Redirect to cart if the cart is empty BUT NOT if payment was completed
   useEffect(() => {
     if (!cartLoading && items.length === 0 && !paymentCompleted) {
       router.push('/cart');
     }
   }, [cartLoading, items, router, paymentCompleted]);
 
-  // Redirect to login if not authenticated
+  // Redirect to log in if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
       // Save cart items to session storage before redirecting
@@ -779,9 +779,6 @@ export default function CheckoutPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                       >
                         <option value="US">United States</option>
-                        <option value="CA">Canada</option>
-                        <option value="GB">United Kingdom</option>
-                        <option value="AU">Australia</option>
                       </select>
                     </div>
                   </div>
@@ -960,9 +957,6 @@ export default function CheckoutPage() {
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                         >
                           <option value="US">United States</option>
-                          <option value="CA">Canada</option>
-                          <option value="GB">United Kingdom</option>
-                          <option value="AU">Australia</option>
                         </select>
                       </div>
                     </div>

@@ -8,7 +8,7 @@ type StripePaymentElementProps = {
   onPaymentSuccess: (paymentIntentId: string) => void;
   onPaymentError: (error: string) => void;
   isSubmitting: boolean;
-  onSubmit?: (e: React.FormEvent) => Promise<boolean>; // Изменяем на async функцию, которая возвращает результат валидации
+  onSubmit?: (e: React.FormEvent) => Promise<boolean>;
 };
 
 export default function StripePaymentElement({
@@ -22,6 +22,7 @@ export default function StripePaymentElement({
   const elements = useElements();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasAttemptedPayment, setHasAttemptedPayment] = useState(false);
 
   useEffect(() => {
     if (!stripe || !clientSecret) {
@@ -39,8 +40,21 @@ export default function StripePaymentElement({
             setErrorMessage('Your payment is processing.');
             break;
           case 'requires_payment_method':
-            // The payment was not successful, but we can try again
-            setErrorMessage('Your payment was not successful, please try again.');
+            // Показываем ошибку только если была попытка оплаты
+            // Новый PaymentIntent всегда имеет статус requires_payment_method
+            if (hasAttemptedPayment) {
+              setErrorMessage('Your payment was not successful, please try again.');
+            }
+            break;
+          case 'requires_confirmation':
+            // Этот статус означает, что платеж готов к подтверждению
+            break;
+          case 'requires_action':
+            // Требуется дополнительное действие от пользователя (например, 3D Secure)
+            setErrorMessage('Additional authentication is required.');
+            break;
+          case 'canceled':
+            setErrorMessage('Payment was canceled.');
             break;
           default:
             setErrorMessage('Something went wrong.');
@@ -48,41 +62,30 @@ export default function StripePaymentElement({
         }
       }
     });
-  }, [stripe, clientSecret, onPaymentSuccess]);
+  }, [stripe, clientSecret, onPaymentSuccess, hasAttemptedPayment]);
 
   const processPayment = async () => {
     if (!stripe || !elements || !clientSecret) {
-      // Stripe.js has not yet loaded.
-      // Make sure to disable form submission until Stripe.js has loaded.
       return;
     }
 
     setIsLoading(true);
     setErrorMessage(null);
+    setHasAttemptedPayment(true); // Отмечаем, что была попытка оплаты
 
     try {
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
-        // Temporarily remove redirect URL as requested
-        // confirmParams: {
-        //   return_url: `${window.location.origin}/account/orders?success=true`,
-        // },
-        // Change to if_required to prevent automatic redirection
         redirect: 'if_required',
       });
 
-      // This code will only run if the redirect is not immediate
       if (error) {
-        // Show an error to your customer
         console.error('Payment confirmation error:', error);
         setErrorMessage(error.message || 'An unexpected error occurred.');
         onPaymentError(error.message || 'An unexpected error occurred.');
       } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-        // The payment has been processed!
         console.log('Payment succeeded!');
         onPaymentSuccess(paymentIntent.id);
-        // Temporarily removed redirection as requested
-        // window.location.href = `${window.location.origin}/account/orders?success=true`;
       }
     } catch (err) {
       console.error('Unexpected error during payment processing:', err);
@@ -93,24 +96,19 @@ export default function StripePaymentElement({
     }
   };
 
-  // Handle form submission
   const handlePayButtonClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
-    // Call onSubmit if provided to validate the form first
     if (onSubmit) {
       const isValid = await onSubmit(e as unknown as React.FormEvent);
 
-      // Если валидация не прошла - НЕ продолжаем с платежом
       if (!isValid) {
         return;
       }
 
-      // Add a small delay to ensure the order is created before processing payment
       await new Promise(resolve => setTimeout(resolve, 500));
     }
 
-    // Then process the payment
     await processPayment();
   };
 
