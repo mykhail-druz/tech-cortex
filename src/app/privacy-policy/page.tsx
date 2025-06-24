@@ -4,40 +4,55 @@ import { Metadata } from 'next';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
-  title: 'Shipping & Returns - TechCortex',
+  title: 'Privacy Policy - TechCortex',
   description:
-    'Information about TechCortex shipping methods, delivery times, return policies, and refund procedures.',
+    'Learn how TechCortex collects, uses, and protects your personal information when you use our website and services.',
   openGraph: {
-    title: 'Shipping & Returns - TechCortex',
+    title: 'Privacy Policy - TechCortex',
     description:
-      'Information about TechCortex shipping methods, delivery times, return policies, and refund procedures.',
-    url: 'https://tech-cortex.com/shipping',
+      'Learn how TechCortex collects, uses, and protects your personal information when you use our website and services.',
+    url: 'https://tech-cortex.com/privacy-policy',
     siteName: 'TechCortex',
     images: [
       {
-        url: 'https://tech-cortex.com/shipping-og.jpg',
+        url: 'https://tech-cortex.com/privacy-og.jpg',
         width: 1200,
         height: 630,
-        alt: 'TechCortex - Shipping & Returns',
+        alt: 'TechCortex - Privacy Policy',
       },
     ],
   },
 };
 
-// Shipping and content component
-function ShippingContent() {
+// Privacy Policy content component
+function PrivacyContent() {
   return (
     <div className="w-full">
       {/* Hero Section */}
       <section className="bg-gradient-to-r from-gray-100 to-gray-200 py-16 mb-12 rounded-lg">
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Shipping & Returns</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Privacy Policy</h1>
           </div>
         </div>
       </section>
-
-      {/* Shipping & Returns Content */}
+      {/* Privacy Content */}
+      <section className="mb-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="prose prose-lg max-w-none">
+                <div name="termly-embed" data-id="c324b4d0-054c-429e-9093-f2ff3ca8b37e"></div>
+                <Script
+                  id="termly-jssdk"
+                  src="https://app.termly.io/embed-policy.min.js"
+                  strategy="afterInteractive"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Related Links */}
       <section className="mb-16">
@@ -56,12 +71,12 @@ function ShippingContent() {
                 <span className="text-primary font-medium">Read More →</span>
               </Link>
               <Link
-                href="/privacy-policy"
+                href="/shipping-policy"
                 className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
               >
-                <h3 className="text-xl font-bold text-gray-900 mb-2">Privacy Policy</h3>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">Shipping & Returns</h3>
                 <p className="text-gray-600 mb-4">
-                  Learn how we collect, use, and protect your personal information.
+                  Information about our shipping methods, delivery times, and return policies.
                 </p>
                 <span className="text-primary font-medium">Read More →</span>
               </Link>
@@ -75,10 +90,12 @@ function ShippingContent() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg overflow-hidden">
             <div className="p-8 md:p-12 text-white text-center">
-              <h2 className="text-2xl md:text-3xl font-bold mb-4">Need Help With Your Order?</h2>
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">
+                Have Questions About Your Privacy?
+              </h2>
               <p className="text-lg mb-6">
-                Our customer service team is ready to assist you with any questions about shipping,
-                returns, or refunds.
+                Our data privacy team is here to address any concerns you might have about your
+                personal information.
               </p>
               <Link
                 href="/contact"
@@ -94,8 +111,8 @@ function ShippingContent() {
   );
 }
 
-// Main Shipping and Returns page component with suspense for loading state
-export default function Shipping() {
+// Main Privacy Policy page component with suspense for loading state
+export default function Privacy() {
   return (
     <main className="min-h-screen">
       <Suspense
@@ -105,7 +122,7 @@ export default function Shipping() {
           </div>
         }
       >
-        <ShippingContent />
+        <PrivacyContent />
       </Suspense>
     </main>
   );

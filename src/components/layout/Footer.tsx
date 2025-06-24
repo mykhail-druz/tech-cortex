@@ -206,18 +206,23 @@ export default function Footer() {
             <div className="mt-4 md:mt-0">
               <ul className="flex space-x-6">
                 <li>
-                  <Link href="/terms" className="text-gray-500 hover:text-primary text-sm">
-                    Terms of Service
+                  <Link href="/terms-of-use" className="text-gray-500 hover:text-primary text-sm">
+                    Terms of Use
                   </Link>
                 </li>
                 <li>
-                  <Link href="/privacy" className="text-gray-500 hover:text-primary text-sm">
+                  <Link href="/privacy-policy" className="text-gray-500 hover:text-primary text-sm">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/shipping" className="text-gray-500 hover:text-primary text-sm">
+                  <Link href="/shipping-policy" className="text-gray-500 hover:text-primary text-sm">
                     Shipping & Returns
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/cookie-policy" className="text-gray-500 hover:text-primary text-sm">
+                    Cookie Policy
                   </Link>
                 </li>
               </ul>

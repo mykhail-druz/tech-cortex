@@ -262,7 +262,7 @@ export async function POST(request: NextRequest) {
               🌐 IP Address: ${ip}<br>
               💻 User Agent: ${request.headers.get('user-agent') || 'unknown'}<br>
               📍 Location: St. Petersburg, Florida, USA<br>
-              ☎️ Business Phone: <a href="tel:+17275589452">+1 (727) 558-9452</a><br>
+              ☎️ Business Phone: <a href="tel:+17272548324">+1 (727) 254-8324</a><br>
               <br>
               <strong>⚡ Next Steps:</strong><br>
               • Respond within 2 business hours during office hours<br>
@@ -291,7 +291,7 @@ Business Information:
 Submitted: ${estTime}
 IP Address: ${ip}
 Location: St. Petersburg, Florida, USA
-Business Phone: +1 (727) 558-9452
+Business Phone: +1 (727) 254-8324
 
 Next Steps:
 - Respond within 2 business hours during office hours

@@ -13,8 +13,8 @@ interface SidebarContextType {
 const SidebarContext = createContext<SidebarContextType | undefined>(undefined);
 
 export function SidebarProvider({ children }: { children: ReactNode }) {
-  // Initialize state from localStorage if available, otherwise default to true for desktop
-  const [isOpen, setIsOpen] = useState(false); // Initially false until we check localStorage and screen size
+  // Initialize state from localStorage if available, otherwise default to false for all devices
+  const [isOpen, setIsOpen] = useState(false); // Initially false by default
   const [isMobile, setIsMobile] = useState(false);
 
   // Effect to initialize sidebar state based on localStorage and screen size
@@ -36,8 +36,8 @@ export function SidebarProvider({ children }: { children: ReactNode }) {
       if (savedState !== null) {
         setIsOpen(savedState === 'true' && !isMobileView);
       } else {
-        // Default: open on desktop, closed on mobile
-        setIsOpen(!isMobileView);
+        // Default: closed on both desktop and mobile
+        setIsOpen(false);
       }
 
       // Add resize listener

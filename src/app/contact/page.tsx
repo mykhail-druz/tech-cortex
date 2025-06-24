@@ -42,7 +42,7 @@ function ContactUsContent() {
               <div className="bg-white px-4 py-2 rounded-full shadow-sm">
                 ⏱️ 2-Hour Response Time
               </div>
-              <div className="bg-white px-4 py-2 rounded-full shadow-sm">📞 (727) 558-9452</div>
+              <div className="bg-white px-4 py-2 rounded-full shadow-sm">📞 (727) 254-8324</div>
             </div>
           </div>
         </div>
@@ -224,10 +224,10 @@ function ContactUsContent() {
                   Send Us a Message
                 </a>
                 <a
-                  href="tel:+17275589452"
+                  href="tel:+17272548324"
                   className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-md hover:bg-white hover:text-green-600 transition-colors inline-block font-semibold"
                 >
-                  Call (727) 558-9452
+                  Call (727) 254-8324
                 </a>
               </div>
             </div>

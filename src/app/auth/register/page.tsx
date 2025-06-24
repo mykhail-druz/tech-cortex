@@ -22,14 +22,14 @@ export default function RegisterPage() {
   const [passwordStrength, setPasswordStrength] = useState(0); // 0-4 scale
   const [validations, setValidations] = useState({
     email: { valid: false, message: '' },
-    password: { 
+    password: {
       minLength: false,
       hasUppercase: false,
       hasLowercase: false,
       hasNumber: false,
-      hasSpecialChar: false
+      hasSpecialChar: false,
     },
-    passwordsMatch: false
+    passwordsMatch: false,
   });
 
   const { signUp, signInWithOAuth } = useAuth();
@@ -44,8 +44,8 @@ export default function RegisterPage() {
       ...prev,
       email: {
         valid: isValid,
-        message: email && !isValid ? 'Please enter a valid email address' : ''
-      }
+        message: email && !isValid ? 'Please enter a valid email address' : '',
+      },
     }));
   }, [email]);
 
@@ -56,25 +56,24 @@ export default function RegisterPage() {
       hasUppercase: /[A-Z]/.test(password),
       hasLowercase: /[a-z]/.test(password),
       hasNumber: /[0-9]/.test(password),
-      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+      hasSpecialChar: /[!@#$%^&*(),.?":{}|<>]/.test(password),
     };
 
     setValidations(prev => ({
       ...prev,
-      password: validations
+      password: validations,
     }));
 
     // Calculate password strength (0-4)
     const criteriaCount = Object.values(validations).filter(Boolean).length;
     setPasswordStrength(criteriaCount);
-
   }, [password]);
 
   // Confirm password validation
   useEffect(() => {
     setValidations(prev => ({
       ...prev,
-      passwordsMatch: password === confirmPassword && confirmPassword !== ''
+      passwordsMatch: password === confirmPassword && confirmPassword !== '',
     }));
   }, [password, confirmPassword]);
 
@@ -114,7 +113,9 @@ export default function RegisterPage() {
       }
 
       // Show success message and redirect to login page after a delay
-      setSuccess('Registration successful! A confirmation email has been sent to your email address. Please check your inbox and confirm your account.');
+      setSuccess(
+        'Registration successful! A confirmation email has been sent to your email address. Please check your inbox and confirm your account.'
+      );
 
       // Redirect after a short delay to allow the user to see the success message
       setTimeout(() => {
@@ -142,20 +143,23 @@ export default function RegisterPage() {
       <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-8 border border-gray-200">
         <h1 className="text-2xl font-bold text-center mb-6">Create an Account</h1>
 
-        {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4">
-            {error}
-          </div>
-        )}
+        {error && <div className="bg-red-50 text-red-600 p-3 rounded-md mb-4">{error}</div>}
 
         {success && (
           <div className="bg-green-50 text-green-600 p-4 rounded-md mb-4 border border-green-200 shadow-sm animate-fadeIn flex items-center">
-            <svg className="w-5 h-5 mr-3 text-green-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path>
+            <svg
+              className="w-5 h-5 mr-3 text-green-500 flex-shrink-0"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                clipRule="evenodd"
+              ></path>
             </svg>
-            <div>
-              {success}
-            </div>
+            <div>{success}</div>
           </div>
         )}
 
@@ -169,7 +173,7 @@ export default function RegisterPage() {
                 id="firstName"
                 type="text"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={e => setFirstName(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="John"
@@ -184,7 +188,7 @@ export default function RegisterPage() {
                 id="lastName"
                 type="text"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={e => setLastName(e.target.value)}
                 required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-primary focus:border-primary"
                 placeholder="Doe"
@@ -201,13 +205,13 @@ export default function RegisterPage() {
                 id="email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={e => setEmail(e.target.value)}
                 required
                 className={`w-full px-3 py-2 border ${
-                  email && !validations.email.valid 
-                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
-                    : email && validations.email.valid 
-                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                  email && !validations.email.valid
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+                    : email && validations.email.valid
+                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
                       : 'border-gray-300 focus:ring-primary focus:border-primary'
                 } rounded-md focus:outline-none`}
                 placeholder="your@email.com"
@@ -234,15 +238,15 @@ export default function RegisterPage() {
             <div className="relative">
               <input
                 id="password"
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 required
                 className={`w-full px-3 py-2 border ${
                   password && passwordStrength < 3
-                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                     : password && passwordStrength >= 3
-                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
                       : 'border-gray-300 focus:ring-primary focus:border-primary'
                 } rounded-md focus:outline-none`}
                 placeholder="••••••••"
@@ -266,23 +270,28 @@ export default function RegisterPage() {
                 <div className="flex mb-1">
                   <div className="text-xs text-gray-600 mb-1">Password strength:</div>
                   <div className="ml-auto text-xs">
-                    {passwordStrength === 0 && "Very weak"}
-                    {passwordStrength === 1 && "Weak"}
-                    {passwordStrength === 2 && "Fair"}
-                    {passwordStrength === 3 && "Good"}
-                    {passwordStrength === 4 && "Strong"}
-                    {passwordStrength === 5 && "Very strong"}
+                    {passwordStrength === 0 && 'Very weak'}
+                    {passwordStrength === 1 && 'Weak'}
+                    {passwordStrength === 2 && 'Fair'}
+                    {passwordStrength === 3 && 'Good'}
+                    {passwordStrength === 4 && 'Strong'}
+                    {passwordStrength === 5 && 'Very strong'}
                   </div>
                 </div>
                 <div className="h-1.5 w-full bg-gray-200 rounded-full overflow-hidden">
-                  <div 
+                  <div
                     className={`h-full transition-all duration-300 ease-in-out ${
-                      passwordStrength === 0 ? 'w-0' :
-                      passwordStrength === 1 ? 'w-1/5 bg-red-500' :
-                      passwordStrength === 2 ? 'w-2/5 bg-orange-500' :
-                      passwordStrength === 3 ? 'w-3/5 bg-yellow-500' :
-                      passwordStrength === 4 ? 'w-4/5 bg-lime-500' :
-                      'w-full bg-green-500'
+                      passwordStrength === 0
+                        ? 'w-0'
+                        : passwordStrength === 1
+                          ? 'w-1/5 bg-red-500'
+                          : passwordStrength === 2
+                            ? 'w-2/5 bg-orange-500'
+                            : passwordStrength === 3
+                              ? 'w-3/5 bg-yellow-500'
+                              : passwordStrength === 4
+                                ? 'w-4/5 bg-lime-500'
+                                : 'w-full bg-green-500'
                     }`}
                   ></div>
                 </div>
@@ -292,42 +301,64 @@ export default function RegisterPage() {
             {/* Password requirements */}
             <div className="mt-2 grid grid-cols-2 gap-1">
               <div className="flex items-center text-xs">
-                <span className={`mr-1 ${validations.password.minLength ? 'text-green-500' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-1 ${validations.password.minLength ? 'text-green-500' : 'text-gray-400'}`}
+                >
                   {validations.password.minLength ? <FaCheck /> : '•'}
                 </span>
-                <span className={validations.password.minLength ? 'text-green-500' : 'text-gray-500'}>
+                <span
+                  className={validations.password.minLength ? 'text-green-500' : 'text-gray-500'}
+                >
                   At least 8 characters
                 </span>
               </div>
               <div className="flex items-center text-xs">
-                <span className={`mr-1 ${validations.password.hasUppercase ? 'text-green-500' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-1 ${validations.password.hasUppercase ? 'text-green-500' : 'text-gray-400'}`}
+                >
                   {validations.password.hasUppercase ? <FaCheck /> : '•'}
                 </span>
-                <span className={validations.password.hasUppercase ? 'text-green-500' : 'text-gray-500'}>
+                <span
+                  className={validations.password.hasUppercase ? 'text-green-500' : 'text-gray-500'}
+                >
                   Uppercase letter
                 </span>
               </div>
               <div className="flex items-center text-xs">
-                <span className={`mr-1 ${validations.password.hasLowercase ? 'text-green-500' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-1 ${validations.password.hasLowercase ? 'text-green-500' : 'text-gray-400'}`}
+                >
                   {validations.password.hasLowercase ? <FaCheck /> : '•'}
                 </span>
-                <span className={validations.password.hasLowercase ? 'text-green-500' : 'text-gray-500'}>
+                <span
+                  className={validations.password.hasLowercase ? 'text-green-500' : 'text-gray-500'}
+                >
                   Lowercase letter
                 </span>
               </div>
               <div className="flex items-center text-xs">
-                <span className={`mr-1 ${validations.password.hasNumber ? 'text-green-500' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-1 ${validations.password.hasNumber ? 'text-green-500' : 'text-gray-400'}`}
+                >
                   {validations.password.hasNumber ? <FaCheck /> : '•'}
                 </span>
-                <span className={validations.password.hasNumber ? 'text-green-500' : 'text-gray-500'}>
+                <span
+                  className={validations.password.hasNumber ? 'text-green-500' : 'text-gray-500'}
+                >
                   Number
                 </span>
               </div>
               <div className="flex items-center text-xs">
-                <span className={`mr-1 ${validations.password.hasSpecialChar ? 'text-green-500' : 'text-gray-400'}`}>
+                <span
+                  className={`mr-1 ${validations.password.hasSpecialChar ? 'text-green-500' : 'text-gray-400'}`}
+                >
                   {validations.password.hasSpecialChar ? <FaCheck /> : '•'}
                 </span>
-                <span className={validations.password.hasSpecialChar ? 'text-green-500' : 'text-gray-500'}>
+                <span
+                  className={
+                    validations.password.hasSpecialChar ? 'text-green-500' : 'text-gray-500'
+                  }
+                >
                   Special character
                 </span>
               </div>
@@ -335,21 +366,24 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+            <label
+              htmlFor="confirmPassword"
+              className="block text-sm font-medium text-gray-700 mb-1"
+            >
               Confirm Password
             </label>
             <div className="relative">
               <input
                 id="confirmPassword"
-                type={showConfirmPassword ? "text" : "password"}
+                type={showConfirmPassword ? 'text' : 'password'}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={e => setConfirmPassword(e.target.value)}
                 required
                 className={`w-full px-3 py-2 border ${
                   confirmPassword && !validations.passwordsMatch
-                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500' 
+                    ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
                     : confirmPassword && validations.passwordsMatch
-                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500' 
+                      ? 'border-green-500 focus:ring-green-500 focus:border-green-500'
                       : 'border-gray-300 focus:ring-primary focus:border-primary'
                 } rounded-md focus:outline-none`}
                 placeholder="••••••••"
@@ -376,18 +410,18 @@ export default function RegisterPage() {
 
           <div className="flex items-center">
             <input
-              id="terms"
+              id="terms-of-use"
               type="checkbox"
               required
               className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
             />
-            <label htmlFor="terms" className="ml-2 block text-sm text-gray-700">
+            <label htmlFor="terms-of-use" className="ml-2 block text-sm text-gray-700">
               I agree to the{' '}
-              <Link href="/terms" className="text-primary hover:underline">
-                Terms of Service
+              <Link href="/terms-of-use" className="text-primary hover:underline">
+                Terms of Use
               </Link>{' '}
               and{' '}
-              <Link href="/privacy" className="text-primary hover:underline">
+              <Link href="/privacy-policy" className="text-primary hover:underline">
                 Privacy Policy
               </Link>
             </label>

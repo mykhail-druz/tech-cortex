@@ -127,12 +127,12 @@ export default function NewsletterSection() {
 
                   <div className="flex items-center">
                     <input
-                      id="terms"
+                      id="terms-of-use"
                       type="checkbox"
                       className="h-4 w-4 text-blue-500 focus:ring-blue-400 border-gray-700 rounded"
                       required
                     />
-                    <label htmlFor="terms" className="ml-2 block text-sm text-gray-300">
+                    <label htmlFor="terms-of-use" className="ml-2 block text-sm text-gray-300">
                       I agree to receive marketing emails and understand I can unsubscribe anytime
                     </label>
                   </div>

@@ -205,7 +205,7 @@ export default function CheckoutPage() {
         return '';
       case 'agreeToTerms':
         return typeof value === 'boolean' && !value
-          ? 'You must agree to the terms and conditions'
+          ? 'You must agree to the terms-of-use and conditions'
           : '';
       default:
         return '';
@@ -271,7 +271,7 @@ export default function CheckoutPage() {
       });
     }
 
-    // Validate terms agreement
+    // Validate terms-of-use agreement
     const termsError = validateField('agreeToTerms', formData.agreeToTerms);
     if (termsError) errors.agreeToTerms = termsError;
 
@@ -1034,12 +1034,16 @@ export default function CheckoutPage() {
                     />
                     <label htmlFor="agreeToTerms" className="ml-2 block text-sm text-gray-700">
                       I agree to the{' '}
-                      <Link href="/terms" className="text-primary hover:underline" target="_blank">
-                        Terms of Service
+                      <Link
+                        href="/terms-of-use"
+                        className="text-primary hover:underline"
+                        target="_blank"
+                      >
+                        Terms of Use
                       </Link>{' '}
                       and{' '}
                       <Link
-                        href="/privacy"
+                        href="/privacy-policy"
                         className="text-primary hover:underline"
                         target="_blank"
                       >

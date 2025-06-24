@@ -11,11 +11,11 @@ export const metadata: Metadata = {
     title: 'Shipping & Returns - TechCortex',
     description:
       'Information about TechCortex shipping methods, delivery times, return policies, and refund procedures.',
-    url: 'https://tech-cortex.com/shipping',
+    url: 'https://tech-cortex.com/shipping-policy',
     siteName: 'TechCortex',
     images: [
       {
-        url: 'https://tech-cortex.com/shipping-og.jpg',
+        url: 'https://tech-cortex.com/shipping-policy-og.jpg',
         width: 1200,
         height: 630,
         alt: 'TechCortex - Shipping & Returns',
@@ -24,8 +24,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Shipping and content component
-function ShippingContent() {
+// Shipping Policy content component
+function ShippingPolicyContent() {
   return (
     <div className="w-full">
       {/* Hero Section */}
@@ -38,6 +38,18 @@ function ShippingContent() {
       </section>
 
       {/* Shipping & Returns Content */}
+      <section className="mb-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="prose prose-lg max-w-none">
+                <div name="termly-embed" data-id="d53d01a3-9205-4dec-bb63-295e31129a16"></div>
+                <Script id="termly-jssdk" src="https://app.termly.io/embed-policy.min.js" strategy="afterInteractive" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Related Links */}
       <section className="mb-16">
@@ -94,8 +106,8 @@ function ShippingContent() {
   );
 }
 
-// Main Shipping and Returns page component with suspense for loading state
-export default function Shipping() {
+// Main Shipping Policy page component with suspense for loading state
+export default function ShippingPolicy() {
   return (
     <main className="min-h-screen">
       <Suspense
@@ -105,7 +117,7 @@ export default function Shipping() {
           </div>
         }
       >
-        <ShippingContent />
+        <ShippingPolicyContent />
       </Suspense>
     </main>
   );
