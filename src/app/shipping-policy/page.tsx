@@ -37,14 +37,36 @@ function ShippingPolicyContent() {
         </div>
       </section>
 
-      {/* Shipping & Returns Content */}
-      <section className="mb-16">
+      {/* Shipping Policy Content */}
+      <section id="shipping" className="mb-16">
+        <div className="container mx-auto px-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white p-8 rounded-lg shadow-md">
+              <div className="prose prose-lg max-w-none">
+                <div name="termly-embed" data-id="cf40dd12-5df4-4463-9124-0d62c741e520"></div>
+                <Script
+                  id="termly-jssdk-shipping"
+                  src="https://app.termly.io/embed-policy.min.js"
+                  strategy="afterInteractive"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/*  Returns Content */}
+      <section id="returns" className="mb-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white p-8 rounded-lg shadow-md">
               <div className="prose prose-lg max-w-none">
                 <div name="termly-embed" data-id="d53d01a3-9205-4dec-bb63-295e31129a16"></div>
-                <Script id="termly-jssdk" src="https://app.termly.io/embed-policy.min.js" strategy="afterInteractive" />
+                <Script
+                  id="termly-jssdk-returns"
+                  src="https://app.termly.io/embed-policy.min.js"
+                  strategy="afterInteractive"
+                />
               </div>
             </div>
           </div>
