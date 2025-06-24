@@ -253,7 +253,7 @@ export default function ProductCard(props: ProductCardProps) {
             )}
           </div>
 
-          {/* Action buttons in top right */}
+          {/* Action buttons in the top right */}
           <div
             className="absolute top-3 right-3 z-10 flex flex-col gap-2.5"
             onClick={e => e.stopPropagation()}
@@ -275,7 +275,7 @@ export default function ProductCard(props: ProductCardProps) {
           <Link href={`/products/${slug}`}>
             <h3
               className={cn(
-                'font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 text-lg',
+                'font-semibold text-gray-900 hover:text-primary transition-colors line-clamp-2 text-[18px]',
                 layout === 'grid' ? 'mb-1.5' : 'mb-2'
               )}
             >
@@ -287,9 +287,7 @@ export default function ProductCard(props: ProductCardProps) {
           {rating > 0 && (
             <div className="flex items-center bg-yellow-50 px-2 py-1 rounded-lg w-fit mb-3">
               <div className="flex">{renderRating(rating)}</div>
-              <span className="text-gray-700 font-medium text-sm ml-1">
-                {rating.toFixed(1)}
-              </span>
+              <span className="text-gray-700 font-medium text-sm ml-1">{rating.toFixed(1)}</span>
               {review_count > 0 && (
                 <span className="text-gray-500 text-xs ml-1">({review_count})</span>
               )}
@@ -302,9 +300,7 @@ export default function ProductCard(props: ProductCardProps) {
           <div className="flex flex-col mb-4">
             <span className="text-gray-900 font-bold text-lg">{formatPrice(price)}</span>
             {oldPrice && oldPrice > price && (
-              <span className="text-gray-500 text-sm line-through">
-                {formatPrice(oldPrice)}
-              </span>
+              <span className="text-gray-500 text-sm line-through">{formatPrice(oldPrice)}</span>
             )}
           </div>
 
@@ -321,23 +317,25 @@ export default function ProductCard(props: ProductCardProps) {
           >
             {inStock ? (
               <>
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-4 w-4 mr-2" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
                   />
                 </svg>
                 Add to Cart
               </>
-            ) : 'Out of Stock'}
+            ) : (
+              'Out of Stock'
+            )}
           </button>
         </div>
       </div>
