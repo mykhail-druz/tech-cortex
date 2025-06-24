@@ -1,15 +1,15 @@
 import { Suspense } from 'react';
 import { Metadata } from 'next';
-import Link from 'next/link';
+import ContactForm from '@/components/contact/ContactForm';
 
 export const metadata: Metadata = {
-  title: 'Contact Us - TechCortex',
+  title: 'Contact Us - TechCortex | St. Petersburg, FL',
   description:
-    'Get in touch with TechCortex for any questions, support, or feedback about our computer hardware products.',
+    'Contact TechCortex in St. Petersburg, Florida for computer hardware, custom PC builds, and tech support. Fast response within 2 business hours.',
   openGraph: {
-    title: 'Contact Us - TechCortex',
+    title: 'Contact Us - TechCortex | St. Petersburg, FL',
     description:
-      'Get in touch with TechCortex for any questions, support, or feedback about our computer hardware products.',
+      'Contact TechCortex in St. Petersburg, Florida for computer hardware, custom PC builds, and tech support. Fast response within 2 business hours.',
     url: 'https://tech-cortex.com/contact',
     siteName: 'TechCortex',
     images: [
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
         url: 'https://tech-cortex.com/contact-og.jpg',
         width: 1200,
         height: 630,
-        alt: 'TechCortex - Contact Us',
+        alt: 'TechCortex Contact - St. Petersburg, FL',
       },
     ],
   },
@@ -28,13 +28,22 @@ function ContactUsContent() {
   return (
     <div className="w-full">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-gray-100 to-gray-200 py-16 mb-12 rounded-lg">
+      <section className="bg-gradient-to-r from-blue-50 to-indigo-100 py-16 mb-12 rounded-lg">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              We&#39;re here to help with any questions you might have
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+              Contact TechCortex
+            </h1>
+            <p className="text-xl text-gray-700 mb-6">
+              Your Local Computer Hardware Experts in St. Petersburg, Florida
             </p>
+            <div className="flex flex-wrap justify-center gap-4 text-sm">
+              <div className="bg-white px-4 py-2 rounded-full shadow-sm">📍 St. Petersburg, FL</div>
+              <div className="bg-white px-4 py-2 rounded-full shadow-sm">
+                ⏱️ 2-Hour Response Time
+              </div>
+              <div className="bg-white px-4 py-2 rounded-full shadow-sm">📞 (727) 558-9452</div>
+            </div>
           </div>
         </div>
       </section>
@@ -44,77 +53,11 @@ function ContactUsContent() {
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
             {/* Contact Form */}
-            <div id="contact-form" className="bg-white p-8 rounded-lg shadow-md">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Send Us a Message</h2>
-              <form className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      name="name"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="John Doe"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Email
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="john@example.com"
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
-                    Subject
-                  </label>
-                  <input
-                    type="text"
-                    id="subject"
-                    name="subject"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="How can we help you?"
-                    required
-                  />
-                </div>
-                <div>
-                  <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                    Message
-                  </label>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={5}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                    placeholder="Your message here..."
-                    required
-                  ></textarea>
-                </div>
-                <div>
-                  <button
-                    type="submit"
-                    className="w-full bg-primary text-white px-6 py-3 rounded-md hover:bg-primary/90 transition-colors"
-                  >
-                    Send Message
-                  </button>
-                </div>
-              </form>
-            </div>
+            <ContactForm />
 
             {/* Contact Information */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Contact Information</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Get in Touch</h2>
               <div className="space-y-8">
                 <div className="flex items-start">
                   <div className="flex-shrink-0 bg-primary/10 p-3 rounded-full mr-4">
@@ -150,41 +93,6 @@ function ContactUsContent() {
                       >
                         support@tech-cortex.com
                       </a>
-                      <br />
-                      Sales:{' '}
-                      <a
-                        href="mailto:sales@tech-cortex.com"
-                        className="text-primary hover:underline"
-                      >
-                        sales@tech-cortex.com
-                      </a>
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start">
-                  <div className="flex-shrink-0 bg-primary/10 p-3 rounded-full mr-4">
-                    <svg
-                      className="h-6 w-6 text-primary"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 8V5z"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-1">Call Us</h3>
-                    <p className="text-gray-600">
-                      Main Office:{' '}
-                      <a href="tel:+17275589452" className="text-primary hover:underline">
-                        +1 (727) 558-9452
-                      </a>
                     </p>
                   </div>
                 </div>
@@ -208,12 +116,37 @@ function ContactUsContent() {
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-1">Business Hours</h3>
                     <p className="text-gray-600">
-                      Monday - Friday: 9:00 AM - 6:00 PM EST
+                      Monday - Friday: 9:00 AM - 9:00 PM EST
                       <br />
-                      Saturday: 10:00 AM - 4:00 PM EST
-                      <br />
-                      Sunday: Closed
+                      Saturday - Sunday: 10:00 AM - 8:00 PM EST
                     </p>
+                  </div>
+                </div>
+
+                {/* Response guarantee */}
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-green-400"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="text-sm font-medium text-green-800">
+                        Fast Response Guarantee
+                      </h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        We respond to all inquiries within 2 business hours during office hours.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -231,41 +164,42 @@ function ContactUsContent() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                What are your shipping options?
+                Do you offer same-day delivery in St. Petersburg?
               </h3>
               <p className="text-gray-600">
-                We offer standard shipping (3-5 business days), express shipping (1-2 business
-                days), and same-day delivery in select areas. Shipping costs vary based on location
-                and chosen method.
+                Yes! We offer same-day delivery for orders placed before 2 PM on weekdays within St.
+                Petersburg and surrounding areas. Express delivery is available for urgent business
+                needs.
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                What is your return policy?
+                What is your return and warranty policy?
               </h3>
               <p className="text-gray-600">
-                We accept returns within 30 days of purchase for most items. Products must be in
-                original packaging and in unused condition. Some items like custom-built PCs may
-                have different return policies.
+                We offer a 30-day return policy for most items in original condition. All products
+                come with manufacturer warranties, and we provide additional warranty services.
+                Custom-built PCs include our comprehensive 1-year service warranty.
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Do you offer technical support?
+                Do you provide on-site technical support?
               </h3>
               <p className="text-gray-600">
-                Yes, we provide technical support for all products purchased from TechCortex. You
-                can reach our support team via email, phone, or through our online chat during
-                business hours.
+                Absolutely! We provide on-site technical support throughout the Tampa Bay area. Our
+                certified technicians can help with installations, troubleshooting, network setup,
+                and maintenance at your home or business.
               </p>
             </div>
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Do you ship internationally?
+                Can you build custom PCs for gaming and business?
               </h3>
               <p className="text-gray-600">
-                Currently, we only ship within the United States. We&#39;re working on expanding our
-                shipping options to include international destinations in the future.
+                Yes! We specialize in custom PC builds for gaming, business, content creation, and
+                specialized applications. We&#39;ll work with you to design the perfect system for
+                your needs and budget, with professional assembly and testing.
               </p>
             </div>
           </div>
@@ -275,18 +209,27 @@ function ContactUsContent() {
       {/* Contact Form CTA */}
       <section className="mb-16">
         <div className="container mx-auto px-4">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg overflow-hidden">
+          <div className="bg-gradient-to-r from-green-500 to-blue-600 rounded-lg overflow-hidden">
             <div className="p-8 md:p-12 text-white text-center">
-              <h2 className="text-2xl md:text-3xl font-bold mb-4">Still Have Questions?</h2>
+              <h2 className="text-2xl md:text-3xl font-bold mb-4">Ready to Get Started?</h2>
               <p className="text-lg mb-6">
-                Our team is ready to assist you with any inquiries you might have.
+                Contact us today and experience the TechCortex difference. Fast, professional
+                service you can trust.
               </p>
-              <a
-                href="#contact-form"
-                className="bg-white text-blue-600 px-8 py-3 rounded-md hover:bg-gray-100 transition-colors inline-block"
-              >
-                Contact Us Now
-              </a>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <a
+                  href="#contact-form"
+                  className="bg-white text-green-600 px-8 py-3 rounded-md hover:bg-gray-100 transition-colors inline-block font-semibold"
+                >
+                  Send Us a Message
+                </a>
+                <a
+                  href="tel:+17275589452"
+                  className="bg-transparent border-2 border-white text-white px-8 py-3 rounded-md hover:bg-white hover:text-green-600 transition-colors inline-block font-semibold"
+                >
+                  Call (727) 558-9452
+                </a>
+              </div>
             </div>
           </div>
         </div>
