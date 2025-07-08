@@ -49,8 +49,7 @@ export class SpecificationService {
         .from('category_specification_templates')
         .select('*')
         .eq('category_id', category.id)
-        .eq('is_filterable', true)
-        .order('filter_order', { ascending: true });
+        .order('display_order', { ascending: true });
 
       if (!templates) return [];
 
@@ -133,7 +132,7 @@ export class SpecificationService {
           subcategory:subcategory_id(slug),
           specifications:product_specifications(
             template_id, value_enum, value_number, value_text,
-            template:template_id(name, is_filterable, filter_type, data_type)
+            template:template_id(name, filter_type, data_type)
           )
         `
         )
@@ -146,7 +145,7 @@ export class SpecificationService {
 
       products.forEach(product => {
         product.specifications?.forEach((spec: any) => {
-          if (spec.template?.is_filterable) {
+          if (spec.template) {
             const key = spec.template.name;
             if (!indexes[key]) {
               indexes[key] = {

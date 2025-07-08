@@ -275,3 +275,34 @@ export type SelectResponse<T> = {
   data: T[] | null;
   error: Error | null;
 };
+
+export interface StandardFilter {
+  id: string;
+  name: string;
+  displayName: string;
+  type: 'checkbox' | 'dropdown' | 'range' | 'search' | 'color' | 'size';
+  category: 'general' | 'technical' | 'physical' | 'visual';
+  priority: number; // Порядок отображения
+
+  // Для разных типов данных
+  options?: FilterOption[];
+  range?: { min: number; max: number; step?: number };
+  unit?: string; // GB, MHz, mm и т.д.
+
+  // Логика группировки
+  groupBy?: 'range' | 'exact' | 'contains';
+
+  // Настройки отображения
+  showCount?: boolean;
+  collapsible?: boolean;
+  defaultExpanded?: boolean;
+  maxVisibleOptions?: number;
+}
+
+export interface FilterOption {
+  value: string;
+  label: string;
+  count?: number;
+  color?: string; // Для цветовых фильтров
+  image?: string; // Для брендов
+}

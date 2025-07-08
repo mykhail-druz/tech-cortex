@@ -380,7 +380,8 @@ export const searchProducts = async (
   minPrice?: number,
   maxPrice?: number,
   sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
-  inStockOnly?: boolean
+  inStockOnly?: boolean,
+  specificationFilters?: Record<string, any>
 ): Promise<SelectResponse<Product>> => {
   let dbQuery = supabase
     .from('products')
@@ -1373,16 +1374,193 @@ export const getProductsWithSpecificationFilters = async (
 
     let filteredData = response.data || [];
 
-    // Apply specification filters (simplified for now)
+    // Apply specification filters
     if (specificationFilters && Object.keys(specificationFilters).length > 0) {
-      // For now, skip spec filtering to avoid complex joins
-      // This can be implemented later with proper database design
+      // Get product IDs from the initial query
+      const productIds = filteredData.map(product => product.id);
+
+      // For each specification filter, filter the products
+      for (const [specName, specValue] of Object.entries(specificationFilters)) {
+        // Get the specification template ID for this specification name
+        const { data: template } = await supabase
+          .from('category_specification_templates')
+          .select('id')
+          .eq('name', specName)
+          .single();
+
+        if (!template) continue;
+
+        // Create a query to get products that match this specification
+        let specQuery = supabase.from('product_specifications').select('product_id');
+
+        // Add the template ID filter
+        specQuery = specQuery.eq('template_id', template.id);
+
+        // Apply different filters based on the type of specification value
+        if (Array.isArray(specValue)) {
+          // For array values (checkbox filters), use IN operator
+          if (specValue.length > 0) {
+            specQuery = specQuery.in('value', specValue);
+          }
+        } else if (
+          typeof specValue === 'object' &&
+          (specValue.min !== undefined || specValue.max !== undefined)
+        ) {
+          // For range values, use gte/lte operators
+          if (specValue.min !== undefined) {
+            specQuery = specQuery.gte('value_number', specValue.min);
+          }
+          if (specValue.max !== undefined) {
+            specQuery = specQuery.lte('value_number', specValue.max);
+          }
+        } else {
+          // For single values, use eq operator
+          specQuery = specQuery.eq('value', specValue);
+        }
+
+        // Execute the query
+        const { data: matchingSpecs } = await specQuery;
+
+        if (matchingSpecs && matchingSpecs.length > 0) {
+          // Get the product IDs that match this specification
+          const matchingProductIds = matchingSpecs.map(spec => spec.product_id);
+
+          // Filter the product IDs to only include those that match this specification
+          const filteredProductIds = productIds.filter(id => matchingProductIds.includes(id));
+
+          // Update the product IDs for the next iteration
+          productIds.length = 0;
+          productIds.push(...filteredProductIds);
+
+          // If no products match this specification, we can stop early
+          if (productIds.length === 0) break;
+        } else {
+          // If no products match this specification, we can stop early
+          productIds.length = 0;
+          break;
+        }
+      }
+
+      // Filter the products to only include those that match all specifications
+      filteredData = filteredData.filter(product => productIds.includes(product.id));
     }
 
     return { data: filteredData, error: null };
   } catch (error) {
     console.error('Error in getProductsWithSpecificationFilters:', error);
     return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
+  }
+};
+
+/**
+ * Search products with specification filters
+ */
+export const searchProductsWithSpecifications = async (
+  query: string,
+  categorySlug?: string,
+  subcategorySlug?: string,
+  minPrice?: number,
+  maxPrice?: number,
+  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
+  inStockOnly?: boolean,
+  specificationFilters?: Record<string, any>
+): Promise<SelectResponse<Product>> => {
+  // First, search products without specification filters
+  const searchResult = await searchProducts(
+    query,
+    categorySlug,
+    subcategorySlug,
+    minPrice,
+    maxPrice,
+    sortBy,
+    inStockOnly
+  );
+
+  // If there's an error or no specification filters, return the results as is
+  if (
+    searchResult.error ||
+    !specificationFilters ||
+    Object.keys(specificationFilters).length === 0
+  ) {
+    return searchResult;
+  }
+
+  // Apply specification filters
+  try {
+    let filteredData = searchResult.data || [];
+
+    // Get product IDs from the initial query
+    const productIds = filteredData.map(product => product.id);
+
+    // For each specification filter, filter the products
+    for (const [specName, specValue] of Object.entries(specificationFilters)) {
+      // Get the specification template ID for this specification name
+      const { data: template } = await supabase
+        .from('category_specification_templates')
+        .select('id')
+        .eq('name', specName)
+        .single();
+
+      if (!template) continue;
+
+      // Create a query to get products that match this specification
+      let specQuery = supabase.from('product_specifications').select('product_id');
+
+      // Add the template ID filter
+      specQuery = specQuery.eq('template_id', template.id);
+
+      // Apply different filters based on the type of specification value
+      if (Array.isArray(specValue)) {
+        // For array values (checkbox filters), use IN operator
+        if (specValue.length > 0) {
+          specQuery = specQuery.in('value', specValue);
+        }
+      } else if (
+        typeof specValue === 'object' &&
+        (specValue.min !== undefined || specValue.max !== undefined)
+      ) {
+        // For range values, use gte/lte operators
+        if (specValue.min !== undefined) {
+          specQuery = specQuery.gte('value_number', specValue.min);
+        }
+        if (specValue.max !== undefined) {
+          specQuery = specQuery.lte('value_number', specValue.max);
+        }
+      } else {
+        // For single values, use eq operator
+        specQuery = specQuery.eq('value', specValue);
+      }
+
+      // Execute the query
+      const { data: matchingSpecs } = await specQuery;
+
+      if (matchingSpecs && matchingSpecs.length > 0) {
+        // Get the product IDs that match this specification
+        const matchingProductIds = matchingSpecs.map(spec => spec.product_id);
+
+        // Filter the product IDs to only include those that match this specification
+        const filteredProductIds = productIds.filter(id => matchingProductIds.includes(id));
+
+        // Update the product IDs for the next iteration
+        productIds.length = 0;
+        productIds.push(...filteredProductIds);
+
+        // If no products match this specification, we can stop early
+        if (productIds.length === 0) break;
+      } else {
+        // If no products match this specification, we can stop early
+        productIds.length = 0;
+        break;
+      }
+    }
+
+    // Filter the products to only include those that match all specifications
+    filteredData = filteredData.filter(product => productIds.includes(product.id));
+
+    return { data: filteredData, error: null };
+  } catch (error) {
+    console.error('Error applying specification filters to search results:', error);
+    return searchResult;
   }
 };
 
@@ -1429,8 +1607,7 @@ export const getAvailableFilters = async (categorySlug: string): Promise<Specifi
       .from('category_specification_templates')
       .select('*')
       .eq('category_id', category.id)
-      .eq('is_filterable', true)
-      .order('filter_order', { ascending: true });
+      .order('display_order', { ascending: true });
 
     if (!templates) return [];
 
@@ -1440,6 +1617,7 @@ export const getAvailableFilters = async (categorySlug: string): Promise<Specifi
       const filter: SpecificationFilter = {
         templateId: template.id,
         templateName: template.name,
+        displayName: template.display_name || template.name,
         filterType: template.filter_type || 'checkbox',
       };
 
