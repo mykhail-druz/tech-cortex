@@ -34,6 +34,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalImageIndex, setModalImageIndex] = useState(0);
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const router = useRouter();
   const { addItem } = useCart();
   const toast = useToast();
@@ -417,8 +418,39 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
               )}
             </div>
 
-            {/* Brief description */}
-            <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">{product.description}</p>
+            {/* Brief description with show more/less functionality */}
+            <div className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
+              {product.description && product.description.length > 150 ? (
+                <>
+                  <p
+                    dangerouslySetInnerHTML={{
+                      __html: isDescriptionExpanded
+                        ? product.description.replace(/\n/g, '<br />')
+                        : (() => {
+                            const truncateAt = 350;
+                            const lastSpaceIndex = product.description
+                              .substring(0, truncateAt)
+                              .lastIndexOf(' ');
+                            const truncateIndex = lastSpaceIndex > 0 ? lastSpaceIndex : truncateAt;
+                            return `${product.description.substring(0, truncateIndex).replace(/\n/g, '<br />')}...`;
+                          })(),
+                    }}
+                  />
+                  <button
+                    onClick={() => setIsDescriptionExpanded(!isDescriptionExpanded)}
+                    className="text-primary hover:text-primary-dark font-medium mt-1 text-sm focus:outline-none transition-colors"
+                  >
+                    {isDescriptionExpanded ? 'Show less' : 'Show more...'}
+                  </button>
+                </>
+              ) : (
+                <p
+                  dangerouslySetInnerHTML={{
+                    __html: product.description ? product.description.replace(/\n/g, '<br />') : '',
+                  }}
+                />
+              )}
+            </div>
 
             {/* Quantity selector */}
             <div className="flex items-center mb-4 sm:mb-6">
