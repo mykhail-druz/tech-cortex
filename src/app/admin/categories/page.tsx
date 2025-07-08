@@ -24,10 +24,10 @@ export default function CategoriesPage() {
     slug: '',
     description: '',
     image_url: '',
+    icon_url: '',
     is_subcategory: false,
     parent_id: '',
     pc_component_type: '',
-    pc_icon: '🔧',
     pc_required: false,
     pc_supports_multiple: false,
     pc_display_order: 0,
@@ -36,6 +36,8 @@ export default function CategoriesPage() {
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedIcon, setSelectedIcon] = useState<File | null>(null);
+  const [iconPreview, setIconPreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
 
   // Specification templates state
@@ -126,6 +128,34 @@ export default function CategoriesPage() {
     }
   };
 
+  // Handle icon file selection
+  const handleIconChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+
+      // Check if file is an image
+      if (!file.type.startsWith('image/')) {
+        toast.warning('Please select an image file (JPEG, PNG, etc.)');
+        return;
+      }
+
+      // Check file size (limit to 2MB)
+      if (file.size > 2 * 1024 * 1024) {
+        toast.warning('Icon size should be less than 2MB');
+        return;
+      }
+
+      setSelectedIcon(file);
+
+      // Create a preview URL for the selected icon
+      const reader = new FileReader();
+      reader.onload = event => {
+        setIconPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   // Validate form
   const validateForm = () => {
     const errors: Record<string, string> = {};
@@ -152,10 +182,10 @@ export default function CategoriesPage() {
       slug: '',
       description: '',
       image_url: '',
+      icon_url: '',
       is_subcategory: false,
       parent_id: '',
       pc_component_type: '',
-      pc_icon: '🔧',
       pc_required: false,
       pc_supports_multiple: false,
       pc_display_order: 0,
@@ -163,6 +193,8 @@ export default function CategoriesPage() {
     setFormErrors({});
     setSelectedImage(null);
     setImagePreview(null);
+    setSelectedIcon(null);
+    setIconPreview(null);
     setShowAddModal(true);
   };
 
@@ -174,10 +206,10 @@ export default function CategoriesPage() {
       slug: category.slug,
       description: category.description || '',
       image_url: category.image_url || '',
+      icon_url: category.icon_url || '',
       is_subcategory: category.is_subcategory || false,
       parent_id: category.parent_id || '',
       pc_component_type: category.pc_component_type || '',
-      pc_icon: category.pc_icon || '🔧',
       pc_required: category.pc_required || false,
       pc_supports_multiple: category.pc_supports_multiple || false,
       pc_display_order: category.pc_display_order || 0,
@@ -185,6 +217,8 @@ export default function CategoriesPage() {
     setFormErrors({});
     setSelectedImage(null);
     setImagePreview(null);
+    setSelectedIcon(null);
+    setIconPreview(null);
     setShowEditModal(true);
   };
 
@@ -386,10 +420,10 @@ export default function CategoriesPage() {
         categoryData.parent_id = null;
       }
 
-      // Upload image if selected
-      if (selectedImage) {
-        setUploadingImage(true);
+      setUploadingImage(true);
 
+      // Upload main image if selected
+      if (selectedImage) {
         // Upload to Supabase storage
         const { url, error } = await storageService.uploadFile(
           selectedImage,
@@ -405,9 +439,28 @@ export default function CategoriesPage() {
           // Update category data with the image URL
           categoryData.image_url = url;
         }
-
-        setUploadingImage(false);
       }
+
+      // Upload icon if selected
+      if (selectedIcon) {
+        // Upload to Supabase storage
+        const { url, error } = await storageService.uploadFile(
+          selectedIcon,
+          'categories', // bucket name
+          'icons' // folder path
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (url) {
+          // Update category data with the icon URL
+          categoryData.icon_url = url;
+        }
+      }
+
+      setUploadingImage(false);
 
       // Create category with updated data
       const { data, error } = await adminDbService.createCategory(categoryData);
@@ -425,6 +478,10 @@ export default function CategoriesPage() {
         // Reset image state
         setSelectedImage(null);
         setImagePreview(null);
+        setSelectedIcon(null);
+        setIconPreview(null);
+
+        toast.success('Category created successfully');
       }
     } catch (error) {
       console.error('Error creating category:', error);
@@ -446,10 +503,10 @@ export default function CategoriesPage() {
         categoryData.parent_id = null;
       }
 
-      // Upload image if selected
-      if (selectedImage) {
-        setUploadingImage(true);
+      setUploadingImage(true);
 
+      // Upload main image if selected
+      if (selectedImage) {
         // Upload to Supabase storage
         const { url, error } = await storageService.uploadFile(
           selectedImage,
@@ -465,9 +522,28 @@ export default function CategoriesPage() {
           // Update category data with the image URL
           categoryData.image_url = url;
         }
-
-        setUploadingImage(false);
       }
+
+      // Upload icon if selected
+      if (selectedIcon) {
+        // Upload to Supabase storage
+        const { url, error } = await storageService.uploadFile(
+          selectedIcon,
+          'categories', // bucket name
+          'icons' // folder path
+        );
+
+        if (error) {
+          throw error;
+        }
+
+        if (url) {
+          // Update category data with the icon URL
+          categoryData.icon_url = url;
+        }
+      }
+
+      setUploadingImage(false);
 
       // Update category with updated data
       const { data, error } = await adminDbService.updateCategory(currentCategory.id, categoryData);
@@ -485,6 +561,10 @@ export default function CategoriesPage() {
         // Reset image state
         setSelectedImage(null);
         setImagePreview(null);
+        setSelectedIcon(null);
+        setIconPreview(null);
+
+        toast.success('Category updated successfully');
       }
     } catch (error) {
       console.error('Error updating category:', error);
@@ -612,7 +692,6 @@ export default function CategoriesPage() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {category.pc_component_type ? (
                       <div className="flex items-center">
-                        <span className="mr-2">{category.pc_icon}</span>
                         <span className="font-medium">{category.pc_component_type}</span>
                         {category.pc_required && <span className="ml-1 text-red-500">*</span>}
                         {category.pc_supports_multiple && <span className="ml-1 text-blue-500">(multiple)</span>}
@@ -766,44 +845,111 @@ export default function CategoriesPage() {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
-              <div className="flex flex-col space-y-2">
-                <input
-                  type="file"
-                  id="category_image"
-                  name="category_image"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Main Category Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Main Category Image</label>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    id="category_image"
+                    name="category_image"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
 
-                {/* Image preview */}
-                {imagePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-1">Preview:</p>
-                    <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image
-                        src={imagePreview}
-                        alt="Preview"
-                        fill
-                        sizes="160px"
-                        className="object-cover"
-                      />
+                  {/* Image preview */}
+                  {imagePreview && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                      <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          sizes="160px"
+                          className="object-cover"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Current image URL input (hidden but still part of form data) */}
-                <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
+                  {/* Current image URL input (hidden but still part of form data) */}
+                  <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
 
-                {/* Show URL if exists but no preview */}
-                {!imagePreview && formData.image_url && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500">Current image URL:</p>
-                    <p className="text-sm text-blue-500 truncate">{formData.image_url}</p>
-                  </div>
-                )}
+                  {/* Show URL if exists but no preview */}
+                  {!imagePreview && formData.image_url && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Current image:</p>
+                      <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={formData.image_url}
+                          alt="Main image"
+                          fill
+                          sizes="160px"
+                          className="object-cover"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This image will be displayed on the main page.
+                </p>
+              </div>
+
+              {/* Category Icon */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category Icon</label>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    id="category_icon"
+                    name="category_icon"
+                    accept="image/*"
+                    onChange={handleIconChange}
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+
+                  {/* Icon preview */}
+                  {iconPreview && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                      <div className="relative w-20 h-20 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={iconPreview}
+                          alt="Icon Preview"
+                          fill
+                          sizes="80px"
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Current icon URL input (hidden but still part of form data) */}
+                  <input type="hidden" id="icon_url" name="icon_url" value={formData.icon_url} />
+
+                  {/* Show URL if exists but no preview */}
+                  {!iconPreview && formData.icon_url && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Current icon:</p>
+                      <div className="relative w-20 h-20 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={formData.icon_url}
+                          alt="Icon"
+                          fill
+                          sizes="80px"
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This icon will be displayed in the sidebar and PC Builder.
+                </p>
               </div>
             </div>
 
@@ -825,22 +971,6 @@ export default function CategoriesPage() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Identifier for PC configurator (leave empty if not a PC component)
-                  </p>
-                </div>
-
-                {/* PC Icon */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
-                  <input
-                    type="text"
-                    name="pc_icon"
-                    value={formData.pc_icon}
-                    onChange={handleInputChange}
-                    placeholder="🔧"
-                    className="w-full p-2 border border-gray-300 rounded"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Emoji icon for the component (e.g., 🔥, 💾, 🎮)
                   </p>
                 </div>
 
@@ -1021,52 +1151,111 @@ export default function CategoriesPage() {
               </div>
             )}
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category Image</label>
-              <div className="flex flex-col space-y-2">
-                <input
-                  type="file"
-                  id="edit_category_image"
-                  name="edit_category_image"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="w-full p-2 border border-gray-300 rounded"
-                />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {/* Main Category Image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Main Category Image</label>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    id="edit_category_image"
+                    name="edit_category_image"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
 
-                {/* Image preview */}
-                {imagePreview && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-1">Preview:</p>
-                    <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image
-                        src={imagePreview}
-                        alt="Preview"
-                        fill
-                        sizes="160px"
-                        className="object-cover"
-                      />
+                  {/* Image preview */}
+                  {imagePreview && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                      <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          sizes="160px"
+                          className="object-cover"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Current image URL input (hidden but still part of form data) */}
-                <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
+                  {/* Current image URL input (hidden but still part of form data) */}
+                  <input type="hidden" id="image_url" name="image_url" value={formData.image_url} />
 
-                {/* Show current image if exists */}
-                {!imagePreview && formData.image_url && (
-                  <div className="mt-2">
-                    <p className="text-sm text-gray-500 mb-1">Current image:</p>
-                    <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
-                      <Image
-                        src={formData.image_url}
-                        alt={formData.name}
-                        fill
-                        sizes="160px"
-                        className="object-cover"
-                      />
+                  {/* Show current image if exists */}
+                  {!imagePreview && formData.image_url && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Current image:</p>
+                      <div className="relative w-40 h-40 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={formData.image_url}
+                          alt={formData.name}
+                          fill
+                          sizes="160px"
+                          className="object-cover"
+                        />
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This image will be displayed on the main page.
+                </p>
+              </div>
+
+              {/* Category Icon */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category Icon</label>
+                <div className="flex flex-col space-y-2">
+                  <input
+                    type="file"
+                    id="edit_category_icon"
+                    name="edit_category_icon"
+                    accept="image/*"
+                    onChange={handleIconChange}
+                    className="w-full p-2 border border-gray-300 rounded"
+                  />
+
+                  {/* Icon preview */}
+                  {iconPreview && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                      <div className="relative w-20 h-20 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={iconPreview}
+                          alt="Icon Preview"
+                          fill
+                          sizes="80px"
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Current icon URL input (hidden but still part of form data) */}
+                  <input type="hidden" id="icon_url" name="icon_url" value={formData.icon_url} />
+
+                  {/* Show current icon if exists */}
+                  {!iconPreview && formData.icon_url && (
+                    <div className="mt-2">
+                      <p className="text-sm text-gray-500 mb-1">Current icon:</p>
+                      <div className="relative w-20 h-20 border border-gray-300 rounded-md overflow-hidden">
+                        <Image
+                          src={formData.icon_url}
+                          alt="Icon"
+                          fill
+                          sizes="80px"
+                          className="object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  This icon will be displayed in the sidebar and PC Builder.
+                </p>
               </div>
             </div>
 
@@ -1088,22 +1277,6 @@ export default function CategoriesPage() {
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     Identifier for PC configurator (leave empty if not a PC component)
-                  </p>
-                </div>
-
-                {/* PC Icon */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
-                  <input
-                    type="text"
-                    name="pc_icon"
-                    value={formData.pc_icon}
-                    onChange={handleInputChange}
-                    placeholder="🔧"
-                    className="w-full p-2 border border-gray-300 rounded"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Emoji icon for the component (e.g., 🔥, 💾, 🎮)
                   </p>
                 </div>
 

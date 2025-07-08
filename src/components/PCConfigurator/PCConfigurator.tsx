@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { Product } from '@/lib/supabase/types/types';
 import {
   EnhancedPCConfiguration,
@@ -349,7 +350,20 @@ export default function PCConfigurator() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
-                        <span className="text-lg">{category.pc_icon}</span>
+                        {category.icon_url ? (
+                          <span className="w-6 h-6 mr-2 flex-shrink-0 relative">
+                            <Image
+                              src={category.icon_url}
+                              alt=""
+                              width={24}
+                              height={24}
+                              className="object-contain"
+                              aria-hidden="true"
+                            />
+                          </span>
+                        ) : (
+                          <span className="text-lg">{category.pc_icon || '🔧'}</span>
+                        )}
                         <div>
                           <div className="font-medium text-gray-900">
                             {getCategoryDisplayName(category)}

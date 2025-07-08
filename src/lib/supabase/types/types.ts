@@ -43,6 +43,7 @@ export interface Category {
   slug: string;
   description: string | null;
   image_url: string | null;
+  icon_url: string | null;
   parent_id: string | null;
   is_subcategory: boolean;
   created_at: string;
@@ -50,7 +51,7 @@ export interface Category {
 
   // New fields for PC configurator
   pc_component_type?: string | null;
-  pc_icon?: string | null;
+  pc_icon?: string | null; // Deprecated: Use icon_url instead
   pc_required?: boolean | null;
   pc_supports_multiple?: boolean | null;
   pc_display_order?: number | null;

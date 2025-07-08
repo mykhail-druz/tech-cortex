@@ -85,7 +85,18 @@ const CategoryItem = ({ category, isActive, activeSubcategory, onClick }: Catego
         `}
         aria-current={isActive ? 'page' : undefined}
       >
-        {category.image_url ? (
+        {category.icon_url ? (
+          <span className="w-6 h-6 mr-2 flex-shrink-0 relative">
+            <Image
+              src={category.icon_url}
+              alt=""
+              width={24}
+              height={24}
+              className="object-contain"
+              aria-hidden="true"
+            />
+          </span>
+        ) : category.image_url ? (
           <span className="w-6 h-6 mr-2 flex-shrink-0 relative">
             <Image
               src={category.image_url}

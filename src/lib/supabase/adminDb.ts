@@ -541,10 +541,10 @@ export const updateCategory = async (
 
 export const deleteCategory = async (id: string): Promise<DeleteResponse> => {
   try {
-    // First, get the category to get its image_url and check if it's a subcategory
+    // First, get the category to get its image_url, icon_url and check if it's a subcategory
     const { data: category, error: fetchError } = await supabase
       .from('categories')
-      .select('image_url, is_subcategory')
+      .select('image_url, icon_url, is_subcategory')
       .eq('id', id)
       .single();
 
@@ -612,10 +612,17 @@ export const deleteCategory = async (id: string): Promise<DeleteResponse> => {
       }
     }
 
+    // Import the deleteFile function
+    const { deleteFile } = await import('./storageService');
+
     // If the category has an image, delete it from storage
     if (category?.image_url) {
-      const { deleteFile } = await import('./storageService');
       await deleteFile(category.image_url, 'categories');
+    }
+
+    // If the category has an icon, delete it from storage
+    if (category?.icon_url) {
+      await deleteFile(category.icon_url, 'categories');
     }
 
     // Now delete the category from the database
