@@ -13,6 +13,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import StripePaymentElement from '@/components/checkout/StripePaymentElement';
 import { Spinner, ButtonSpinner } from '@/components/ui/Spinner';
 import { FaCheck, FaTimes } from 'react-icons/fa';
+import { US_STATES } from '@/lib/constants/addressConstants';
 
 type CheckoutFormData = {
   firstName: string;
@@ -127,7 +128,8 @@ export default function CheckoutPage() {
         address: profile.address_line1 || '',
         apartment: profile.address_line2 || '',
         city: profile.city || '',
-        state: profile.state || '',
+        // Only set state if it has a non-empty value
+        state: profile.state && profile.state.trim() !== '' ? profile.state : '',
         zipCode: profile.postal_code || '',
         country: profile.country || 'US',
       }));
@@ -279,7 +281,7 @@ export default function CheckoutPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Изменяем handleSubmit чтобы возвращать результат валидации
+  // Изменяем handleSubmit, чтобы возвращать результат валидации
   const handleSubmit = async (e: React.FormEvent): Promise<boolean> => {
     e.preventDefault();
     setError(null);
@@ -287,7 +289,7 @@ export default function CheckoutPage() {
     // Validate form before submission
     if (!validateForm()) {
       setError('Please fill in all required fields correctly');
-      return false; // Возвращаем false если валидация не прошла
+      return false; // Возвращаем false, если валидация не прошла
     }
 
     setIsSubmitting(true);
@@ -355,19 +357,19 @@ export default function CheckoutPage() {
 
       // If we're using PayPal, we would handle that differently
       if (formData.paymentMethod === 'paypal') {
-        // Set payment completed flag BEFORE clearing cart
+        // Set payment completed flag BEFORE clearing the cart
         setPaymentCompleted(true);
         // For now, just simulate a successful PayPal payment
         await clearCart();
         console.log('PayPal payment processed successfully. Redirection disabled as requested.');
       }
 
-      return true; // Возвращаем true если всё прошло успешно
+      return true; // Возвращаем true, если всё прошло успешно
     } catch (err) {
       console.error('Checkout error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
       setIsSubmitting(false);
-      return false; // Возвращаем false если произошла ошибка
+      return false; // Возвращаем false, если произошла ошибка
     }
   };
 
@@ -443,9 +445,24 @@ export default function CheckoutPage() {
   };
 
   // Helper function to get field classes
+
+  // Helper function to get field classes
   const getFieldClasses = (fieldName: string, baseClasses: string = '') => {
     const hasError = validationErrors[fieldName];
-    const hasValue = formData[fieldName as keyof CheckoutFormData];
+    const fieldValue = formData[fieldName as keyof CheckoutFormData];
+
+    // Check if the field has a non-empty value
+    let hasValue = false;
+    if (fieldName === 'state' || fieldName === 'billingState') {
+      // For state fields, check if value exists and is not an empty string
+      hasValue = typeof fieldValue === 'string' && fieldValue.trim() !== '';
+    } else if (typeof fieldValue === 'string') {
+      hasValue = fieldValue.trim() !== '';
+    } else if (typeof fieldValue === 'boolean') {
+      hasValue = fieldValue;
+    } else {
+      hasValue = !!fieldValue;
+    }
 
     return `${baseClasses} ${
       hasError
@@ -715,8 +732,7 @@ export default function CheckoutPage() {
                         State/Province *
                       </label>
                       <div className="relative">
-                        <input
-                          type="text"
+                        <select
                           id="state"
                           name="state"
                           value={formData.state}
@@ -726,10 +742,19 @@ export default function CheckoutPage() {
                             'state',
                             'w-full px-3 py-2 border rounded-md focus:outline-none'
                           )}
-                        />
-                        {formData.state && !validationErrors.state && (
-                          <FaCheck className="absolute right-3 top-3 text-green-500" />
-                        )}
+                        >
+                          <option value="">Select a state</option>
+                          {US_STATES.map(state => (
+                            <option key={state.value} value={state.value}>
+                              {state.label}
+                            </option>
+                          ))}
+                        </select>
+                        {formData.state &&
+                          formData.state.trim() !== '' &&
+                          !validationErrors.state && (
+                            <FaCheck className="absolute right-3 top-3 text-green-500" />
+                          )}
                       </div>
                       {validationErrors.state && (
                         <p className="mt-1 text-xs text-red-500">{validationErrors.state}</p>
@@ -889,8 +914,7 @@ export default function CheckoutPage() {
                           State/Province *
                         </label>
                         <div className="relative">
-                          <input
-                            type="text"
+                          <select
                             id="billingState"
                             name="billingState"
                             value={formData.billingState}
@@ -900,10 +924,19 @@ export default function CheckoutPage() {
                               'billingState',
                               'w-full px-3 py-2 border rounded-md focus:outline-none'
                             )}
-                          />
-                          {formData.billingState && !validationErrors.billingState && (
-                            <FaCheck className="absolute right-3 top-3 text-green-500" />
-                          )}
+                          >
+                            <option value="">Select a state</option>
+                            {US_STATES.map(state => (
+                              <option key={state.value} value={state.value}>
+                                {state.label}
+                              </option>
+                            ))}
+                          </select>
+                          {formData.billingState &&
+                            formData.billingState.trim() !== '' &&
+                            !validationErrors.billingState && (
+                              <FaCheck className="absolute right-3 top-3 text-green-500" />
+                            )}
                         </div>
                         {validationErrors.billingState && (
                           <p className="mt-1 text-xs text-red-500">
