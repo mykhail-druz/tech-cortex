@@ -1,9 +1,8 @@
 import type { Metadata } from 'next';
-import React, { Suspense } from 'react';
+import React from 'react';
 import './globals.css';
 import Header from '@/components/layout/Header';
 import Footer from '@/components/layout/Footer';
-import Sidebar from '@/components/layout/Sidebar';
 import MainContent from '@/components/layout/MainContent';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CartProvider } from '@/contexts/CartContext';
@@ -100,11 +99,6 @@ export default function RootLayout({
                     <SidebarProvider>
                       <Header />
                       <div className="flex flex-grow">
-                        <Suspense
-                          fallback={<div className="w-0 md:w-64 transition-all duration-300"></div>}
-                        >
-                          <Sidebar />
-                        </Suspense>
                         <MainContent>{children}</MainContent>
                       </div>
                       <Footer />

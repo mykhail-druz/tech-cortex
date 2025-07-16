@@ -33,13 +33,6 @@ type TeamMember = {
   imageUrl: string;
 };
 
-// Company milestone type
-type Milestone = {
-  year: string;
-  title: string;
-  description: string;
-};
-
 // About Us content component
 function AboutUsContent() {
   // Team members data
@@ -70,41 +63,8 @@ function AboutUsContent() {
     },
   ];
 
-  // Company milestones
-  const milestones: Milestone[] = [
-    {
-      year: '2025',
-      title: 'Foundation',
-      description:
-        'TechCortex was founded with a mission to provide high-quality computer hardware to tech enthusiasts.',
-    },
-    {
-      year: '2025',
-      title: 'Online Store Launch',
-      description: 'We launched our online store, making our products accessible nationwide.',
-    },
-    {
-      year: '2025',
-      title: 'Expansion',
-      description:
-        'Expanded our product range to include premium gaming hardware and custom PC builds.',
-    },
-  ];
-
   return (
-    <div className="w-full">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-r from-gray-100 to-gray-200 py-16 mb-12 rounded-lg">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">About TechCortex</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Your trusted partner in premium computer hardware since 2022
-            </p>
-          </div>
-        </div>
-      </section>
-
+    <div className="w-full pt-16">
       {/* Our Story Section */}
       <section className="mb-16">
         <div className="container mx-auto px-4">
@@ -212,38 +172,6 @@ function AboutUsContent() {
                 We embrace innovation and continuously seek out the latest advancements in computer
                 hardware to offer cutting-edge solutions to our customers.
               </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Our Journey Timeline */}
-      <section className="mb-16">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold text-gray-900 mb-12 text-center">Our Journey</h2>
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gray-200"></div>
-
-            {/* Timeline items */}
-            <div className="space-y-12">
-              {milestones.map((milestone, index) => (
-                <div
-                  key={index}
-                  className={`flex items-center ${index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'}`}
-                >
-                  <div className="w-1/2"></div>
-                  <div className="z-10 flex items-center justify-center w-12 h-12 bg-primary rounded-full shadow-lg transform -translate-x-1/2">
-                    <span className="text-white font-bold">{milestone.year}</span>
-                  </div>
-                  <div className={`w-1/2 ${index % 2 === 0 ? 'pl-12' : 'pr-12'}`}>
-                    <div className="bg-white p-6 rounded-lg shadow-md">
-                      <h3 className="text-xl font-bold text-gray-900 mb-2">{milestone.title}</h3>
-                      <p className="text-gray-600">{milestone.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>
