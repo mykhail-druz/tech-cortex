@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -14,6 +14,7 @@ import StripePaymentElement from '@/components/checkout/StripePaymentElement';
 import { Spinner, ButtonSpinner } from '@/components/ui/Spinner';
 import { FaCheck, FaTimes } from 'react-icons/fa';
 import { US_STATES } from '@/lib/constants/addressConstants';
+import { useTaxCalculation, TaxItem, ShippingAddress } from '@/hooks/useTaxCalculation';
 
 type CheckoutFormData = {
   firstName: string;
@@ -53,6 +54,20 @@ export default function CheckoutPage() {
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [paymentCompleted, setPaymentCompleted] = useState(false); // Добавляем флаг завершения платежа
+  const [totalWithTax, setTotalWithTax] = useState(subtotal);
+
+  // Initialize tax calculation hook
+  const {
+    taxAmount,
+    taxBreakdown,
+    isCalculating,
+    error: taxError,
+    calculateTax,
+    resetTaxCalculation,
+  } = useTaxCalculation();
+
+  // Debounce timer reference
+  const taxCalculationTimer = useRef<NodeJS.Timeout | null>(null);
   const [formData, setFormData] = useState<CheckoutFormData>({
     firstName: '',
     lastName: '',
@@ -136,13 +151,138 @@ export default function CheckoutPage() {
     }
   }, [profile, user]);
 
+  // Calculate tax when shipping address changes
+  useEffect(() => {
+    // Update total with tax whenever tax amount changes
+    setTotalWithTax(subtotal + taxAmount);
+  }, [subtotal, taxAmount]);
+
+  // Calculate tax when shipping address or cart items change
+  useEffect(() => {
+    // Skip if cart is empty or address is incomplete
+    if (
+      items.length === 0 ||
+      !formData.address ||
+      !formData.city ||
+      !formData.state ||
+      !formData.zipCode
+    ) {
+      resetTaxCalculation();
+      return;
+    }
+
+    // Clear previous timer if it exists
+    if (taxCalculationTimer.current) {
+      clearTimeout(taxCalculationTimer.current);
+    }
+
+    // Set a new timer for debounce (700ms)
+    taxCalculationTimer.current = setTimeout(async () => {
+      // Prepare items for tax calculation
+      const taxItems: TaxItem[] = items
+        .filter(item => item.product?.price && item.product.price > 0 && item.quantity > 0)
+        .map(item => ({
+          product_id: item.product_id,
+          price: item.product?.price || 0,
+          quantity: item.quantity,
+          tax_code: item.product?.tax_code || 'txcd_99999999',
+        }));
+
+      // Skip tax calculation if no valid items
+      if (taxItems.length === 0) {
+        console.warn('No valid items for tax calculation');
+        resetTaxCalculation();
+        return;
+      }
+
+      // Prepare shipping address
+      const shippingAddress: ShippingAddress = {
+        address: formData.address,
+        apartment: formData.apartment,
+        city: formData.city,
+        state: formData.state,
+        zipCode: formData.zipCode,
+        country: formData.country,
+      };
+
+      // Prepare customer details
+      const customerDetails = {
+        email: formData.email,
+        name: `${formData.firstName} ${formData.lastName}`,
+        phone: formData.phone,
+      };
+
+      // Log tax calculation request for debugging
+      console.log('Tax calculation request:', {
+        items: taxItems,
+        shippingAddress,
+        customerDetails,
+      });
+
+      // Calculate tax
+      const result = await calculateTax(taxItems, shippingAddress, customerDetails);
+
+      // Log tax calculation result
+      if (result) {
+        console.log('Tax calculation successful:', {
+          taxAmount: result.taxAmount,
+          breakdownCount: result.taxBreakdown.length,
+        });
+      } else {
+        console.warn('Tax calculation failed or returned null');
+      }
+    }, 700);
+
+    // Cleanup function
+    return () => {
+      if (taxCalculationTimer.current) {
+        clearTimeout(taxCalculationTimer.current);
+      }
+    };
+  }, [
+    items,
+    formData.address,
+    formData.apartment,
+    formData.city,
+    formData.state,
+    formData.zipCode,
+    formData.country,
+    calculateTax,
+    resetTaxCalculation,
+  ]);
+
   // Create a payment intent when the component mounts and cart items are loaded
   useEffect(() => {
     const createPaymentIntent = async () => {
       if (!cartLoading && items.length > 0 && !clientSecret) {
         try {
-          // Calculate the total amount in cents
-          const amount = Math.round(subtotal * 100 * 1.1); // Including tax
+          // Calculate the total amount in cents including tax
+          // Ensure amount is positive - use subtotal as fallback if totalWithTax is invalid
+          const calculatedAmount = totalWithTax > 0 ? totalWithTax : subtotal;
+          const amount = Math.round(calculatedAmount * 100);
+
+          // Validate amount before proceeding
+          if (amount <= 0) {
+            console.error('Invalid payment amount:', amount, {
+              totalWithTax,
+              subtotal,
+              taxAmount,
+              items: items.map(item => ({
+                id: item.product_id,
+                price: item.product?.price,
+                quantity: item.quantity,
+              })),
+            });
+            setError('Cannot process payment: total amount must be greater than zero');
+            return;
+          }
+
+          console.log('Creating payment intent:', {
+            amount,
+            calculatedAmount,
+            taxAmount: Math.round(taxAmount * 100),
+            itemCount: items.length,
+          });
 
           const response = await fetch('/api/stripe/create-payment-intent', {
             method: 'POST',
@@ -154,6 +294,7 @@ export default function CheckoutPage() {
               currency: 'usd',
               metadata: {
                 user_id: user?.id || 'guest',
+                tax_amount: Math.round(taxAmount * 100), // Tax amount in cents
               },
             }),
           });
@@ -174,7 +315,7 @@ export default function CheckoutPage() {
     };
 
     createPaymentIntent();
-  }, [cartLoading, items, subtotal, clientSecret, user]);
+  }, [cartLoading, items, totalWithTax, taxAmount, clientSecret, user]);
 
   // Real-time validation
   const validateField = (name: string, value: string | boolean): string => {
@@ -316,11 +457,12 @@ export default function CheckoutPage() {
         throw new Error('Payment processing is not ready. Please try again in a moment.');
       }
 
-      // Create order with all required fields including tracking_number and notes
+      // Create order with all required fields including tax information
       const order = {
         user_id: user.id,
         status: OrderStatus.PENDING,
-        total_amount: subtotal,
+        total_amount: totalWithTax,
+        tax_amount: taxAmount,
         shipping_address: shippingAddress,
         billing_address: billingAddress,
         payment_method: formData.paymentMethod === 'credit_card' ? 'stripe' : 'paypal',
@@ -523,10 +665,10 @@ export default function CheckoutPage() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-2xl font-bold mb-8">Checkout</h1>
 
-        {error && (
+        {(error || taxError) && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-center">
             <FaTimes className="mr-2 flex-shrink-0" />
-            {error}
+            {error || (taxError && `Tax calculation error: ${taxError}. Using estimated tax.`)}
           </div>
         )}
 
@@ -1098,8 +1240,10 @@ export default function CheckoutPage() {
                   >
                     {isSubmitting ? (
                       <ButtonSpinner color="white" buttonText="Processing..." />
+                    ) : isCalculating ? (
+                      'Calculating final amount...'
                     ) : (
-                      `Pay ${formatPrice(subtotal * 1.1)} with PayPal`
+                      `Pay ${formatPrice(totalWithTax)} with PayPal`
                     )}
                   </button>
                 )}
@@ -1155,13 +1299,35 @@ export default function CheckoutPage() {
 
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tax</span>
-                  <span className="font-medium">{formatPrice(subtotal * 0.1)}</span>
+                  <div className="text-right">
+                    {isCalculating ? (
+                      <div className="h-5 w-16 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      <>
+                        <span className="font-medium">{formatPrice(taxAmount)}</span>
+                        {taxBreakdown.length > 0 && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {taxBreakdown.map((item, index) => (
+                              <div key={index} className="flex justify-between">
+                                <span>{item.tax_type_description}</span>
+                                <span>{formatPrice(item.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-t border-gray-200 pt-3 flex justify-between">
                   <span className="text-lg font-semibold">Total</span>
                   <span className="text-lg font-bold text-primary">
-                    {formatPrice(subtotal * 1.1)}
+                    {isCalculating ? (
+                      <div className="h-6 w-20 bg-gray-200 animate-pulse rounded"></div>
+                    ) : (
+                      formatPrice(totalWithTax)
+                    )}
                   </span>
                 </div>
               </div>

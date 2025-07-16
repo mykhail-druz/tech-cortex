@@ -27,6 +27,7 @@ export default function ProductFormWithSpecs({
     brand: '',
     sku: '',
     in_stock: true,
+    tax_code: 'txcd_99999999', // Default general tax code
   });
 
   useEffect(() => {
@@ -87,6 +88,7 @@ export default function ProductFormWithSpecs({
           brand: '',
           sku: '',
           in_stock: true,
+          tax_code: 'txcd_99999999', // Reset to default tax code
         });
         setSpecifications({});
       } else if (result.error) {
@@ -229,6 +231,24 @@ export default function ProductFormWithSpecs({
               className="w-full p-2 border rounded"
               required
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Tax Code</label>
+            <select
+              value={productData.tax_code}
+              onChange={e => setProductData(prev => ({ ...prev, tax_code: e.target.value }))}
+              className="w-full p-2 border rounded"
+            >
+              <option value="txcd_99999999">General - 99999999</option>
+              <option value="txcd_20030000">Digital Goods - 20030000</option>
+              <option value="txcd_35010000">Electronics - 35010000</option>
+              <option value="txcd_30070000">Computer Hardware - 30070000</option>
+              <option value="txcd_31000000">Software - 31000000</option>
+              <option value="txcd_81000000">Services - 81000000</option>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Stripe Tax code for product tax calculation
+            </p>
           </div>
         </div>
         <div className="mt-4">

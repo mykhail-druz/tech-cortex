@@ -156,49 +156,113 @@ async function HomeContent() {
   return (
     <div className="w-full">
       {/* Hero Section */}
-      <section className="relative overflow-hidden mb-16">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-700 opacity-90"></div>
-        <div className="absolute inset-0 opacity-20"></div>
+      <section className="relative overflow-hidden mb-16 min-h-[90vh] flex items-center">
+        {/* Animated Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900"></div>
+        <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
+
+        {/* Animated Particles */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-pulse opacity-60"></div>
+          <div className="absolute top-40 right-20 w-1 h-1 bg-purple-400 rounded-full animate-ping opacity-40"></div>
+          <div className="absolute bottom-32 left-1/4 w-3 h-3 bg-pink-400 rounded-full animate-bounce opacity-50"></div>
+          <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse opacity-70"></div>
+          <div className="absolute bottom-20 right-10 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-50"></div>
+        </div>
+
+        {/* Geometric Shapes */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-purple-500/10 to-pink-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          <div
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-indigo-500/5 to-cyan-500/5 rounded-full blur-3xl animate-spin"
+            style={{ animationDuration: '20s' }}
+          ></div>
+        </div>
 
         <div className="container mx-auto px-4 py-20 md:py-28 relative z-10">
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="md:w-1/2 text-center md:text-left mb-10 md:mb-0">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white mb-6 leading-tight">
-                Next-Gen Tech For Your Digital World
+              {/* Badge */}
+              <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white text-sm font-medium mb-6 animate-fade-in">
+                <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                New Products Available
+              </div>
+
+              <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-white mb-6 leading-tight animate-fade-in-up">
+                <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                  Next-Gen Tech
+                </span>
+                <br />
+                <span className="text-white">For Your Digital World</span>
               </h1>
-              <p className="text-xl text-blue-100 mb-8 max-w-xl">
+
+              <p className="text-xl text-blue-100 mb-8 max-w-xl leading-relaxed animate-fade-in-up delay-200">
                 Discover premium computer hardware for gaming, productivity, and creative workflows.
+                Build the perfect setup with our cutting-edge components.
               </p>
-              <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+
+              <div className="flex flex-wrap gap-4 justify-center md:justify-start animate-fade-in-up delay-300">
                 <Link
                   href="/products"
-                  className="bg-white text-blue-700 px-8 py-3.5 rounded-full font-semibold hover:bg-blue-50 transition-colors inline-block shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
+                  className="group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 inline-flex items-center shadow-lg hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105"
                 >
-                  Browse Catalog
+                  <span>Browse Catalog</span>
+                  <svg
+                    className="w-5 h-5 ml-2 transform transition-transform group-hover:translate-x-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
+                  </svg>
                 </Link>
                 <Link
                   href="/pc-builder"
-                  className="bg-transparent text-white border-2 border-white px-8 py-3.5 rounded-full font-semibold hover:bg-white/10 transition-colors inline-block"
+                  className="group bg-transparent text-white border-2 border-white/30 hover:border-white/60 px-8 py-4 rounded-full font-semibold hover:bg-white/10 transition-all duration-300 inline-flex items-center backdrop-blur-sm"
                 >
-                  Build Your PC
+                  <span>Build Your PC</span>
+                  <svg
+                    className="w-5 h-5 ml-2 transform transition-transform group-hover:rotate-12"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                    />
+                  </svg>
                 </Link>
               </div>
             </div>
-            <div className="md:w-1/2 relative">
-              <div className="relative w-full h-64 md:h-96 lg:h-[450px]">
+
+            <div className="md:w-1/2 relative animate-fade-in-right">
+              {/* Floating Elements */}
+              <div className="absolute -top-4 -left-4 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-2xl backdrop-blur-sm border border-white/10 animate-float"></div>
+              <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-xl backdrop-blur-sm border border-white/10 animate-float delay-1000"></div>
+              <div className="absolute top-1/2 -left-8 w-12 h-12 bg-gradient-to-br from-cyan-400/20 to-blue-400/20 rounded-full backdrop-blur-sm border border-white/10 animate-float delay-500"></div>
+
+              <div className="relative w-full h-64 md:h-96 lg:h-[500px]">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl"></div>
                 <Image
                   src="/hero-computer.png"
                   alt="High-performance computer hardware"
                   fill
-                  className="object-contain drop-shadow-2xl"
+                  className="object-contain drop-shadow-2xl relative z-10 filter brightness-110"
                   priority
                 />
               </div>
             </div>
           </div>
         </div>
-
-        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent"></div>
       </section>
 
       {/* Featured Categories */}

@@ -81,6 +81,7 @@ export interface Product {
   review_count: number;
   in_stock: boolean;
   sku: string | null;
+  tax_code: string | null; // Stripe Tax code for product tax calculation
   created_at: string;
   updated_at: string;
 }
@@ -174,6 +175,7 @@ export interface Order {
   user_id: string;
   status: OrderStatus;
   total_amount: number;
+  tax_amount: number | null; // Tax amount calculated for the order
   shipping_address: string;
   billing_address: string | null;
   payment_method: string | null;

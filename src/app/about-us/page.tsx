@@ -73,13 +73,13 @@ function AboutUsContent() {
   // Company milestones
   const milestones: Milestone[] = [
     {
-      year: '2022',
+      year: '2025',
       title: 'Foundation',
       description:
         'TechCortex was founded with a mission to provide high-quality computer hardware to tech enthusiasts.',
     },
     {
-      year: '2024',
+      year: '2025',
       title: 'Online Store Launch',
       description: 'We launched our online store, making our products accessible nationwide.',
     },
@@ -142,7 +142,7 @@ function AboutUsContent() {
               <h2 className="text-3xl font-bold text-gray-900 mb-6">Our Story</h2>
               <p className="text-gray-600 mb-4">
                 TechCortex was born from a passion for technology and a vision to make high-quality
-                computer hardware accessible to everyone. Founded in 2022 by two computer
+                computer hardware accessible to everyone. Founded in 2025 by two computer
                 enthusiasts, our journey began with a simple mission: to bring top-tier components
                 to users without compromise.
               </p>

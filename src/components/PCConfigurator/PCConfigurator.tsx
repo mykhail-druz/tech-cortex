@@ -373,7 +373,11 @@ export default function PCConfigurator() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <span>{getStatusIcon(status)}</span>
+                        {issues.length > 0 ? (
+                          <span>❌</span>
+                        ) : (
+                          <span>{getStatusIcon(status)}</span>
+                        )}
                         {issues.length > 0 && (
                           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
                             {issues.length}

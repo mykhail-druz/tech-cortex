@@ -32,6 +32,21 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error in create-payment-intent route:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+
+    // Provide more detailed error information
+    let errorMessage = 'Internal server error';
+    let statusCode = 500;
+
+    if (error instanceof Error) {
+      console.error('Error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
+
+      errorMessage = `Payment error: ${error.message}`;
+    }
+
+    return NextResponse.json({ error: errorMessage }, { status: statusCode });
   }
 }
