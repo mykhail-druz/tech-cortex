@@ -3,11 +3,15 @@
 import { useState, useEffect, FormEvent } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ProductGrid from '@/components/product/ProductGrid';
+import ProductSkeleton from '@/components/product/ProductSkeleton';
 import { cn } from '@/lib/utils/utils';
-import { getProducts, getCategories, searchProductsWithSpecifications, getProductsWithSpecificationFilters } from '@/lib/supabase/db';
+import {
+  getProducts,
+  getCategories,
+  searchProductsWithSpecifications,
+  getProductsWithSpecificationFilters,
+} from '@/lib/supabase/db';
 import { Product, Category } from '@/lib/supabase/types/types';
-import { Spinner } from '@/components/ui/Spinner';
-import SpecificationFilters from '@/components/ProductFilters/SpecificationFilters';
 import FilterSidebar from '@/components/ProductFilters/FilterSidebar';
 import MobileFilterDrawer from '@/components/ProductFilters/MobileFilterDrawer';
 
@@ -23,7 +27,6 @@ export default function ProductsContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
-
 
   // Get all filter parameters from URL
   const query = searchParams.get('q') || '';
@@ -92,11 +95,20 @@ export default function ProductsContent() {
       sort: sortBy,
       inStock: inStockOnly,
       view: viewMode,
-      specs: specFilters
+      specs: specFilters,
     };
 
     localStorage.setItem('productFilters', JSON.stringify(currentFilters));
-  }, [categorySlug, subcategorySlug, minPrice, maxPrice, sortBy, inStockOnly, viewMode, specFilters]);
+  }, [
+    categorySlug,
+    subcategorySlug,
+    minPrice,
+    maxPrice,
+    sortBy,
+    inStockOnly,
+    viewMode,
+    specFilters,
+  ]);
 
   // Fetch categories only once when component mounts
   useEffect(() => {
@@ -202,7 +214,16 @@ export default function ProductsContent() {
     setLocalPriceRange([minPrice, maxPrice]);
     setSearchTerm(query);
     setSpecFilters(initialSpecFilters);
-  }, [query, categorySlug, subcategorySlug, minPrice, maxPrice, sortBy, inStockOnly, specFiltersParam]);
+  }, [
+    query,
+    categorySlug,
+    subcategorySlug,
+    minPrice,
+    maxPrice,
+    sortBy,
+    inStockOnly,
+    specFiltersParam,
+  ]);
 
   // Update URL with filter parameters
   const updateFilters = (updates: Record<string, string | null>) => {
@@ -288,8 +309,19 @@ export default function ProductsContent() {
           onClick={() => setIsMobileFiltersOpen(true)}
           className="w-full py-2 bg-gray-100 text-gray-800 rounded-md flex items-center justify-center"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"
+            />
           </svg>
           Фильтры
           {Object.keys(specFilters).length > 0 && (
@@ -394,8 +426,20 @@ export default function ProductsContent() {
 
           {/* Product grid */}
           {isProductsLoading ? (
-            <div className="bg-white rounded-lg shadow-md p-8 text-center">
-              <Spinner size="large" color="primary" text="Loading products..." centered={false} />
+            <div className="bg-white rounded-lg shadow-md p-6">
+              <div
+                className={`grid gap-6 ${
+                  viewMode === 'grid'
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                    : 'grid-cols-1'
+                }`}
+              >
+                {Array(8)
+                  .fill(0)
+                  .map((_, index) => (
+                    <ProductSkeleton key={index} layout={viewMode} />
+                  ))}
+              </div>
             </div>
           ) : (
             <ProductGrid
