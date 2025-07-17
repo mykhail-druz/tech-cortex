@@ -27,6 +27,7 @@ export default function CategoriesPage() {
     icon_url: '',
     is_subcategory: false,
     parent_id: '',
+    is_pc_component: false,
     pc_component_type: '',
     pc_required: false,
     pc_supports_multiple: false,
@@ -209,6 +210,7 @@ export default function CategoriesPage() {
       icon_url: category.icon_url || '',
       is_subcategory: category.is_subcategory || false,
       parent_id: category.parent_id || '',
+      is_pc_component: category.is_pc_component || false,
       pc_component_type: category.pc_component_type || '',
       pc_required: category.pc_required || false,
       pc_supports_multiple: category.pc_supports_multiple || false,
@@ -956,71 +958,93 @@ export default function CategoriesPage() {
             {/* PC Configurator Settings */}
             <div className="mb-4 border-t pt-4">
               <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* PC Component Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+              
+              {/* Include in PC Configurator checkbox */}
+              <div className="mb-4">
+                <div className="flex items-center">
                   <input
-                    type="text"
-                    name="pc_component_type"
-                    value={formData.pc_component_type}
-                    onChange={handleInputChange}
-                    placeholder="e.g., processor, memory, graphics-card"
-                    className="w-full p-2 border border-gray-300 rounded"
+                    type="checkbox"
+                    id="is_pc_component"
+                    name="is_pc_component"
+                    checked={formData.is_pc_component}
+                    onChange={(e) => setFormData({...formData, is_pc_component: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Identifier for PC configurator (leave empty if not a PC component)
-                  </p>
+                  <label htmlFor="is_pc_component" className="ml-2 block text-sm font-medium text-gray-900">
+                    Include in PC Configurator
+                  </label>
                 </div>
-
-                {/* PC Display Order */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                  <input
-                    type="number"
-                    name="pc_display_order"
-                    value={formData.pc_display_order}
-                    onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-2 border border-gray-300 rounded"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Order in which components appear (lower numbers first)
-                  </p>
-                </div>
-
-                {/* PC Required & Supports Multiple */}
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="pc_required"
-                      name="pc_required"
-                      checked={formData.pc_required}
-                      onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="pc_required" className="ml-2 block text-sm text-gray-900">
-                      Required Component
-                    </label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="pc_supports_multiple"
-                      name="pc_supports_multiple"
-                      checked={formData.pc_supports_multiple}
-                      onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
-                      Supports Multiple Components
-                    </label>
-                  </div>
-                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-6">
+                  When checked, this category will be available in the PC Configurator component list
+                </p>
               </div>
+
+              {formData.is_pc_component && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PC Component Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+                    <input
+                      type="text"
+                      name="pc_component_type"
+                      value={formData.pc_component_type}
+                      onChange={handleInputChange}
+                      placeholder="e.g., processor, memory, graphics-card"
+                      className="w-full p-2 border border-gray-300 rounded"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Identifier for PC configurator component type
+                    </p>
+                  </div>
+
+                  {/* PC Display Order */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                    <input
+                      type="number"
+                      name="pc_display_order"
+                      value={formData.pc_display_order}
+                      onChange={handleInputChange}
+                      min="0"
+                      className="w-full p-2 border border-gray-300 rounded"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Order in which components appear (lower numbers first)
+                    </p>
+                  </div>
+
+                  {/* PC Required & Supports Multiple */}
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="pc_required"
+                        name="pc_required"
+                        checked={formData.pc_required}
+                        onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="pc_required" className="ml-2 block text-sm text-gray-900">
+                        Required Component
+                      </label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="pc_supports_multiple"
+                        name="pc_supports_multiple"
+                        checked={formData.pc_supports_multiple}
+                        onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
+                        Supports Multiple Components
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3">
@@ -1262,71 +1286,93 @@ export default function CategoriesPage() {
             {/* PC Configurator Settings */}
             <div className="mb-4 border-t pt-4">
               <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* PC Component Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+              
+              {/* Include in PC Configurator checkbox */}
+              <div className="mb-4">
+                <div className="flex items-center">
                   <input
-                    type="text"
-                    name="pc_component_type"
-                    value={formData.pc_component_type}
-                    onChange={handleInputChange}
-                    placeholder="e.g., processor, memory, graphics-card"
-                    className="w-full p-2 border border-gray-300 rounded"
+                    type="checkbox"
+                    id="edit_is_pc_component"
+                    name="is_pc_component"
+                    checked={formData.is_pc_component}
+                    onChange={(e) => setFormData({...formData, is_pc_component: e.target.checked})}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Identifier for PC configurator (leave empty if not a PC component)
-                  </p>
+                  <label htmlFor="edit_is_pc_component" className="ml-2 block text-sm font-medium text-gray-900">
+                    Include in PC Configurator
+                  </label>
                 </div>
-
-                {/* PC Display Order */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                  <input
-                    type="number"
-                    name="pc_display_order"
-                    value={formData.pc_display_order}
-                    onChange={handleInputChange}
-                    min="0"
-                    className="w-full p-2 border border-gray-300 rounded"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Order in which components appear (lower numbers first)
-                  </p>
-                </div>
-
-                {/* PC Required & Supports Multiple */}
-                <div className="flex flex-col space-y-2">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="edit_pc_required"
-                      name="pc_required"
-                      checked={formData.pc_required}
-                      onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="edit_pc_required" className="ml-2 block text-sm text-gray-900">
-                      Required Component
-                    </label>
-                  </div>
-
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="edit_pc_supports_multiple"
-                      name="pc_supports_multiple"
-                      checked={formData.pc_supports_multiple}
-                      onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="edit_pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
-                      Supports Multiple Components
-                    </label>
-                  </div>
-                </div>
+                <p className="text-xs text-gray-500 mt-1 ml-6">
+                  When checked, this category will be available in the PC Configurator component list
+                </p>
               </div>
+
+              {formData.is_pc_component && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* PC Component Type */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+                    <input
+                      type="text"
+                      name="pc_component_type"
+                      value={formData.pc_component_type}
+                      onChange={handleInputChange}
+                      placeholder="e.g., processor, memory, graphics-card"
+                      className="w-full p-2 border border-gray-300 rounded"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Identifier for PC configurator component type
+                    </p>
+                  </div>
+
+                  {/* PC Display Order */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                    <input
+                      type="number"
+                      name="pc_display_order"
+                      value={formData.pc_display_order}
+                      onChange={handleInputChange}
+                      min="0"
+                      className="w-full p-2 border border-gray-300 rounded"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Order in which components appear (lower numbers first)
+                    </p>
+                  </div>
+
+                  {/* PC Required & Supports Multiple */}
+                  <div className="flex flex-col space-y-2">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="edit_pc_required"
+                        name="pc_required"
+                        checked={formData.pc_required}
+                        onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="edit_pc_required" className="ml-2 block text-sm text-gray-900">
+                        Required Component
+                      </label>
+                    </div>
+
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="edit_pc_supports_multiple"
+                        name="pc_supports_multiple"
+                        checked={formData.pc_supports_multiple}
+                        onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                      <label htmlFor="edit_pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
+                        Supports Multiple Components
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end space-x-3">

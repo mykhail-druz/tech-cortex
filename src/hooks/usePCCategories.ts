@@ -21,8 +21,7 @@ export const usePCCategories = () => {
       const { data, error: fetchError } = await supabase
         .from('categories')
         .select('*')
-        .not('pc_component_type', 'is', null)
-        .eq('is_subcategory', false)
+        .eq('is_pc_component', true)
         .order('pc_display_order');
 
       if (fetchError) {

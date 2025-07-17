@@ -191,6 +191,31 @@ export default function PCConfiguratorDashboard() {
           </div>
         </div>
 
+        {/* Category Order Management */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Category Order</h2>
+            <Link
+              href="/admin/pc-configurator/categories"
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Manage
+            </Link>
+          </div>
+          <p className="text-gray-600 mb-4">
+            Manage the order of categories in the PC Configurator. Drag and drop categories to
+            reorder them and control how they appear to users.
+          </p>
+          <div className="mt-4">
+            <Link
+              href="/admin/pc-configurator/categories"
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              Manage Category Order
+            </Link>
+          </div>
+        </div>
+
         {/* Analytics and Reports */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <div className="flex items-center justify-between mb-4">

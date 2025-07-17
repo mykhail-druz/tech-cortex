@@ -50,6 +50,7 @@ export interface Category {
   updated_at: string;
 
   // New fields for PC configurator
+  is_pc_component?: boolean | null; // Whether this category should be included in PC Configurator
   pc_component_type?: string | null;
   pc_icon?: string | null; // Deprecated: Use icon_url instead
   pc_required?: boolean | null;

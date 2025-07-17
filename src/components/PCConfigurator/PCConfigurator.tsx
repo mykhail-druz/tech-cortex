@@ -369,7 +369,14 @@ export default function PCConfigurator() {
                             {getCategoryDisplayName(category)}
                             {category.pc_required && <span className="text-red-500 ml-1">*</span>}
                           </div>
-                          <div className="text-xs text-gray-500">{category.description}</div>
+                          <div className="text-xs text-gray-500">
+                            {category.is_subcategory && pcCategories.find(c => c.id === category.parent_id) && 
+                              <span className="font-medium text-primary-600 mr-1">
+                                {pcCategories.find(c => c.id === category.parent_id)?.name} →
+                              </span>
+                            }
+                            {category.description}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
