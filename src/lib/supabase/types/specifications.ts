@@ -24,6 +24,7 @@ export enum SpecificationDataType {
   BOOLEAN = 'BOOLEAN',
   SOCKET = 'SOCKET',
   MEMORY_TYPE = 'MEMORY_TYPE',
+  GPU_MEMORY_TYPE = 'GPU_MEMORY_TYPE',
   POWER_CONNECTOR = 'POWER_CONNECTOR',
   FREQUENCY = 'FREQUENCY',
   MEMORY_SIZE = 'MEMORY_SIZE',
@@ -66,6 +67,7 @@ export enum ChipsetType {
   H770 = 'H770',
   Z690 = 'Z690',
   Z790 = 'Z790',
+  X870E = 'X870E',
 }
 
 export enum MemorySpeedDDR4 {
@@ -83,6 +85,22 @@ export enum MemorySpeedDDR5 {
   DDR5_5600 = 'DDR5-5600',
   DDR5_6000 = 'DDR5-6000',
   DDR5_6400 = 'DDR5-6400',
+}
+
+export enum GPUMemoryType {
+  GDDR1 = 'GDDR1',
+  GDDR2 = 'GDDR2',
+  GDDR3 = 'GDDR3',
+  GDDR4 = 'GDDR4',
+  GDDR5 = 'GDDR5',
+  GDDR5X = 'GDDR5X',
+  GDDR6 = 'GDDR6',
+  GDDR6X = 'GDDR6X',
+  GDDR7 = 'GDDR7',
+  HBM2 = 'HBM2',
+  HBM2E = 'HBM2E',
+  HBM3 = 'HBM3',
+  HBM3E = 'HBM3E',
 }
 
 export enum FormFactor {
@@ -118,9 +136,9 @@ export class SpecificationValidator {
     };
 
     // Проверка обязательности
-    if (rule.required && this.isEmpty(rawValue)) {
+    if (rule?.required && this.isEmpty(rawValue)) {
       result.isValid = false;
-      result.errors.push(`Поле "${rule.dataType}" обязательно для заполнения`);
+      result.errors.push(`Поле "${rule?.dataType || 'unknown'}" обязательно для заполнения`);
       return result;
     }
 
@@ -136,6 +154,9 @@ export class SpecificationValidator {
 
       case SpecificationDataType.MEMORY_TYPE:
         return this.validateMemoryType(rawValue, rule, context);
+
+      case SpecificationDataType.GPU_MEMORY_TYPE:
+        return this.validateGPUMemoryType(rawValue, rule, context);
 
       case SpecificationDataType.FREQUENCY:
         return this.validateFrequency(rawValue, rule);
@@ -231,6 +252,207 @@ export class SpecificationValidator {
             `Поддерживаемые типы: ${compatibleMemory.join(', ')}`
         );
       }
+    }
+
+    return result;
+  }
+
+  /**
+   * Валидация типа памяти
+   */
+  private static validateMemoryType(
+    rawValue: any,
+    rule: SpecificationValidationRule,
+    context?: Record<string, TypedSpecificationValue>
+  ): SpecificationValidationResult {
+    const result: SpecificationValidationResult = {
+      isValid: true,
+      normalizedValue: {},
+      errors: [],
+      warnings: [],
+      suggestions: [],
+    };
+
+    // Нормализация входного значения
+    const normalizedInput = String(rawValue).trim().toUpperCase();
+
+    // Маппинг различных вариантов написания к стандартным
+    const memoryTypeMapping: Record<string, MemoryType> = {
+      DDR4: MemoryType.DDR4,
+      'DDR 4': MemoryType.DDR4,
+      'DDR-4': MemoryType.DDR4,
+
+      DDR5: MemoryType.DDR5,
+      'DDR 5': MemoryType.DDR5,
+      'DDR-5': MemoryType.DDR5,
+    };
+
+    const mappedMemoryType = memoryTypeMapping[normalizedInput];
+
+    if (!mappedMemoryType) {
+      result.isValid = false;
+      result.errors.push(
+        `Неизвестный тип памяти: "${rawValue}". Поддерживаемые: ${Object.values(MemoryType).join(', ')}`
+      );
+      result.suggestions = Object.values(MemoryType);
+      return result;
+    }
+
+    result.normalizedValue.enumValue = mappedMemoryType;
+
+    // БИЗНЕС-ЛОГИКА: Проверка совместимости с сокетом
+    if (context?.socket?.enumValue) {
+      const socket = context.socket.enumValue as SocketType;
+      const compatibleMemory = SOCKET_MEMORY_COMPATIBILITY[socket];
+
+      if (compatibleMemory && !compatibleMemory.includes(mappedMemoryType)) {
+        result.warnings.push(
+          `⚠️ Тип памяти ${mappedMemoryType} может быть не совместим с сокетом ${socket}. ` +
+            `Рекомендуемые типы: ${compatibleMemory.join(', ')}`
+        );
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Валидация типа памяти GPU (GDDR)
+   */
+  private static validateGPUMemoryType(
+    rawValue: any,
+    rule: SpecificationValidationRule,
+    context?: Record<string, TypedSpecificationValue>
+  ): SpecificationValidationResult {
+    const result: SpecificationValidationResult = {
+      isValid: true,
+      normalizedValue: {},
+      errors: [],
+      warnings: [],
+      suggestions: [],
+    };
+
+    // Нормализация входного значения
+    const normalizedInput = String(rawValue).trim().toUpperCase();
+
+    // Маппинг различных вариантов написания к стандартным GDDR типам
+    const gpuMemoryTypeMapping: Record<string, GPUMemoryType> = {
+      // GDDR1 варианты
+      GDDR1: GPUMemoryType.GDDR1,
+      'GDDR 1': GPUMemoryType.GDDR1,
+      'GDDR-1': GPUMemoryType.GDDR1,
+      'G DDR1': GPUMemoryType.GDDR1,
+
+      // GDDR2 варианты
+      GDDR2: GPUMemoryType.GDDR2,
+      'GDDR 2': GPUMemoryType.GDDR2,
+      'GDDR-2': GPUMemoryType.GDDR2,
+      'G DDR2': GPUMemoryType.GDDR2,
+
+      // GDDR3 варианты
+      GDDR3: GPUMemoryType.GDDR3,
+      'GDDR 3': GPUMemoryType.GDDR3,
+      'GDDR-3': GPUMemoryType.GDDR3,
+      'G DDR3': GPUMemoryType.GDDR3,
+
+      // GDDR4 варианты
+      GDDR4: GPUMemoryType.GDDR4,
+      'GDDR 4': GPUMemoryType.GDDR4,
+      'GDDR-4': GPUMemoryType.GDDR4,
+      'G DDR4': GPUMemoryType.GDDR4,
+
+      // GDDR5 варианты
+      GDDR5: GPUMemoryType.GDDR5,
+      'GDDR 5': GPUMemoryType.GDDR5,
+      'GDDR-5': GPUMemoryType.GDDR5,
+      'G DDR5': GPUMemoryType.GDDR5,
+
+      // GDDR5X варианты
+      GDDR5X: GPUMemoryType.GDDR5X,
+      'GDDR 5X': GPUMemoryType.GDDR5X,
+      'GDDR-5X': GPUMemoryType.GDDR5X,
+      'GDDR5 X': GPUMemoryType.GDDR5X,
+
+      // GDDR6 варианты
+      GDDR6: GPUMemoryType.GDDR6,
+      'GDDR 6': GPUMemoryType.GDDR6,
+      'GDDR-6': GPUMemoryType.GDDR6,
+      'G DDR6': GPUMemoryType.GDDR6,
+
+      // GDDR6X варианты
+      GDDR6X: GPUMemoryType.GDDR6X,
+      'GDDR 6X': GPUMemoryType.GDDR6X,
+      'GDDR-6X': GPUMemoryType.GDDR6X,
+      'GDDR6 X': GPUMemoryType.GDDR6X,
+
+      // GDDR7 варианты
+      GDDR7: GPUMemoryType.GDDR7,
+      'GDDR 7': GPUMemoryType.GDDR7,
+      'GDDR-7': GPUMemoryType.GDDR7,
+      'G DDR7': GPUMemoryType.GDDR7,
+
+      // HBM варианты
+      HBM2: GPUMemoryType.HBM2,
+      'HBM 2': GPUMemoryType.HBM2,
+      'HBM-2': GPUMemoryType.HBM2,
+
+      HBM2E: GPUMemoryType.HBM2E,
+      'HBM 2E': GPUMemoryType.HBM2E,
+      'HBM-2E': GPUMemoryType.HBM2E,
+      'HBM2 E': GPUMemoryType.HBM2E,
+
+      HBM3: GPUMemoryType.HBM3,
+      'HBM 3': GPUMemoryType.HBM3,
+      'HBM-3': GPUMemoryType.HBM3,
+
+      HBM3E: GPUMemoryType.HBM3E,
+      'HBM 3E': GPUMemoryType.HBM3E,
+      'HBM-3E': GPUMemoryType.HBM3E,
+      'HBM3 E': GPUMemoryType.HBM3E,
+    };
+
+    const mappedGPUMemoryType = gpuMemoryTypeMapping[normalizedInput];
+
+    if (!mappedGPUMemoryType) {
+      result.isValid = false;
+      result.errors.push(
+        `Неизвестный тип видеопамяти: "${rawValue}". Поддерживаемые: ${Object.values(GPUMemoryType).join(', ')}`
+      );
+      result.suggestions = Object.values(GPUMemoryType);
+      return result;
+    }
+
+    result.normalizedValue.enumValue = mappedGPUMemoryType;
+
+    // БИЗНЕС-ЛОГИКА: Добавляем информационные сообщения о производительности
+    if (mappedGPUMemoryType === GPUMemoryType.GDDR1) {
+      result.warnings.push(
+        `🔴 GDDR1 - крайне устаревший тип памяти (2000-2003). Используется только в винтажных видеокартах.`
+      );
+    } else if (mappedGPUMemoryType === GPUMemoryType.GDDR2) {
+      result.warnings.push(
+        `🔴 GDDR2 - очень устаревший тип памяти (2003-2006). Не подходит для современных задач.`
+      );
+    } else if (mappedGPUMemoryType === GPUMemoryType.GDDR3) {
+      result.warnings.push(
+        `🟠 GDDR3 - устаревший тип памяти (2004-2008). Ограниченная производительность для современных игр.`
+      );
+    } else if (mappedGPUMemoryType === GPUMemoryType.GDDR4) {
+      result.warnings.push(
+        `🟠 GDDR4 - устаревший тип памяти (2007-2010). Не рекомендуется для современных приложений.`
+      );
+    } else if (mappedGPUMemoryType === GPUMemoryType.GDDR5) {
+      result.warnings.push(
+        `⚠️ GDDR5 - устаревший тип памяти. Рекомендуется GDDR6 или новее для современных игр.`
+      );
+    } else if (mappedGPUMemoryType === GPUMemoryType.GDDR7) {
+      result.warnings.push(
+        `✨ GDDR7 - новейший тип видеопамяти с максимальной производительностью.`
+      );
+    } else if (mappedGPUMemoryType.startsWith('HBM')) {
+      result.warnings.push(
+        `🚀 ${mappedGPUMemoryType} - высокопроизводительная память, используется в топовых видеокартах.`
+      );
     }
 
     return result;
@@ -341,6 +563,69 @@ export class SpecificationValidator {
 
     result.normalizedValue.numberValue = size;
     result.normalizedValue.unit = 'GB';
+
+    return result;
+  }
+
+  /**
+   * Валидация мощности с автоконвертацией единиц
+   */
+  private static validatePower(
+    rawValue: any,
+    rule: SpecificationValidationRule
+  ): SpecificationValidationResult {
+    const result: SpecificationValidationResult = {
+      isValid: true,
+      normalizedValue: {},
+      errors: [],
+      warnings: [],
+      suggestions: [],
+    };
+
+    const input = String(rawValue).trim();
+
+    // Регулярка для парсинга мощности
+    const powerRegex = /^(\d+(?:\.\d+)?)\s*(w|kw|вт|квт)?$/i;
+    const match = input.match(powerRegex);
+
+    if (!match) {
+      result.isValid = false;
+      result.errors.push(
+        `Неверный формат мощности: "${rawValue}". Примеры: "250", "250 W", "0.25 kW"`
+      );
+      return result;
+    }
+
+    let power = parseFloat(match[1]);
+    const unit = match[2]?.toLowerCase();
+
+    // Автоконвертация в W
+    if (unit === 'kw' || unit === 'квт') {
+      power = power * 1000;
+    }
+
+    // Проверка диапазона
+    if (rule.minValue && power < rule.minValue) {
+      result.isValid = false;
+      result.errors.push(`Мощность слишком низкая: ${power} W. Минимум: ${rule.minValue} W`);
+    }
+
+    if (rule.maxValue && power > rule.maxValue) {
+      result.isValid = false;
+      result.errors.push(`Мощность слишком высокая: ${power} W. Максимум: ${rule.maxValue} W`);
+    }
+
+    // Проверка разумных диапазонов
+    if (power < 1) {
+      result.warnings.push(`Очень низкая мощность: ${power} W`);
+    }
+
+    if (power > 2000) {
+      result.warnings.push(`Очень высокая мощность: ${power} W`);
+    }
+
+    result.normalizedValue.numberValue = power;
+    result.normalizedValue.unit = 'W';
 
     return result;
   }
@@ -568,14 +853,18 @@ export interface ValidationResult {
   isValid: boolean;
   issues: CompatibilityIssue[];
   warnings: CompatibilityIssue[];
-  powerConsumption?: number;
+  powerConsumption?: number; // Deprecated: use actualPowerConsumption instead
+  actualPowerConsumption?: number;
+  recommendedPsuPower?: number;
 }
 
 export interface EnhancedPCConfiguration {
   components: Record<string, string | string[]>;
   compatibilityStatus: 'valid' | 'warning' | 'error';
   totalPrice?: number;
-  powerConsumption?: number;
+  powerConsumption?: number; // Deprecated: use actualPowerConsumption instead
+  actualPowerConsumption?: number;
+  recommendedPsuPower?: number;
 }
 
 export interface EnumMetadata {
@@ -629,3 +918,37 @@ export const SPECIFICATION_ENUMS: Record<string, EnumMetadata> = {
     description: 'Скорости памяти DDR5',
   },
 } as const;
+
+// Константы совместимости для валидации
+export const SOCKET_MEMORY_COMPATIBILITY: Record<SocketType, MemoryType[]> = {
+  [SocketType.AM4]: [MemoryType.DDR4],
+  [SocketType.AM5]: [MemoryType.DDR5],
+  [SocketType.LGA1700]: [MemoryType.DDR4, MemoryType.DDR5],
+  [SocketType.LGA1200]: [MemoryType.DDR4],
+  [SocketType.LGA1151]: [MemoryType.DDR4],
+  [SocketType.LGA2066]: [MemoryType.DDR4],
+};
+
+export const CHIPSET_SOCKET_COMPATIBILITY: Record<ChipsetType, SocketType[]> = {
+  // AMD Chipsets
+  [ChipsetType.B450]: [SocketType.AM4],
+  [ChipsetType.B550]: [SocketType.AM4],
+  [ChipsetType.X570]: [SocketType.AM4],
+  [ChipsetType.X670E]: [SocketType.AM5],
+  [ChipsetType.B650]: [SocketType.AM5],
+  [ChipsetType.B650E]: [SocketType.AM5],
+  [ChipsetType.X670]: [SocketType.AM5],
+  [ChipsetType.X870E]: [SocketType.AM5],
+
+  // Intel Chipsets
+  [ChipsetType.B560]: [SocketType.LGA1200],
+  [ChipsetType.Z490]: [SocketType.LGA1200],
+  [ChipsetType.Z590]: [SocketType.LGA1200],
+  [ChipsetType.B660]: [SocketType.LGA1700],
+  [ChipsetType.B760]: [SocketType.LGA1700],
+  [ChipsetType.H610]: [SocketType.LGA1700],
+  [ChipsetType.H670]: [SocketType.LGA1700],
+  [ChipsetType.H770]: [SocketType.LGA1700],
+  [ChipsetType.Z690]: [SocketType.LGA1700],
+  [ChipsetType.Z790]: [SocketType.LGA1700],
+};

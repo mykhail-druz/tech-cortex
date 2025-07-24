@@ -132,7 +132,7 @@ export default function ConfigurationSummary({
 
         {/* Additional information */}
         <div className="mt-6 pt-6 border-t">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
             {/* Compatibility status */}
             <div className="text-center">
               <div
@@ -151,13 +151,23 @@ export default function ConfigurationSummary({
               <div className="text-gray-600 mt-1">Compatibility</div>
             </div>
 
-            {/* Power consumption */}
-            {configuration.powerConsumption && (
+            {/* Actual Power Consumption */}
+            {configuration.actualPowerConsumption && (
               <div className="text-center">
-                <div className="text-lg font-semibold text-gray-900">
-                  {configuration.powerConsumption}W
+                <div className="text-lg font-semibold text-orange-600">
+                  {configuration.actualPowerConsumption}W
                 </div>
                 <div className="text-gray-600">Power Consumption</div>
+              </div>
+            )}
+
+            {/* Recommended PSU Power */}
+            {configuration.recommendedPsuPower && (
+              <div className="text-center">
+                <div className="text-lg font-semibold text-blue-600">
+                  {configuration.recommendedPsuPower}W
+                </div>
+                <div className="text-gray-600">Recommended PSU</div>
               </div>
             )}
 

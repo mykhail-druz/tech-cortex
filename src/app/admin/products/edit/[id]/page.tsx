@@ -15,6 +15,7 @@ import {
   ProductImage,
 } from '@/lib/supabase/types/types';
 import Link from 'next/link';
+import SmartProductSpecificationForm from '@/components/admin/SmartProductSpecificationForm';
 
 export default function EditProductPage({ params }: { params: { id: string } }) {
   const unwrappedParams = React.use(params);
@@ -901,8 +902,31 @@ export default function EditProductPage({ params }: { params: { id: string } }) 
             ></textarea>
           </div>
 
-          {/* Product Specifications */}
-          <div className="mb-6">
+          {/* Smart Product Specifications */}
+          {formData.category_id && (
+            <div className="mb-6">
+              <SmartProductSpecificationForm
+                categoryId={formData.category_id}
+                productId={productId}
+                initialSpecifications={specifications.map(spec => ({
+                  specificationId: spec.id,
+                  name: spec.name,
+                  value: spec.value
+                }))}
+                onSpecificationsChange={(specifications) => {
+                  console.log('Smart specifications updated:', specifications);
+                  // Optionally handle specification changes
+                }}
+                onValidationChange={(isValid) => {
+                  console.log('Specification form validation:', isValid);
+                  // Optionally handle validation changes
+                }}
+              />
+            </div>
+          )}
+
+          {/* Legacy Product Specifications (for reference) */}
+          <div className="mb-6" style={{ display: 'none' }}>
             <h3 className="text-lg font-medium text-gray-900 mb-3">Product Specifications</h3>
 
             {/* Specifications List */}

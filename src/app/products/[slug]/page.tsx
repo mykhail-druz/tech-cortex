@@ -13,6 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import AddToWishlistButton from '@/components/product/AddToWishlistButton';
 import AddToCompareButton from '@/components/product/AddToCompareButton';
 import ReviewSection from '@/components/review/ReviewSection';
+import { getSpecDisplayName } from '@/lib/utils/specificationDisplayNames';
 // Import Swiper components and styles
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Thumbs, FreeMode, Zoom } from 'swiper/modules';
@@ -655,7 +656,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                       onClick={() => {
                         // Create a formatted string of all specifications
                         const specsText = product.specifications
-                          .map(spec => `${spec.name}: ${spec.value}`)
+                          .map(spec => `${getSpecDisplayName(spec)}: ${spec.value}`)
                           .join('\n');
 
                         // Copy to clipboard
@@ -698,7 +699,7 @@ export default function ProductPage({ params }: { params: { slug: string } }) {
                       >
                         <div className="sm:flex sm:items-baseline sm:w-[40%] mb-1 sm:mb-0">
                           <span className="font-medium text-gray-900 sm:min-w-[120px]">
-                            {spec.template ? spec.template.display_name : spec.name}
+                            {getSpecDisplayName(spec)}
                           </span>
                           {spec.template && spec.template.units && (
                             <span className="text-gray-500 text-xs ml-1">

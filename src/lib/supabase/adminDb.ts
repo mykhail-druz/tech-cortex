@@ -292,7 +292,25 @@ export const updateProduct = async (
 
 export const deleteProduct = async (id: string): Promise<DeleteResponse> => {
   try {
-    // First, get the product to get its main_image_url
+    // First, check if the product is referenced in order_items
+    const { data: orderItems, error: orderItemsError } = await supabase
+      .from('order_items')
+      .select('id')
+      .eq('product_id', id)
+      .limit(1);
+
+    if (orderItemsError) {
+      console.error('Error checking order items for product deletion:', orderItemsError);
+      return { error: orderItemsError };
+    }
+
+    // If the product is referenced in order_items, prevent deletion
+    if (orderItems && orderItems.length > 0) {
+      const error = new Error('Cannot delete product that has been ordered. This product exists in order history and must be preserved for record keeping.');
+      return { error };
+    }
+
+    // Get the product to get its main_image_url
     const { data: product, error: fetchProductError } = await supabase
       .from('products')
       .select('main_image_url')
@@ -333,7 +351,7 @@ export const deleteProduct = async (id: string): Promise<DeleteResponse> => {
     }
 
     // Now delete the product from the database
-    // This will cascade delete the product_images records due to the ON DELETE CASCADE constraint
+    // This will cascade delete the product_images, cart_items, reviews, and wishlist_items records
     const response = await supabase.from('products').delete().eq('id', id);
     return { error: response.error };
   } catch (error) {

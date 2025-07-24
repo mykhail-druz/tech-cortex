@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
 import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types/types';
+import SmartSpecificationManager from '@/components/admin/SmartSpecificationManager';
 
 export default function CategoriesPage() {
   // const { user } = useAuth(); // Commented out as it's not being used
@@ -55,6 +55,58 @@ export default function CategoriesPage() {
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [templateFormErrors, setTemplateFormErrors] = useState<Record<string, string>>({});
 
+  // UI state for hierarchical display
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [sortBy, setSortBy] = useState<'name' | 'created_at'>('name');
+  const [filterText, setFilterText] = useState('');
+
+  // Helper functions for hierarchical display
+  const getMainCategories = () => {
+    return categories.filter(cat => !cat.is_subcategory);
+  };
+
+  const getSubcategories = (parentId: string) => {
+    return categories.filter(cat => cat.is_subcategory && cat.parent_id === parentId);
+  };
+
+  const getFilteredAndSortedCategories = () => {
+    let filtered = categories;
+
+    if (filterText) {
+      filtered = categories.filter(
+        cat =>
+          cat.name.toLowerCase().includes(filterText.toLowerCase()) ||
+          cat.description?.toLowerCase().includes(filterText.toLowerCase()) ||
+          cat.slug.toLowerCase().includes(filterText.toLowerCase())
+      );
+    }
+
+    return filtered.sort((a, b) => {
+      if (sortBy === 'name') {
+        return a.name.localeCompare(b.name);
+      } else {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+    });
+  };
+
+  const toggleCategoryExpansion = (categoryId: string) => {
+    const newExpanded = new Set(expandedCategories);
+    if (newExpanded.has(categoryId)) {
+      newExpanded.delete(categoryId);
+    } else {
+      newExpanded.add(categoryId);
+    }
+    setExpandedCategories(newExpanded);
+  };
+
+  // Initialize expanded state for all main categories
+  useEffect(() => {
+    const mainCategories = getMainCategories();
+    const allExpanded = new Set(mainCategories.map(cat => cat.id));
+    setExpandedCategories(allExpanded);
+  }, [categories]);
+
   // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
@@ -74,24 +126,86 @@ export default function CategoriesPage() {
   }, []);
 
   // Generate slug from name
-  const generateSlug = (name: string) => {
-    return name
+  const generateSlug = (name: string, parentSlug?: string) => {
+    const baseSlug = name
       .toLowerCase()
-      .replace(/[^\w\s-]/g, '')
+      .replace(/[^a-zA-Zа-яё0-9\s-]/g, '') // Keep Latin, Cyrillic, numbers, spaces, and hyphens
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
+
+    // If parentSlug is provided, create composite slug for subcategory
+    if (parentSlug) {
+      return `${parentSlug}-${baseSlug}`;
+    }
+
+    return baseSlug;
   };
 
   // Handle form input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
 
     if (name === 'name') {
       // Auto-generate slug when name changes
+      let newSlug = generateSlug(value);
+
+      // If this is a subcategory, include parent slug
+      if (formData.is_subcategory && formData.parent_id) {
+        const parentCategory = categories.find(cat => cat.id === formData.parent_id);
+        if (parentCategory) {
+          newSlug = generateSlug(value, parentCategory.slug);
+        }
+      }
+
       setFormData({
         ...formData,
         name: value,
-        slug: generateSlug(value),
+        slug: newSlug,
+      });
+    } else if (name === 'parent_id') {
+      // When parent changes, regenerate slug if we have a name
+      let newSlug = formData.slug;
+
+      if (formData.name && formData.is_subcategory && value) {
+        const parentCategory = categories.find(cat => cat.id === value);
+        if (parentCategory) {
+          newSlug = generateSlug(formData.name, parentCategory.slug);
+        }
+      } else if (formData.name && (!formData.is_subcategory || !value)) {
+        // If switching from subcategory to main category or clearing parent
+        newSlug = generateSlug(formData.name);
+      }
+
+      setFormData({
+        ...formData,
+        [name]: value,
+        slug: newSlug,
+      });
+    } else if (name === 'is_subcategory') {
+      // When subcategory status changes, regenerate slug
+      const isSubcategory = value === 'true' || value === true;
+      let newSlug = formData.slug;
+
+      if (formData.name) {
+        if (isSubcategory && formData.parent_id) {
+          const parentCategory = categories.find(cat => cat.id === formData.parent_id);
+          if (parentCategory) {
+            newSlug = generateSlug(formData.name, parentCategory.slug);
+          }
+        } else if (!isSubcategory) {
+          // Switching to main category, use simple slug
+          newSlug = generateSlug(formData.name);
+        }
+      }
+
+      setFormData({
+        ...formData,
+        [name]: isSubcategory,
+        slug: newSlug,
+        // Clear parent_id if switching to main category
+        parent_id: isSubcategory ? formData.parent_id : '',
       });
     } else {
       setFormData({
@@ -171,11 +285,6 @@ export default function CategoriesPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // Add a function to get main categories (for parent selection)
-  const getMainCategories = () => {
-    return categories.filter(cat => !cat.is_subcategory);
-  };
-
   // Open add category modal
   const openAddModal = () => {
     setFormData({
@@ -186,6 +295,7 @@ export default function CategoriesPage() {
       icon_url: '',
       is_subcategory: false,
       parent_id: '',
+      is_pc_component: false,
       pc_component_type: '',
       pc_required: false,
       pc_supports_multiple: false,
@@ -307,7 +417,8 @@ export default function CategoriesPage() {
         display_order: specTemplates.length,
       };
 
-      const { data, error } = await adminDbService.createCategorySpecificationTemplate(templateData);
+      const { data, error } =
+        await adminDbService.createCategorySpecificationTemplate(templateData);
 
       if (error) {
         throw error;
@@ -374,7 +485,7 @@ export default function CategoriesPage() {
       }
 
       if (data) {
-        setSpecTemplates(prev => 
+        setSpecTemplates(prev =>
           prev.map(template => (template.id === editingTemplateId ? data : template))
         );
         setEditingTemplateId(null);
@@ -469,7 +580,9 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error creating category:', error);
-        toast.error(`Failed to create category: ${error.message || JSON.stringify(error) || 'Unknown error'}`);
+        toast.error(
+          `Failed to create category: ${error.message || JSON.stringify(error) || 'Unknown error'}`
+        );
         return;
       }
 
@@ -552,7 +665,9 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error updating category:', error);
-        toast.error(`Failed to update category: ${error.message || JSON.stringify(error) || 'Unknown error'}`);
+        toast.error(
+          `Failed to update category: ${error.message || JSON.stringify(error) || 'Unknown error'}`
+        );
         return;
       }
 
@@ -587,7 +702,9 @@ export default function CategoriesPage() {
 
       if (error) {
         console.error('Error deleting category:', error);
-        toast.error(error.message || JSON.stringify(error) || 'Failed to delete category. Please try again.');
+        toast.error(
+          error.message || JSON.stringify(error) || 'Failed to delete category. Please try again.'
+        );
         return;
       }
 
@@ -627,122 +744,283 @@ export default function CategoriesPage() {
         </button>
       </div>
 
-      {/* Categories Table */}
+      {/* Filter and Sort Controls */}
+      <div className="bg-white rounded-lg shadow p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex-1">
+            <label htmlFor="filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Search Categories
+            </label>
+            <input
+              type="text"
+              id="filter"
+              value={filterText}
+              onChange={e => setFilterText(e.target.value)}
+              placeholder="Search by name, description, or slug..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <div className="sm:w-48">
+            <label htmlFor="sort" className="block text-sm font-medium text-gray-700 mb-1">
+              Sort By
+            </label>
+            <select
+              id="sort"
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as 'name' | 'created_at')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="name">Name (A-Z)</option>
+              <option value="created_at">Date Created</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Hierarchical Categories Display */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Type
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Parent
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Slug
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                PC Component
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {categories.length > 0 ? (
-              categories.map(category => (
-                <tr key={category.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      {category.image_url && (
-                        <div className="flex-shrink-0 h-10 w-10 mr-4">
-                          <div className="relative h-10 w-10 rounded-full overflow-hidden">
-                            <Image
-                              className="object-cover"
-                              src={category.image_url}
-                              alt={category.name}
-                              fill
-                              sizes="40px"
-                            />
+        {categories.length > 0 ? (
+          <div className="divide-y divide-gray-200">
+            {getFilteredAndSortedCategories()
+              .filter(cat => !cat.is_subcategory)
+              .map(mainCategory => {
+                const subcategories = getSubcategories(mainCategory.id);
+                const isExpanded = expandedCategories.has(mainCategory.id);
+
+                return (
+                  <div key={mainCategory.id} className="bg-white">
+                    {/* Main Category Row */}
+                    <div className="px-6 py-4 border-l-4 border-blue-500 bg-blue-50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center flex-1">
+                          {/* Expand/Collapse Button */}
+                          {subcategories.length > 0 && (
+                            <button
+                              onClick={() => toggleCategoryExpansion(mainCategory.id)}
+                              className="mr-3 p-1 rounded hover:bg-blue-100 transition-colors"
+                            >
+                              <svg
+                                className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                          )}
+
+                          {/* Category Image */}
+                          {mainCategory.image_url && (
+                            <div className="flex-shrink-0 h-12 w-12 mr-4">
+                              <div className="relative h-12 w-12 rounded-lg overflow-hidden">
+                                <Image
+                                  className="object-cover"
+                                  src={mainCategory.image_url}
+                                  alt={mainCategory.name}
+                                  fill
+                                  sizes="48px"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Category Info */}
+                          <div className="flex-1">
+                            <div className="flex items-center">
+                              <h3 className="text-lg font-semibold text-gray-900 mr-3">
+                                {mainCategory.name}
+                              </h3>
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                Main Category
+                              </span>
+                              {subcategories.length > 0 && (
+                                <span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                  {subcategories.length} subcategories
+                                </span>
+                              )}
+                            </div>
+                            <div className="mt-1 text-sm text-gray-600">
+                              <span className="font-medium">Slug:</span> {mainCategory.slug}
+                            </div>
+                            {mainCategory.description && (
+                              <div className="mt-1 text-sm text-gray-600">
+                                {mainCategory.description}
+                              </div>
+                            )}
+                            {mainCategory.pc_component_type && (
+                              <div className="mt-2 flex items-center">
+                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                  PC Component: {mainCategory.pc_component_type}
+                                  {mainCategory.pc_required && (
+                                    <span className="ml-1 text-red-600">*</span>
+                                  )}
+                                  {mainCategory.pc_supports_multiple && (
+                                    <span className="ml-1 text-blue-600">(multiple)</span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      )}
-                      <div className="text-sm font-medium text-gray-900">{category.name}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.is_subcategory ? 'Subcategory' : 'Main Category'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.is_subcategory
-                      ? categories.find(c => c.id === category.parent_id)?.name || 'Unknown'
-                      : '-'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.slug}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                    {category.description || 'No description'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {category.pc_component_type ? (
-                      <div className="flex items-center">
-                        <span className="font-medium">{category.pc_component_type}</span>
-                        {category.pc_required && <span className="ml-1 text-red-500">*</span>}
-                        {category.pc_supports_multiple && <span className="ml-1 text-blue-500">(multiple)</span>}
+
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => openEditModal(mainCategory)}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => openTemplatesModal(mainCategory)}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-green-700 bg-green-100 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                          >
+                            Spec Templates
+                          </button>
+                          <button
+                            onClick={() => openDeleteModal(mainCategory)}
+                            className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
-                    ) : (
-                      'Not a PC component'
+                    </div>
+
+                    {/* Subcategories */}
+                    {isExpanded && subcategories.length > 0 && (
+                      <div className="bg-gray-50">
+                        {subcategories
+                          .filter(
+                            sub =>
+                              !filterText ||
+                              sub.name.toLowerCase().includes(filterText.toLowerCase()) ||
+                              sub.description?.toLowerCase().includes(filterText.toLowerCase()) ||
+                              sub.slug.toLowerCase().includes(filterText.toLowerCase())
+                          )
+                          .sort((a, b) => {
+                            if (sortBy === 'name') {
+                              return a.name.localeCompare(b.name);
+                            } else {
+                              return (
+                                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                              );
+                            }
+                          })
+                          .map(subcategory => (
+                            <div
+                              key={subcategory.id}
+                              className="px-6 py-3 ml-8 border-l-2 border-gray-300"
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center flex-1">
+                                  {/* Subcategory Image */}
+                                  {subcategory.image_url && (
+                                    <div className="flex-shrink-0 h-8 w-8 mr-3">
+                                      <div className="relative h-8 w-8 rounded overflow-hidden">
+                                        <Image
+                                          className="object-cover"
+                                          src={subcategory.image_url}
+                                          alt={subcategory.name}
+                                          fill
+                                          sizes="32px"
+                                        />
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Subcategory Info */}
+                                  <div className="flex-1">
+                                    <div className="flex items-center">
+                                      <h4 className="text-base font-medium text-gray-900 mr-3">
+                                        {subcategory.name}
+                                      </h4>
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-200 text-gray-800">
+                                        Subcategory
+                                      </span>
+                                    </div>
+                                    <div className="mt-1 text-sm text-gray-600">
+                                      <span className="font-medium">Slug:</span> {subcategory.slug}
+                                    </div>
+                                    {subcategory.description && (
+                                      <div className="mt-1 text-sm text-gray-600">
+                                        {subcategory.description}
+                                      </div>
+                                    )}
+                                    {subcategory.pc_component_type && (
+                                      <div className="mt-2 flex items-center">
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                          PC Component: {subcategory.pc_component_type}
+                                          {subcategory.pc_required && (
+                                            <span className="ml-1 text-red-600">*</span>
+                                          )}
+                                          {subcategory.pc_supports_multiple && (
+                                            <span className="ml-1 text-blue-600">(multiple)</span>
+                                          )}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Subcategory Actions */}
+                                <div className="flex items-center space-x-2">
+                                  <button
+                                    onClick={() => openEditModal(subcategory)}
+                                    className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => openDeleteModal(subcategory)}
+                                    className="inline-flex items-center px-2 py-1 border border-transparent text-xs font-medium rounded text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button
-                      onClick={() => openEditModal(category)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-3"
-                    >
-                      Edit
-                    </button>
-                    {/* Only show Spec Templates button for root categories */}
-                    {!category.is_subcategory && (
-                      <button
-                        onClick={() => openTemplatesModal(category)}
-                        className="text-green-600 hover:text-green-900 mr-3"
-                      >
-                        Spec Templates
-                      </button>
-                    )}
-                    <button
-                      onClick={() => openDeleteModal(category)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
-                  No categories found. Add your first category to get started.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  </div>
+                );
+              })}
+          </div>
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <div className="text-gray-500">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No categories found</h3>
+              <p className="mt-1 text-sm text-gray-500">Add your first category to get started.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Add Category Modal */}
       {showAddModal && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
+          onClick={e => {
             // Close modal when clicking outside (on the overlay)
             if (e.target === e.currentTarget) {
               setShowAddModal(false);
@@ -750,7 +1028,9 @@ export default function CategoriesPage() {
           }}
         >
           <div className="bg-white rounded-lg p-6 md:p-8 max-w-md md:max-w-lg lg:max-w-xl w-full max-h-[90vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold mb-4 sticky top-0 bg-white pt-2">Add New Category</h2>
+            <h2 className="text-xl font-semibold mb-4 sticky top-0 bg-white pt-2">
+              Add New Category
+            </h2>
 
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Name*</label>
@@ -850,7 +1130,9 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Main Category Image */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Main Category Image</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Main Category Image
+                </label>
                 <div className="flex flex-col space-y-2">
                   <input
                     type="file"
@@ -903,7 +1185,9 @@ export default function CategoriesPage() {
 
               {/* Category Icon */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category Icon</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Icon
+                </label>
                 <div className="flex flex-col space-y-2">
                   <input
                     type="file"
@@ -958,7 +1242,7 @@ export default function CategoriesPage() {
             {/* PC Configurator Settings */}
             <div className="mb-4 border-t pt-4">
               <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
-              
+
               {/* Include in PC Configurator checkbox */}
               <div className="mb-4">
                 <div className="flex items-center">
@@ -967,15 +1251,19 @@ export default function CategoriesPage() {
                     id="is_pc_component"
                     name="is_pc_component"
                     checked={formData.is_pc_component}
-                    onChange={(e) => setFormData({...formData, is_pc_component: e.target.checked})}
+                    onChange={e => setFormData({ ...formData, is_pc_component: e.target.checked })}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="is_pc_component" className="ml-2 block text-sm font-medium text-gray-900">
+                  <label
+                    htmlFor="is_pc_component"
+                    className="ml-2 block text-sm font-medium text-gray-900"
+                  >
                     Include in PC Configurator
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 mt-1 ml-6">
-                  When checked, this category will be available in the PC Configurator component list
+                  When checked, this category will be available in the PC Configurator component
+                  list
                 </p>
               </div>
 
@@ -983,7 +1271,9 @@ export default function CategoriesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* PC Component Type */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Component Type
+                    </label>
                     <input
                       type="text"
                       name="pc_component_type"
@@ -999,7 +1289,9 @@ export default function CategoriesPage() {
 
                   {/* PC Display Order */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Display Order
+                    </label>
                     <input
                       type="number"
                       name="pc_display_order"
@@ -1021,7 +1313,7 @@ export default function CategoriesPage() {
                         id="pc_required"
                         name="pc_required"
                         checked={formData.pc_required}
-                        onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
+                        onChange={e => setFormData({ ...formData, pc_required: e.target.checked })}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
                       <label htmlFor="pc_required" className="ml-2 block text-sm text-gray-900">
@@ -1035,10 +1327,15 @@ export default function CategoriesPage() {
                         id="pc_supports_multiple"
                         name="pc_supports_multiple"
                         checked={formData.pc_supports_multiple}
-                        onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
+                        onChange={e =>
+                          setFormData({ ...formData, pc_supports_multiple: e.target.checked })
+                        }
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
-                      <label htmlFor="pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
+                      <label
+                        htmlFor="pc_supports_multiple"
+                        className="ml-2 block text-sm text-gray-900"
+                      >
                         Supports Multiple Components
                       </label>
                     </div>
@@ -1046,6 +1343,21 @@ export default function CategoriesPage() {
                 </div>
               )}
             </div>
+
+            {/* Smart Specification Manager - Only for main categories */}
+            {!formData.is_subcategory && (
+              <div className="mt-6">
+                <SmartSpecificationManager
+                  categoryId="new-category-temp"
+                  categoryName={formData.name || 'New Category'}
+                  categoryDescription={formData.description || undefined}
+                  onSpecificationsChange={specifications => {
+                    console.log('Specifications updated for new category:', specifications);
+                    // Optionally handle specification changes
+                  }}
+                />
+              </div>
+            )}
 
             <div className="flex justify-end space-x-3">
               <button
@@ -1068,9 +1380,9 @@ export default function CategoriesPage() {
 
       {/* Edit Category Modal */}
       {showEditModal && currentCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
+          onClick={e => {
             // Close modal when clicking outside (on the overlay)
             if (e.target === e.currentTarget) {
               setShowEditModal(false);
@@ -1178,7 +1490,9 @@ export default function CategoriesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               {/* Main Category Image */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Main Category Image</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Main Category Image
+                </label>
                 <div className="flex flex-col space-y-2">
                   <input
                     type="file"
@@ -1231,7 +1545,9 @@ export default function CategoriesPage() {
 
               {/* Category Icon */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Category Icon</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category Icon
+                </label>
                 <div className="flex flex-col space-y-2">
                   <input
                     type="file"
@@ -1286,7 +1602,7 @@ export default function CategoriesPage() {
             {/* PC Configurator Settings */}
             <div className="mb-4 border-t pt-4">
               <h3 className="text-lg font-medium mb-3">PC Configurator Settings</h3>
-              
+
               {/* Include in PC Configurator checkbox */}
               <div className="mb-4">
                 <div className="flex items-center">
@@ -1295,82 +1611,118 @@ export default function CategoriesPage() {
                     id="edit_is_pc_component"
                     name="is_pc_component"
                     checked={formData.is_pc_component}
-                    onChange={(e) => setFormData({...formData, is_pc_component: e.target.checked})}
+                    onChange={e => setFormData({ ...formData, is_pc_component: e.target.checked })}
                     className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                   />
-                  <label htmlFor="edit_is_pc_component" className="ml-2 block text-sm font-medium text-gray-900">
+                  <label
+                    htmlFor="edit_is_pc_component"
+                    className="ml-2 block text-sm font-medium text-gray-900"
+                  >
                     Include in PC Configurator
                   </label>
                 </div>
                 <p className="text-xs text-gray-500 mt-1 ml-6">
-                  When checked, this category will be available in the PC Configurator component list
+                  When checked, this category will be available in the PC Configurator component
+                  list
                 </p>
               </div>
 
               {formData.is_pc_component && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* PC Component Type */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Component Type</label>
-                    <input
-                      type="text"
-                      name="pc_component_type"
-                      value={formData.pc_component_type}
-                      onChange={handleInputChange}
-                      placeholder="e.g., processor, memory, graphics-card"
-                      className="w-full p-2 border border-gray-300 rounded"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Identifier for PC configurator component type
-                    </p>
-                  </div>
-
-                  {/* PC Display Order */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Display Order</label>
-                    <input
-                      type="number"
-                      name="pc_display_order"
-                      value={formData.pc_display_order}
-                      onChange={handleInputChange}
-                      min="0"
-                      className="w-full p-2 border border-gray-300 rounded"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Order in which components appear (lower numbers first)
-                    </p>
-                  </div>
-
-                  {/* PC Required & Supports Multiple */}
-                  <div className="flex flex-col space-y-2">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="edit_pc_required"
-                        name="pc_required"
-                        checked={formData.pc_required}
-                        onChange={(e) => setFormData({...formData, pc_required: e.target.checked})}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="edit_pc_required" className="ml-2 block text-sm text-gray-900">
-                        Required Component
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* PC Component Type */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Component Type
                       </label>
+                      <input
+                        type="text"
+                        name="pc_component_type"
+                        value={formData.pc_component_type}
+                        onChange={handleInputChange}
+                        placeholder="e.g., processor, memory, graphics-card"
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Identifier for PC configurator component type
+                      </p>
                     </div>
 
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id="edit_pc_supports_multiple"
-                        name="pc_supports_multiple"
-                        checked={formData.pc_supports_multiple}
-                        onChange={(e) => setFormData({...formData, pc_supports_multiple: e.target.checked})}
-                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                      />
-                      <label htmlFor="edit_pc_supports_multiple" className="ml-2 block text-sm text-gray-900">
-                        Supports Multiple Components
+                    {/* PC Display Order */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Display Order
                       </label>
+                      <input
+                        type="number"
+                        name="pc_display_order"
+                        value={formData.pc_display_order}
+                        onChange={handleInputChange}
+                        min="0"
+                        className="w-full p-2 border border-gray-300 rounded"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Order in which components appear (lower numbers first)
+                      </p>
+                    </div>
+
+                    {/* PC Required & Supports Multiple */}
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="edit_pc_required"
+                          name="pc_required"
+                          checked={formData.pc_required}
+                          onChange={e =>
+                            setFormData({ ...formData, pc_required: e.target.checked })
+                          }
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label
+                          htmlFor="edit_pc_required"
+                          className="ml-2 block text-sm text-gray-900"
+                        >
+                          Required Component
+                        </label>
+                      </div>
+
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id="edit_pc_supports_multiple"
+                          name="pc_supports_multiple"
+                          checked={formData.pc_supports_multiple}
+                          onChange={e =>
+                            setFormData({ ...formData, pc_supports_multiple: e.target.checked })
+                          }
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <label
+                          htmlFor="edit_pc_supports_multiple"
+                          className="ml-2 block text-sm text-gray-900"
+                        >
+                          Supports Multiple Components
+                        </label>
+                      </div>
                     </div>
                   </div>
+
+                </>
+              )}
+
+              {/* Smart Specification Manager - Only for main categories */}
+              {!formData.is_subcategory && (
+                <div className="mt-6">
+                  <SmartSpecificationManager
+                    categoryId={currentCategory.id}
+                    categoryName={currentCategory.name}
+                    categoryDescription={currentCategory.description || undefined}
+                    onSpecificationsChange={specifications => {
+                      console.log('Specifications updated:', specifications);
+                      // Optionally handle specification changes
+                    }}
+                  />
                 </div>
               )}
             </div>
@@ -1396,9 +1748,9 @@ export default function CategoriesPage() {
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && currentCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
+          onClick={e => {
             // Close modal when clicking outside (on the overlay)
             if (e.target === e.currentTarget) {
               setShowDeleteModal(false);
@@ -1440,9 +1792,9 @@ export default function CategoriesPage() {
 
       {/* Specification Templates Modal */}
       {showTemplatesModal && currentCategory && (
-        <div 
+        <div
           className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={(e) => {
+          onClick={e => {
             // Close modal when clicking outside (on the overlay)
             if (e.target === e.currentTarget) {
               setShowTemplatesModal(false);
@@ -1460,7 +1812,12 @@ export default function CategoriesPage() {
                 aria-label="Close"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
@@ -1503,7 +1860,7 @@ export default function CategoriesPage() {
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                          {specTemplates.map((template) => (
+                          {specTemplates.map(template => (
                             <tr key={template.id}>
                               <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {template.name}
@@ -1554,7 +1911,10 @@ export default function CategoriesPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     {/* Name */}
                     <div>
-                      <label htmlFor="template-name" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="template-name"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Name* (internal identifier)
                       </label>
                       <input
@@ -1575,7 +1935,10 @@ export default function CategoriesPage() {
 
                     {/* Display Name */}
                     <div>
-                      <label htmlFor="template-display-name" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="template-display-name"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Display Name* (shown to users)
                       </label>
                       <input
@@ -1590,13 +1953,18 @@ export default function CategoriesPage() {
                         }`}
                       />
                       {templateFormErrors.display_name && (
-                        <p className="mt-1 text-sm text-red-500">{templateFormErrors.display_name}</p>
+                        <p className="mt-1 text-sm text-red-500">
+                          {templateFormErrors.display_name}
+                        </p>
                       )}
                     </div>
 
                     {/* Data Type */}
                     <div>
-                      <label htmlFor="template-data-type" className="block text-sm font-medium text-gray-700 mb-1">
+                      <label
+                        htmlFor="template-data-type"
+                        className="block text-sm font-medium text-gray-700 mb-1"
+                      >
                         Data Type
                       </label>
                       <select
@@ -1623,7 +1991,10 @@ export default function CategoriesPage() {
                         onChange={handleTemplateCheckboxChange}
                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                       />
-                      <label htmlFor="template-is-required" className="ml-2 block text-sm text-gray-900">
+                      <label
+                        htmlFor="template-is-required"
+                        className="ml-2 block text-sm text-gray-900"
+                      >
                         Required Field
                       </label>
                     </div>
@@ -1631,7 +2002,10 @@ export default function CategoriesPage() {
 
                   {/* Description */}
                   <div className="mb-4">
-                    <label htmlFor="template-description" className="block text-sm font-medium text-gray-700 mb-1">
+                    <label
+                      htmlFor="template-description"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
                       Description
                     </label>
                     <textarea

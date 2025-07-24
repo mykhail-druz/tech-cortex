@@ -8,21 +8,12 @@ import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
 import { supabase } from '@/lib/supabaseClient';
-import {
-  Category,
-  ProductSpecification,
-  CategorySpecificationTemplate,
-  ProductImage,
-} from '@/lib/supabase/types/types';
+import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 import Spinner from '@/components/ui/Spinner';
+import SmartProductSpecificationForm from '@/components/admin/SmartProductSpecificationForm';
 
 // IMPORTS for the specification system
-import {
-  getCategoryTemplates,
-  createProductWithValidatedSpecs,
-  initializeSpecificationTemplates,
-} from '@/lib/supabase/adminDb';
 import { CategoryTemplateService } from '@/lib/supabase/services/categoryTemplateService';
 
 export default function AddProductPage() {
@@ -67,6 +58,10 @@ export default function AddProductPage() {
   const [newSpecifications, setNewSpecifications] = useState<{ [key: string]: any }>({});
   const [loadingNewTemplates, setLoadingNewTemplates] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Smart specification form state
+  const [smartSpecifications, setSmartSpecifications] = useState<any[]>([]);
+  const [isSpecificationFormValid, setIsSpecificationFormValid] = useState(true);
 
   // We only need the loadingTemplates state for the initialization button
   const [loadingTemplates, setLoadingTemplates] = useState(false);
@@ -433,10 +428,57 @@ export default function AddProductPage() {
 
       let createdProduct;
 
-      // Using the specification system
-      console.log('🔧 Creating product with specification system');
+      // Using the Smart Tag-Based specification system
+      console.log('🔧 Creating product with Smart Tag-Based specification system');
+      console.log('Smart specifications:', smartSpecifications);
 
-      const result = await createProductWithValidatedSpecs(productData, newSpecifications);
+      // Проверяем валидность спецификаций
+      if (!isSpecificationFormValid) {
+        toast.error('Пожалуйста, исправьте ошибки в спецификациях товара');
+        setSubmitting(false);
+        return;
+      }
+
+      // Создаем товар напрямую, минуя валидацию по старым шаблонам
+      const { data: product, error: productError } = await supabase
+        .from('products')
+        .insert(productData)
+        .select()
+        .single();
+
+      if (productError || !product) {
+        throw new Error('Ошибка создания товара: ' + productError?.message);
+      }
+
+      console.log('Product created successfully:', product);
+
+      // Добавляем спецификации из Smart Tag-Based системы
+      if (smartSpecifications.length > 0) {
+        const specInserts = smartSpecifications
+          .filter(spec => spec.value && spec.value.trim() !== '')
+          .map((spec, index) => ({
+            product_id: product.id,
+            template_id: null, // Для Smart Tag-Based спецификаций template_id не используется
+            name: spec.name,
+            value: spec.value,
+            display_order: index + 1,
+          }));
+
+        if (specInserts.length > 0) {
+          const { error: specsError } = await supabase
+            .from('product_specifications')
+            .insert(specInserts);
+
+          if (specsError) {
+            // Откатываем создание продукта
+            await supabase.from('products').delete().eq('id', product.id);
+            throw new Error('Ошибка добавления спецификаций: ' + specsError.message);
+          }
+          console.log('Smart specifications added successfully');
+        }
+      }
+
+      const result = { data: product, error: null };
 
       if (result.validationErrors && result.validationErrors.length > 0) {
         setValidationErrors(result.validationErrors);
@@ -953,60 +995,19 @@ export default function AddProductPage() {
               </div>
             )}
 
-            {/* SPECIFICATION SYSTEM */}
-            {useNewSpecSystem && newSpecTemplates.length > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-green-800">
-                    ✨ Technical Specifications
-                  </h3>
-                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
-                    Standardized Templates
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {newSpecTemplates.map(template => (
-                    <div key={template.id}>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        {template.display_name}
-                        {template.is_required && <span className="text-red-500"> *</span>}
-                        {template.units && (
-                          <span className="text-gray-500"> ({template.units})</span>
-                        )}
-                        {template.is_compatibility_key && (
-                          <span className="ml-2 px-1 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded">
-                            Compatibility
-                          </span>
-                        )}
-                      </label>
-                      {template.description && (
-                        <p className="text-xs text-gray-600 mb-2">{template.description}</p>
-                      )}
-                      {renderNewSpecificationInput(template)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Initialize button when no templates are found */}
-            {!useNewSpecSystem && formData.category_id && (
-              <div className="bg-gray-50 border border-gray-200 rounded p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800">Technical Specifications</h3>
-                  <button
-                    type="button"
-                    onClick={handleInitializeNewSystem}
-                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                  >
-                    🚀 Initialize Specification System
-                  </button>
-                </div>
-                <p className="text-gray-600">
-                  No specification templates found for this category. Click the button above to
-                  initialize the specification system.
-                </p>
-              </div>
+            {/* SMART SPECIFICATION SYSTEM */}
+            {formData.category_id && (
+              <SmartProductSpecificationForm
+                categoryId={formData.category_id}
+                onSpecificationsChange={specifications => {
+                  setSmartSpecifications(specifications);
+                  console.log('Smart specifications updated:', specifications);
+                }}
+                onValidationChange={isValid => {
+                  setIsSpecificationFormValid(isValid);
+                  console.log('Specification form validation:', isValid);
+                }}
+              />
             )}
 
             {/* Main Image Upload */}

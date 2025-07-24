@@ -26,6 +26,7 @@ export const CHIPSET_SOCKET_COMPATIBILITY: Record<ChipsetType, SocketType[]> = {
   [ChipsetType.B650]: [SocketType.AM5],
   [ChipsetType.B650E]: [SocketType.AM5],
   [ChipsetType.X670]: [SocketType.AM5],
+  [ChipsetType.X870E]: [SocketType.AM5],
 
   // Intel Chipsets
   [ChipsetType.B560]: [SocketType.LGA1200],
@@ -77,23 +78,33 @@ export const SOCKET_MEMORY_SPEED_COMPATIBILITY = {
   ],
 };
 
-// Типичное энергопотребление компонентов (в ваттах)
+// Среднестатистические значения энергопотребления компонентов (в ваттах)
+// Используются для всех компонентов кроме процессоров и видеокарт
 export const COMPONENT_POWER_CONSUMPTION = {
-  CPU: {
-    LOW: 65, // Энергоэффективные процессоры
-    MEDIUM: 125, // Обычные процессоры
-    HIGH: 200, // Мощные процессоры
-  },
-  GPU: {
-    LOW: 75, // Встроенная/бюджетная
-    MEDIUM: 150, // Средний класс
-    HIGH: 250, // Высокий класс
-    EXTREME: 400, // Топовые карты
-  },
-  MEMORY: 5, // За модуль
-  STORAGE: 10, // SSD/HDD
-  MOTHERBOARD: 30, // Базовое потребление
-  COOLING: 25, // Кулеры
+  // Для процессоров используется TDP из спецификаций
+  // Для видеокарт используется recommended_psu_power из спецификаций
+  
+  // Материнские платы
+  MOTHERBOARD: 50, // Среднее потребление материнской платы
+  
+  // Память (за модуль)
+  MEMORY_DDR4: 4, // DDR4 модуль 8-16GB
+  MEMORY_DDR5: 5, // DDR5 модуль 8-16GB
+  
+  // Накопители
+  STORAGE_HDD: 8, // Жесткий диск
+  STORAGE_SSD_SATA: 3, // SATA SSD
+  STORAGE_SSD_NVME: 6, // NVMe SSD
+  
+  // Охлаждение
+  COOLING_AIR: 5, // Воздушное охлаждение
+  COOLING_AIO: 15, // Жидкостное охлаждение
+  
+  // Корпуса (вентиляторы)
+  CASE_FANS: 10, // Корпусные вентиляторы
+  
+  // Блоки питания (собственное потребление)
+  PSU_EFFICIENCY_LOSS: 0.1, // 10% потери эффективности
 };
 
 // Рекомендуемый запас мощности БП (в процентах)

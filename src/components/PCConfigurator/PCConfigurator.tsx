@@ -8,7 +8,7 @@ import {
   ValidationResult,
   CompatibilityIssue,
 } from '@/lib/supabase/types/specifications';
-import { CompatibilityEngine } from '@/lib/compatibility/engine';
+import { SmartCompatibilityEngine } from '@/lib/compatibility/SmartCompatibilityEngine';
 import { usePCCategories } from '@/hooks/usePCCategories';
 import ComponentSelector from './ComponentSelector';
 import CompatibilityPanel from './CompatibilityPanel';
@@ -16,7 +16,11 @@ import ConfigurationSummary from './ConfigurationSummary';
 
 export default function PCConfigurator() {
   // Replace hardcoded values with hook
-  const { categories: pcCategories, isLoading: categoriesLoading, getCategoryDisplayName } = usePCCategories();
+  const {
+    categories: pcCategories,
+    isLoading: categoriesLoading,
+    getCategoryDisplayName,
+  } = usePCCategories();
 
   // Configuration state
   const [configuration, setConfiguration] = useState<EnhancedPCConfiguration>({
@@ -34,12 +38,11 @@ export default function PCConfigurator() {
   // Interface state
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
-  const [showCompatibilityPanel, setShowCompatibilityPanel] = useState(false);
 
-  // Products cache
+  // Product cache
   const [productsCache, setProductsCache] = useState<Record<string, Product>>({});
 
-  // Set the first category as active on load
+  // Set the first category as active on a load
   useEffect(() => {
     if (pcCategories.length > 0 && !activeCategory) {
       setActiveCategory(pcCategories[0].slug);
@@ -72,8 +75,8 @@ export default function PCConfigurator() {
         }
       });
 
-      // Check compatibility using CompatibilityEngine
-      const result = await CompatibilityEngine.validateConfiguration(products);
+      // Check compatibility using SmartCompatibilityEngine
+      const result = await SmartCompatibilityEngine.validateConfiguration(products);
 
       setValidationResult(result);
 
@@ -89,7 +92,9 @@ export default function PCConfigurator() {
         ...prev,
         compatibilityStatus,
         totalPrice: calculateTotalPrice(),
-        powerConsumption: result.powerConsumption,
+        powerConsumption: result.powerConsumption, // Keep for backward compatibility
+        actualPowerConsumption: result.actualPowerConsumption,
+        recommendedPsuPower: result.recommendedPsuPower,
       }));
     } catch (error) {
       console.error('Error validating configuration:', error);
@@ -194,10 +199,6 @@ export default function PCConfigurator() {
     return hasIssues ? 'incompatible' : 'selected';
   };
 
-  const getCategoryBySlug = (slug: string) => {
-    return pcCategories.find(c => c.slug === slug);
-  };
-
   const getCompatibilityIssuesForCategory = (categorySlug: string): CompatibilityIssue[] => {
     return validationResult.issues.filter(
       issue =>
@@ -289,27 +290,30 @@ export default function PCConfigurator() {
               {configuration.totalPrice ? `$${configuration.totalPrice.toFixed(2)}` : '$0.00'}
             </div>
             {configuration.powerConsumption && (
-              <div className="text-sm text-gray-600">
-                ⚡ Power: {configuration.powerConsumption}W
+              <div className="space-y-1">
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium">Power Consumption:</span>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <span className="inline-flex items-center">
+                    ⚡ Total Consumption:{' '}
+                    <span className="font-semibold ml-1">{configuration.powerConsumption}W</span>
+                  </span>
+                </div>
+                <div className="text-sm text-gray-700">
+                  <span className="inline-flex items-center">
+                    🔌 Recommended PSU:{' '}
+                    <span className="font-semibold ml-1">
+                      {Math.ceil((configuration.powerConsumption * 1.25) / 50) * 50}W
+                    </span>
+                  </span>
+                </div>
               </div>
             )}
           </div>
         </div>
 
         <div className="mt-4 flex space-x-4">
-          <button
-            onClick={() => setShowCompatibilityPanel(!showCompatibilityPanel)}
-            className={`px-4 py-2 rounded font-medium transition-colors ${
-              validationResult.issues.length > 0 || validationResult.warnings.length > 0
-                ? 'bg-orange-600 text-white hover:bg-orange-700'
-                : 'bg-gray-600 text-white hover:bg-gray-700'
-            }`}
-          >
-            Compatibility Check
-            {validationResult.issues.length + validationResult.warnings.length > 0 &&
-              ` (${validationResult.issues.length + validationResult.warnings.length})`}
-          </button>
-
           <button
             onClick={clearConfiguration}
             className="px-4 py-2 border border-gray-300 rounded font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -319,17 +323,9 @@ export default function PCConfigurator() {
         </div>
       </div>
 
-      {/* Compatibility panel */}
-      {showCompatibilityPanel && (
-        <CompatibilityPanel
-          validationResult={validationResult}
-          onClose={() => setShowCompatibilityPanel(false)}
-        />
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Component categories list */}
-        <div className="lg:col-span-1">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Component categories list - smallest */}
+        <div className="xl:col-span-2">
           <div className="bg-white rounded-lg shadow-md">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">Components</h3>
@@ -370,21 +366,18 @@ export default function PCConfigurator() {
                             {category.pc_required && <span className="text-red-500 ml-1">*</span>}
                           </div>
                           <div className="text-xs text-gray-500">
-                            {category.is_subcategory && pcCategories.find(c => c.id === category.parent_id) && 
-                              <span className="font-medium text-primary-600 mr-1">
-                                {pcCategories.find(c => c.id === category.parent_id)?.name} →
-                              </span>
-                            }
+                            {category.is_subcategory &&
+                              pcCategories.find(c => c.id === category.parent_id) && (
+                                <span className="font-medium text-primary-600 mr-1">
+                                  {pcCategories.find(c => c.id === category.parent_id)?.name} →
+                                </span>
+                              )}
                             {category.description}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {issues.length > 0 ? (
-                          <span>❌</span>
-                        ) : (
-                          <span>{getStatusIcon(status)}</span>
-                        )}
+                        {issues.length > 0 ? <span>❌</span> : <span>{getStatusIcon(status)}</span>}
                         {issues.length > 0 && (
                           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
                             {issues.length}
@@ -399,8 +392,8 @@ export default function PCConfigurator() {
           </div>
         </div>
 
-        {/* Component selector */}
-        <div className="lg:col-span-2">
+        {/* Component selector - ~70% width */}
+        <div className="xl:col-span-7">
           {activeCategory ? (
             <ComponentSelector
               categorySlug={activeCategory}
@@ -413,11 +406,14 @@ export default function PCConfigurator() {
             />
           ) : (
             <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="text-center py-8 text-gray-500">
-                Select a category from the list
-              </div>
+              <div className="text-center py-8 text-gray-500">Select a category from the list</div>
             </div>
           )}
+        </div>
+
+        {/* Compatibility panel - remaining space */}
+        <div className="xl:col-span-3">
+          <CompatibilityPanel validationResult={validationResult} />
         </div>
       </div>
 

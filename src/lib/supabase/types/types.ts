@@ -3,6 +3,7 @@ import {
   SpecificationValidationRule,
   SPECIFICATION_ENUMS,
 } from './specifications';
+import { SemanticTag, StandardSpecification } from './semanticTags';
 
 // TypeScript types for Supabase database tables
 
@@ -56,6 +57,14 @@ export interface Category {
   pc_required?: boolean | null;
   pc_supports_multiple?: boolean | null;
   pc_display_order?: number | null;
+
+  // Smart Tag-Based Specification System fields
+  specification_tags?: SemanticTag[]; // Semantic tags that describe component functionality
+  suggested_profiles?: string[]; // Suggested component profile IDs based on automatic detection
+  auto_generated_specs?: StandardSpecification[]; // Auto-generated specifications based on semantic tags
+  custom_specs?: StandardSpecification[]; // Custom specifications added by admin
+  smart_detection_enabled?: boolean; // Whether smart specification detection is enabled
+  last_profile_detection?: string; // Timestamp of last automatic profile detection run
 
   subcategories?: Category[];
 }

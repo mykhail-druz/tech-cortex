@@ -7,6 +7,7 @@ import {
   MemoryType,
   ChipsetType,
   FormFactor,
+  GPUMemoryType,
 } from '../types/specifications';
 
 /**
@@ -258,6 +259,159 @@ export class CategoryTemplateService {
         units: 'GB',
         min_value: 32,
         max_value: 256,
+      },
+    ];
+
+    await this.insertTemplates(templates);
+  }
+
+  /**
+   * Шаблоны для видеокарт
+   */
+  private static async createGpuTemplates() {
+    const { data: gpuCategory } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('slug', 'graphics-cards')
+      .single();
+
+    if (!gpuCategory) {
+      console.error('❌ GPU category not found');
+      return;
+    }
+
+    const templates = [
+      {
+        category_id: gpuCategory.id,
+        name: 'memory_type',
+        display_name: 'Тип видеопамяти',
+        description: 'Тип памяти видеокарты (GDDR, HBM)',
+        is_required: true,
+        data_type: SpecificationDataType.GPU_MEMORY_TYPE,
+        enum_values: Object.values(GPUMemoryType),
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'checkbox' as const,
+        display_order: 1,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'memory_size',
+        display_name: 'Объем видеопамяти',
+        description: 'Объем видеопамяти в ГБ',
+        is_required: true,
+        data_type: SpecificationDataType.MEMORY_SIZE,
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'checkbox' as const,
+        display_order: 2,
+        units: 'GB',
+        min_value: 2,
+        max_value: 48,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'memory_bus_width',
+        display_name: 'Разрядность шины памяти',
+        description: 'Ширина шины памяти в битах',
+        is_required: true,
+        data_type: SpecificationDataType.NUMBER,
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'checkbox' as const,
+        display_order: 3,
+        units: 'bit',
+        min_value: 64,
+        max_value: 4096,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'base_clock',
+        display_name: 'Базовая частота GPU',
+        description: 'Базовая частота графического процессора в МГц',
+        is_required: true,
+        data_type: SpecificationDataType.FREQUENCY,
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'range' as const,
+        display_order: 4,
+        units: 'MHz',
+        min_value: 500,
+        max_value: 3000,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'boost_clock',
+        display_name: 'Турбо частота GPU',
+        description: 'Максимальная турбо частота графического процессора в МГц',
+        is_required: false,
+        data_type: SpecificationDataType.FREQUENCY,
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'range' as const,
+        display_order: 5,
+        units: 'MHz',
+        min_value: 800,
+        max_value: 3500,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'memory_clock',
+        display_name: 'Частота памяти',
+        description: 'Эффективная частота видеопамяти в МГц',
+        is_required: false,
+        data_type: SpecificationDataType.FREQUENCY,
+        is_compatibility_key: false,
+        is_filterable: true,
+        filter_type: 'range' as const,
+        display_order: 6,
+        units: 'MHz',
+        min_value: 4000,
+        max_value: 28000,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'recommended_psu_power',
+        display_name: 'Рекомендуемая мощность БП',
+        description: 'Рекомендуемая мощность блока питания как заявлено производителем',
+        is_required: true,
+        data_type: SpecificationDataType.POWER_CONSUMPTION,
+        is_compatibility_key: true,
+        is_filterable: true,
+        filter_type: 'range' as const,
+        display_order: 7,
+        units: 'W',
+        min_value: 300,
+        max_value: 1200,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'length',
+        display_name: 'Длина карты',
+        description: 'Длина видеокарты в миллиметрах',
+        is_required: false,
+        data_type: SpecificationDataType.NUMBER,
+        is_compatibility_key: true,
+        is_filterable: true,
+        filter_type: 'range' as const,
+        display_order: 8,
+        units: 'mm',
+        min_value: 150,
+        max_value: 400,
+      },
+      {
+        category_id: gpuCategory.id,
+        name: 'slots_required',
+        display_name: 'Занимаемых слотов',
+        description: 'Количество слотов расширения, занимаемых видеокартой',
+        is_required: false,
+        data_type: SpecificationDataType.NUMBER,
+        is_compatibility_key: true,
+        is_filterable: true,
+        filter_type: 'checkbox' as const,
+        display_order: 9,
+        min_value: 1,
+        max_value: 4,
       },
     ];
 

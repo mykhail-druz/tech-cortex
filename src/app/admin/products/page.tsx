@@ -122,7 +122,14 @@ export default function ProductsManagement() {
       toast.success('Product deleted successfully');
     } catch (error) {
       console.error('Error deleting product:', error);
-      toast.error('Failed to delete product');
+      
+      // Check if this is the specific error about product being in order history
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('Cannot delete product that has been ordered')) {
+        toast.error('Cannot delete this product because it exists in order history. Products that have been purchased must be preserved for record keeping.');
+      } else {
+        toast.error('Failed to delete product. Please try again.');
+      }
     } finally {
       setDeletingProduct(false);
     }

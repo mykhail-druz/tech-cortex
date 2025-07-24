@@ -115,6 +115,8 @@ export class CompatibilityEngine {
       issues,
       warnings,
       powerConsumption,
+      actualPowerConsumption: powerConsumption,
+      recommendedPsuPower: powerConsumption,
     };
 
     console.log('✅ Validation result:', result);
@@ -404,35 +406,59 @@ export class CompatibilityEngine {
   static calculatePowerConsumption(products: Record<string, ProductWithDetails>): number {
     let totalConsumption = 0;
 
-    // Базовое потребление системы
+    // Базовое потребление системы (материнская плата)
     totalConsumption += COMPONENT_POWER_CONSUMPTION.MOTHERBOARD;
 
-    // CPU
+    // CPU - используем TDP из спецификаций
     if (products['processors']) {
       const cpuTdp = this.getSpecValue(products['processors'], 'tdp') as number;
-      totalConsumption += cpuTdp || COMPONENT_POWER_CONSUMPTION.CPU.MEDIUM;
+      if (cpuTdp) {
+        totalConsumption += cpuTdp;
+      }
     }
 
-    // GPU
+    // GPU - используем power_consumption из спецификаций
     if (products['graphics-cards']) {
       const gpuPower = this.getSpecValue(products['graphics-cards'], 'power_consumption') as number;
-      totalConsumption += gpuPower || COMPONENT_POWER_CONSUMPTION.GPU.MEDIUM;
+      if (gpuPower) {
+        totalConsumption += gpuPower;
+      }
     }
 
-    // Memory
+    // Memory - определяем тип памяти
     if (products['memory']) {
+      const memoryType = this.getSpecValue(products['memory'], 'memory_type') as string;
+      const isDDR5 = memoryType && memoryType.toLowerCase().includes('ddr5');
       const memoryModules = (this.getSpecValue(products['memory'], 'modules') as number) || 1;
-      totalConsumption += COMPONENT_POWER_CONSUMPTION.MEMORY * memoryModules;
+      const memoryPowerPerModule = isDDR5 ? COMPONENT_POWER_CONSUMPTION.MEMORY_DDR5 : COMPONENT_POWER_CONSUMPTION.MEMORY_DDR4;
+      totalConsumption += memoryPowerPerModule * memoryModules;
     }
 
-    // Storage
+    // Storage - определяем тип накопителя
     if (products['storage']) {
-      totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE;
+      const storageInterface = this.getSpecValue(products['storage'], 'interface') as string;
+      const isNVMe = storageInterface && storageInterface.toLowerCase().includes('nvme');
+      const isSSD = storageInterface && (storageInterface.toLowerCase().includes('ssd') || storageInterface.toLowerCase().includes('sata'));
+      
+      if (isNVMe) {
+        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_NVME;
+      } else if (isSSD) {
+        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_SATA;
+      } else {
+        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_HDD;
+      }
     }
 
-    // Cooling
+    // Cooling - определяем тип охлаждения
     if (products['cooling']) {
-      totalConsumption += COMPONENT_POWER_CONSUMPTION.COOLING;
+      const coolingTitle = products['cooling'].title.toLowerCase();
+      const isAIO = coolingTitle.includes('aio') || coolingTitle.includes('жидкост');
+      totalConsumption += isAIO ? COMPONENT_POWER_CONSUMPTION.COOLING_AIO : COMPONENT_POWER_CONSUMPTION.COOLING_AIR;
+    }
+
+    // Добавляем потребление корпусных вентиляторов
+    if (products['cases']) {
+      totalConsumption += COMPONENT_POWER_CONSUMPTION.CASE_FANS;
     }
 
     return totalConsumption;
