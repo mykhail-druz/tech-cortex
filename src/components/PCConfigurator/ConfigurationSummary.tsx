@@ -20,7 +20,7 @@ export default function ConfigurationSummary({
   getCategoryDisplayName,
 }: ConfigurationSummaryProps) {
   const selectedComponents = Object.entries(configuration.components).filter(
-    ([_, componentId]) => componentId
+    ([, componentId]) => componentId
   );
 
   const getCategoryNameBySlug = (slug: string): string => {
@@ -39,7 +39,7 @@ export default function ConfigurationSummary({
     );
   }
 
-  const totalPrice = selectedComponents.reduce((sum, [_, componentId]) => {
+  const totalPrice = selectedComponents.reduce((sum, [, componentId]) => {
     if (typeof componentId === 'string' && products[componentId]) {
       return sum + products[componentId].price;
     } else if (Array.isArray(componentId)) {
@@ -151,18 +151,8 @@ export default function ConfigurationSummary({
               <div className="text-gray-600 mt-1">Compatibility</div>
             </div>
 
-            {/* Actual Power Consumption */}
-            {configuration.actualPowerConsumption && (
-              <div className="text-center">
-                <div className="text-lg font-semibold text-orange-600">
-                  {configuration.actualPowerConsumption}W
-                </div>
-                <div className="text-gray-600">Power Consumption</div>
-              </div>
-            )}
-
-            {/* Recommended PSU Power */}
-            {configuration.recommendedPsuPower && (
+            {/* Recommended PSU Power - only shown when GPU with recommended_psu_power is selected */}
+            {configuration.recommendedPsuPower && configuration.recommendedPsuPower > 0 && (
               <div className="text-center">
                 <div className="text-lg font-semibold text-blue-600">
                   {configuration.recommendedPsuPower}W
@@ -175,7 +165,7 @@ export default function ConfigurationSummary({
             <div className="text-center">
               <div className="text-lg font-semibold text-gray-900">
                 {
-                  selectedComponents.filter(([_, componentId]) => {
+                  selectedComponents.filter(([, componentId]) => {
                     if (typeof componentId === 'string') {
                       return products[componentId]?.in_stock;
                     } else if (Array.isArray(componentId)) {

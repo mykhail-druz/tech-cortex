@@ -38,6 +38,7 @@ export default function PCConfigurator() {
   // Interface state
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [isValidating, setIsValidating] = useState(false);
+  const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
 
   // Product cache
   const [productsCache, setProductsCache] = useState<Record<string, Product>>({});
@@ -54,23 +55,136 @@ export default function PCConfigurator() {
     validateConfiguration();
   }, [configuration.components]);
 
-  const validateConfiguration = async () => {
-    if (Object.keys(configuration.components).length === 0) {
+  // Cleanup validation timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (validationTimeout) {
+        clearTimeout(validationTimeout);
+      }
+    };
+  }, [validationTimeout]);
+
+  // Helper function to check if we have core components for meaningful validation
+  const hasCoreComponents = () => {
+    const components = configuration.components;
+    const hasProcessorAndMotherboard = components['processors'] && components['motherboards'];
+    const hasProcessorWithOthers = components['processors'] && Object.keys(components).length >= 2;
+    const hasMotherboardWithOthers = components['motherboards'] && Object.keys(components).length >= 2;
+    
+    return hasProcessorAndMotherboard || hasProcessorWithOthers || hasMotherboardWithOthers;
+  };
+
+  // Helper function to determine if we should show compatibility issues
+  const shouldShowCompatibilityIssues = () => {
+    const componentCount = Object.keys(configuration.components).length;
+    return componentCount >= 2 && hasCoreComponents();
+  };
+
+  // Helper function to map subcategory slugs to parent category slugs for compatibility checking
+  const getParentCategorySlug = (categorySlug: string): string => {
+    const category = pcCategories.find(cat => cat.slug === categorySlug);
+    if (!category) return categorySlug;
+    
+    // If it's a subcategory, find its parent
+    if (category.is_subcategory && category.parent_id) {
+      const parentCategory = pcCategories.find(cat => cat.id === category.parent_id);
+      if (parentCategory) {
+        return parentCategory.slug;
+      }
+    }
+    
+    // Return original slug if not a subcategory or parent not found
+    return categorySlug;
+  };
+
+  // Actual validation logic (without debouncing)
+  const performValidation = async () => {
+    const componentCount = Object.keys(configuration.components).length;
+    
+    // Always calculate power consumption and total price regardless of validation state
+    const totalPrice = calculateTotalPrice();
+    
+    // Collect products for power calculation - map subcategories to parent categories
+    const products: Record<string, Product> = {};
+    Object.entries(configuration.components).forEach(([category, componentId]) => {
+      const parentCategorySlug = getParentCategorySlug(category);
+      if (typeof componentId === 'string' && productsCache[componentId]) {
+        products[parentCategorySlug] = productsCache[componentId];
+      } else if (Array.isArray(componentId) && componentId.length > 0) {
+        if (productsCache[componentId[0]]) {
+          products[parentCategorySlug] = productsCache[componentId[0]];
+        }
+      }
+    });
+
+    // Progressive validation: don't show errors for incomplete configurations
+    if (componentCount === 0) {
       setValidationResult({ isValid: true, issues: [], warnings: [] });
+      setConfiguration(prev => ({
+        ...prev,
+        compatibilityStatus: 'valid',
+        totalPrice,
+      }));
+      return;
+    }
+
+    // For single component or insufficient components, show building state but still calculate power
+    if (componentCount === 1 || !hasCoreComponents()) {
+      // Calculate power consumption even for incomplete configurations
+      let powerConsumption = 0;
+      let recommendedPsuPower = 0;
+      
+      try {
+        const result = await SmartCompatibilityEngine.validateConfiguration(products);
+        powerConsumption = result.actualPowerConsumption || result.powerConsumption || 0;
+        recommendedPsuPower = result.recommendedPsuPower || Math.ceil((powerConsumption * 1.25) / 50) * 50;
+      } catch {
+        // Fallback power calculation if smart engine fails
+        powerConsumption = Object.values(products).reduce((total, product) => {
+          // Basic power estimation based on category
+          const categoryPower: Record<string, number> = {
+            'processors': 65,
+            'graphics-cards': 150,
+            'memory': 5,
+            'storage': 10,
+            'motherboards': 25,
+            'power-supplies': 0,
+            'cases': 0,
+            'cooling': 15
+          };
+          
+          const category = Object.keys(configuration.components).find(cat => 
+            configuration.components[cat] === product.id
+          );
+          return total + (categoryPower[category || ''] || 0);
+        }, 0);
+        recommendedPsuPower = Math.ceil((powerConsumption * 1.25) / 50) * 50;
+      }
+
+      setValidationResult({ isValid: true, issues: [], warnings: [] });
+      setConfiguration(prev => ({
+        ...prev,
+        compatibilityStatus: 'valid',
+        totalPrice,
+        powerConsumption,
+        actualPowerConsumption: powerConsumption,
+        recommendedPsuPower,
+      }));
       return;
     }
 
     setIsValidating(true);
     try {
-      // Collect products for compatibility check
+      // Collect products for compatibility check - map subcategories to parent categories
       const products: Record<string, Product> = {};
 
       Object.entries(configuration.components).forEach(([category, componentId]) => {
+        const parentCategorySlug = getParentCategorySlug(category);
         if (typeof componentId === 'string' && productsCache[componentId]) {
-          products[category] = productsCache[componentId];
+          products[parentCategorySlug] = productsCache[componentId];
         } else if (Array.isArray(componentId) && componentId.length > 0) {
           if (productsCache[componentId[0]]) {
-            products[category] = productsCache[componentId[0]];
+            products[parentCategorySlug] = productsCache[componentId[0]];
           }
         }
       });
@@ -96,8 +210,7 @@ export default function PCConfigurator() {
         actualPowerConsumption: result.actualPowerConsumption,
         recommendedPsuPower: result.recommendedPsuPower,
       }));
-    } catch (error) {
-      console.error('Error validating configuration:', error);
+    } catch {
       setValidationResult({
         isValid: false,
         issues: [
@@ -115,6 +228,21 @@ export default function PCConfigurator() {
     } finally {
       setIsValidating(false);
     }
+  };
+
+  // Debounced validation function
+  const validateConfiguration = () => {
+    // Clear any existing timeout
+    if (validationTimeout) {
+      clearTimeout(validationTimeout);
+    }
+
+    // Set new timeout for delayed validation
+    const timeout = setTimeout(() => {
+      performValidation();
+    }, 300); // 300ms delay
+
+    setValidationTimeout(timeout);
   };
 
   const calculateTotalPrice = (): number => {
@@ -200,6 +328,11 @@ export default function PCConfigurator() {
   };
 
   const getCompatibilityIssuesForCategory = (categorySlug: string): CompatibilityIssue[] => {
+    // Don't show compatibility issues for incomplete configurations
+    if (!shouldShowCompatibilityIssues()) {
+      return [];
+    }
+    
     return validationResult.issues.filter(
       issue =>
         issue.component1?.toLowerCase().includes(categorySlug) ||
@@ -289,22 +422,16 @@ export default function PCConfigurator() {
             <div className="text-2xl font-bold text-gray-900">
               {configuration.totalPrice ? `$${configuration.totalPrice.toFixed(2)}` : '$0.00'}
             </div>
-            {configuration.powerConsumption && (
+            {configuration.recommendedPsuPower && configuration.recommendedPsuPower > 0 && (
               <div className="space-y-1">
                 <div className="text-sm text-gray-600">
-                  <span className="font-medium">Power Consumption:</span>
-                </div>
-                <div className="text-sm text-gray-700">
-                  <span className="inline-flex items-center">
-                    ⚡ Total Consumption:{' '}
-                    <span className="font-semibold ml-1">{configuration.powerConsumption}W</span>
-                  </span>
+                  <span className="font-medium">Power Information:</span>
                 </div>
                 <div className="text-sm text-gray-700">
                   <span className="inline-flex items-center">
                     🔌 Recommended PSU:{' '}
                     <span className="font-semibold ml-1">
-                      {Math.ceil((configuration.powerConsumption * 1.25) / 50) * 50}W
+                      {configuration.recommendedPsuPower}W
                     </span>
                   </span>
                 </div>
@@ -324,8 +451,8 @@ export default function PCConfigurator() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Component categories list - smallest */}
-        <div className="xl:col-span-2">
+        {/* Component categories list - increased width for better text display */}
+        <div className="xl:col-span-3">
           <div className="bg-white rounded-lg shadow-md">
             <div className="p-4 border-b">
               <h3 className="text-lg font-semibold">Components</h3>
@@ -392,8 +519,8 @@ export default function PCConfigurator() {
           </div>
         </div>
 
-        {/* Component selector - ~70% width */}
-        <div className="xl:col-span-7">
+        {/* Component selector - adjusted width to accommodate wider Components section */}
+        <div className="xl:col-span-6">
           {activeCategory ? (
             <ComponentSelector
               categorySlug={activeCategory}
@@ -413,7 +540,12 @@ export default function PCConfigurator() {
 
         {/* Compatibility panel - remaining space */}
         <div className="xl:col-span-3">
-          <CompatibilityPanel validationResult={validationResult} />
+          <CompatibilityPanel 
+            validationResult={validationResult}
+            componentCount={Object.keys(configuration.components).length}
+            selectedComponents={safeSelectedComponents}
+            recommendedPsuPower={configuration.recommendedPsuPower}
+          />
         </div>
       </div>
 

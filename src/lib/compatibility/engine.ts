@@ -20,7 +20,6 @@ export class CompatibilityEngine {
   ): string | number | boolean | null {
     // 🔥 SAFE CHECK for specifications
     if (!product.specifications || product.specifications.length === 0) {
-      console.warn(`🔍 No specifications found for product: ${product.title}`);
       return null;
     }
 
@@ -42,17 +41,11 @@ export class CompatibilityEngine {
     }
 
     if (!spec) {
-      console.warn(`🔍 Specification '${specName}' not found in product: ${product.title}`);
-      console.log(
-        'Available specs:',
-        product.specifications.map(s => s.name)
-      );
       return null;
     }
 
     // Use the standard value field from ProductSpecification
     const value = spec.value;
-    console.log(`✅ Found ${specName} = ${value} for ${product.title}`);
     return value;
   }
 
@@ -73,11 +66,6 @@ export class CompatibilityEngine {
     const psu = products['power-supplies'];
     const pcCase = products['cases'];
 
-    console.log('🔍 Validating configuration:', {
-      cpu: cpu?.title,
-      motherboard: motherboard?.title,
-      memory: memory?.title,
-    });
 
     // 1. Check CPU + Motherboard compatibility
     if (cpu && motherboard) {
@@ -119,7 +107,6 @@ export class CompatibilityEngine {
       recommendedPsuPower: powerConsumption,
     };
 
-    console.log('✅ Validation result:', result);
     return result;
   }
 
@@ -133,8 +120,6 @@ export class CompatibilityEngine {
     const issues: CompatibilityIssue[] = [];
 
     try {
-      console.log('🔍 Starting CPU-Motherboard compatibility check...');
-
       // 🔥 GET RULES FROM DATABASE
       const { data: rules, error } = await supabase
         .from('compatibility_rules')
@@ -150,7 +135,6 @@ export class CompatibilityEngine {
         .eq('rule_type', 'exact_match');
 
       if (error) {
-        console.error('❌ Database error fetching compatibility rules:', error);
         return [
           {
             type: 'warning',
@@ -164,7 +148,6 @@ export class CompatibilityEngine {
       }
 
       if (!rules || rules.length === 0) {
-        console.warn('⚠️ No compatibility rules found in database');
         return [
           {
             type: 'warning',
@@ -177,16 +160,12 @@ export class CompatibilityEngine {
         ];
       }
 
-      console.log(`📋 Found ${rules.length} total compatibility rules`);
-
       // 🎯 ФИЛЬТРУЕМ ПРАВИЛА ДЛЯ CPU-MOTHERBOARD
       const cpuMbRules = rules.filter(
         rule =>
           rule.primary_category?.slug === 'processors' &&
           rule.secondary_category?.slug === 'motherboards'
       );
-
-      console.log(`🎯 Found ${cpuMbRules.length} CPU-Motherboard rules`);
 
       if (cpuMbRules.length === 0) {
         return [
@@ -207,25 +186,12 @@ export class CompatibilityEngine {
         const secondarySpecName = rule.secondary_template?.name;
 
         if (!primarySpecName || !secondarySpecName) {
-          console.warn('⚠️ Invalid rule template names:', rule);
           continue;
         }
-
-        console.log(
-          `🔌 Checking rule: "${rule.name}" (${primarySpecName} vs ${secondarySpecName})`
-        );
 
         const cpuValue = this.getSpecValue(cpu, primarySpecName);
         const mbValue = this.getSpecValue(motherboard, secondarySpecName);
 
-        console.log(`📊 Values comparison:`, {
-          rule: rule.name,
-          primarySpec: primarySpecName,
-          cpuValue,
-          secondarySpec: secondarySpecName,
-          mbValue,
-          compatible: cpuValue === mbValue,
-        });
 
         if (!cpuValue || !mbValue) {
           issues.push({
@@ -248,12 +214,9 @@ export class CompatibilityEngine {
             details: `CPU: ${cpuValue}, Motherboard: ${mbValue}`,
             severity: 'critical',
           });
-        } else if (cpuValue === mbValue) {
-          console.log(`✅ Compatible: ${primarySpecName} match (${cpuValue})`);
         }
       }
-    } catch (error) {
-      console.error('❌ Error checking CPU-MB compatibility:', error);
+    } catch {
       issues.push({
         type: 'warning',
         component1: 'CPU',

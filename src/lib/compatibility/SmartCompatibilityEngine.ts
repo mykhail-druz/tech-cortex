@@ -13,7 +13,6 @@ import { SmartSpecificationSystem } from '@/lib/specifications/SmartSpecificatio
 import { SemanticTag } from '@/lib/supabase/types/semanticTags';
 import { CompatibilityEngine } from './engine'; // Fallback to existing engine
 import { supabase } from '@/lib/supabaseClient';
-import { COMPONENT_POWER_CONSUMPTION, PSU_HEADROOM_PERCENTAGE } from './constants';
 
 interface ComponentWithTags {
   product: ProductWithDetails;
@@ -30,18 +29,14 @@ export class SmartCompatibilityEngine {
   static async validateConfiguration(
     products: Record<string, ProductWithDetails>
   ): Promise<ValidationResult> {
-    console.log('🔍 SmartCompatibilityEngine.validateConfiguration called with products:', Object.keys(products));
-    
     try {
       // Initialize smart system
       await this.smartSystem.initialize();
 
       // Get components with their semantic tags
       const componentsWithTags = await this.getComponentsWithTags(products);
-      console.log('📊 Components with tags found:', componentsWithTags.length);
 
       if (componentsWithTags.length === 0) {
-        console.log('⚠️ No semantic tags found, falling back to original compatibility engine');
         return CompatibilityEngine.validateConfiguration(products);
       }
 
@@ -76,7 +71,6 @@ export class SmartCompatibilityEngine {
 
       // Calculate power consumption using smart system
       const powerCalculation = this.calculateSmartPowerConsumption(componentsWithTags);
-      console.log('⚡ Power calculation result:', powerCalculation);
 
       // Add power supply validation
       const powerIssues = this.validateSmartPowerRequirements(componentsWithTags);
@@ -101,8 +95,7 @@ export class SmartCompatibilityEngine {
         actualPowerConsumption: powerCalculation.actualPowerConsumption,
         recommendedPsuPower: powerCalculation.recommendedPsuPower,
       };
-    } catch (error) {
-      console.error('❌ Smart compatibility engine failed, falling back to original:', error);
+    } catch {
       // Fallback to original engine on any error
       return CompatibilityEngine.validateConfiguration(products);
     }
@@ -126,32 +119,38 @@ export class SmartCompatibilityEngine {
           .single();
 
         if (error || !category) {
-          console.warn(`Could not find category for slug: ${categorySlug}`);
           continue;
         }
 
         const tags = (category.specification_tags as SemanticTag[]) || [];
 
         if (tags.length === 0) {
-          console.warn(`No semantic tags found for category: ${categorySlug}`);
           continue;
         }
 
         // Extract specifications from product
         const specifications: Record<string, unknown> = {};
+        console.log(`🔍 Processing specifications for ${product.title} (category: ${categorySlug})`);
+        console.log(`🔍 Raw product.specifications:`, product.specifications);
+        
         if (product.specifications) {
           product.specifications.forEach(spec => {
             specifications[spec.name] = spec.value;
+            console.log(`📋 Spec: ${spec.name} = ${spec.value} (type: ${typeof spec.value})`);
           });
+        } else {
+          console.log(`⚠️ No specifications found for ${product.title}`);
         }
+        
+        console.log(`📋 Final specifications object:`, specifications);
 
         componentsWithTags.push({
           product,
           tags,
           specifications,
         });
-      } catch (error) {
-        console.error(`Error getting tags for category ${categorySlug}:`, error);
+      } catch {
+        // Skip categories with errors
       }
     }
 
@@ -159,156 +158,79 @@ export class SmartCompatibilityEngine {
   }
 
   /**
-   * Calculate power consumption and PSU recommendation according to new requirements:
-   * 1. If GPU selected → use GPU's recommended PSU power
-   * 2. If no GPU but CPU selected → calculate CPU TDP + other components
-   * 3. If no CPU → use only hardcoded values for other components
+   * Calculate PSU recommendation according to new requirements:
+   * 1. If GPU selected and has recommended_psu_power → use it
+   * 2. If no GPU or GPU without recommended_psu_power → don't show PSU recommendation (return 0)
    * 
-   * Returns both actual power consumption and recommended PSU power
+   * All other power consumption calculations are removed as per requirements
    */
   private static calculateSmartPowerConsumption(components: ComponentWithTags[]): {
     actualPowerConsumption: number;
     recommendedPsuPower: number;
   } {
     console.log('🔍 calculateSmartPowerConsumption called with components:', components.length);
-    
-    // If no components with tags, fallback to category-based calculation
-    if (components.length === 0) {
-      console.log('⚠️ No components with tags found, using fallback calculation');
-      return {
-        actualPowerConsumption: 0,
-        recommendedPsuPower: 0
-      };
-    }
-
-    // Calculate actual power consumption for all components
-    let actualPowerConsumption = 0;
+    console.log('🔍 All components data:', components.map(comp => ({
+      title: comp.product.title,
+      category: comp.product.category?.slug,
+      tags: comp.tags,
+      specifications: comp.specifications
+    })));
     
     // Find GPU component (by semantic tag or category slug)
     const gpuComponent = components.find(comp => 
-      comp.tags.includes(SemanticTag.GPU) || 
+      comp.tags.includes(SemanticTag.HAS_GRAPHICS) || 
+      comp.tags.includes(SemanticTag.GRAPHICS_ACCELERATED) ||
       comp.product.category?.slug === 'graphics-cards'
     );
     
-    console.log('🎮 GPU component found:', !!gpuComponent, gpuComponent?.product.title);
-    
-    // Add GPU power consumption
+    console.log('🎮 GPU component found:', !!gpuComponent);
     if (gpuComponent) {
-      const gpuPower = gpuComponent.specifications['power_consumption'] || 
-                      gpuComponent.specifications['tdp'] ||
-                      gpuComponent.specifications['recommended_psu_power'];
-      console.log('⚡ GPU power specs:', { 
-        power_consumption: gpuComponent.specifications['power_consumption'],
-        tdp: gpuComponent.specifications['tdp'],
-        recommended_psu_power: gpuComponent.specifications['recommended_psu_power']
+      console.log('🎮 GPU details:', {
+        title: gpuComponent.product.title,
+        category: gpuComponent.product.category?.slug,
+        tags: gpuComponent.tags,
+        allSpecifications: gpuComponent.specifications,
+        productSpecifications: gpuComponent.product.specifications
       });
-      
-      if (gpuPower) {
-        const power = typeof gpuPower === 'number' ? gpuPower : parseFloat(String(gpuPower));
-        if (!isNaN(power)) {
-          actualPowerConsumption += power;
-          console.log('✅ Added GPU power:', power);
-        }
-      }
     }
     
-    // Find CPU component (by semantic tag or category slug)
-    const cpuComponent = components.find(comp => 
-      comp.tags.includes(SemanticTag.CPU) || 
-      comp.product.category?.slug === 'processors'
-    );
+    // Only use GPU's recommended_psu_power as per requirements
+    let recommendedPsuPower = 0;
     
-    console.log('🖥️ CPU component found:', !!cpuComponent, cpuComponent?.product.title);
-    
-    // Add CPU TDP if present
-    if (cpuComponent) {
-      const cpuTdp = cpuComponent.specifications['tdp'];
-      console.log('⚡ CPU TDP spec:', cpuTdp);
-      
-      if (cpuTdp) {
-        const power = typeof cpuTdp === 'number' ? cpuTdp : parseFloat(String(cpuTdp));
-        if (!isNaN(power)) {
-          actualPowerConsumption += power;
-          console.log('✅ Added CPU TDP:', power);
-        }
-      }
-    }
-    
-    // Add hardcoded values for other components
-    for (const component of components) {
-      const categorySlug = component.product.category?.slug;
-      
-      if (component.tags.includes(SemanticTag.MOTHERBOARD) || categorySlug === 'motherboards') {
-        actualPowerConsumption += COMPONENT_POWER_CONSUMPTION.MOTHERBOARD;
-        console.log('✅ Added motherboard power:', COMPONENT_POWER_CONSUMPTION.MOTHERBOARD);
-      } else if (component.tags.includes(SemanticTag.MEMORY) || categorySlug === 'memory') {
-        // Determine memory type from specifications
-        const memoryType = component.specifications['memory_type'] || 'ddr4';
-        const isDDR5 = String(memoryType).toLowerCase().includes('ddr5');
-        const memoryPower = isDDR5 ? COMPONENT_POWER_CONSUMPTION.MEMORY_DDR5 : COMPONENT_POWER_CONSUMPTION.MEMORY_DDR4;
-        actualPowerConsumption += memoryPower;
-        console.log('✅ Added memory power:', memoryPower, 'type:', memoryType);
-      } else if (component.tags.includes(SemanticTag.STORAGE) || categorySlug === 'storage') {
-        // Determine storage type from specifications
-        const storageInterface = component.specifications['interface'] || 'sata';
-        const isNVMe = String(storageInterface).toLowerCase().includes('nvme');
-        const isSSD = String(storageInterface).toLowerCase().includes('ssd') || 
-                     String(component.product.title).toLowerCase().includes('ssd');
-        
-        let storagePower;
-        if (isNVMe) {
-          storagePower = COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_NVME;
-        } else if (isSSD) {
-          storagePower = COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_SATA;
-        } else {
-          storagePower = COMPONENT_POWER_CONSUMPTION.STORAGE_HDD;
-        }
-        actualPowerConsumption += storagePower;
-        console.log('✅ Added storage power:', storagePower, 'interface:', storageInterface);
-      } else if (component.tags.includes(SemanticTag.COOLING) || categorySlug === 'cooling') {
-        // Determine cooling type
-        const isAIO = String(component.product.title).toLowerCase().includes('aio') ||
-                     String(component.product.title).toLowerCase().includes('жидкост');
-        const coolingPower = isAIO ? COMPONENT_POWER_CONSUMPTION.COOLING_AIO : COMPONENT_POWER_CONSUMPTION.COOLING_AIR;
-        actualPowerConsumption += coolingPower;
-        console.log('✅ Added cooling power:', coolingPower, 'isAIO:', isAIO);
-      } else if (component.tags.includes(SemanticTag.CASE) || categorySlug === 'cases') {
-        actualPowerConsumption += COMPONENT_POWER_CONSUMPTION.CASE_FANS;
-        console.log('✅ Added case fans power:', COMPONENT_POWER_CONSUMPTION.CASE_FANS);
-      }
-    }
-    
-    console.log('⚡ Total actual power consumption:', actualPowerConsumption);
-    
-    // Calculate recommended PSU power
-    let recommendedPsuPower: number;
-    
-    // If GPU has recommended PSU power, use it as a baseline
     if (gpuComponent) {
+      // Check both specifications object and product.specifications array
       const gpuRecommendedPsu = gpuComponent.specifications['recommended_psu_power'];
+      console.log('⚡ GPU recommended_psu_power from specifications object:', gpuRecommendedPsu);
+      
+      // Also check if it's in the product.specifications array
+      if (gpuComponent.product.specifications) {
+        const specFromArray = gpuComponent.product.specifications.find(spec => 
+          spec.name === 'recommended_psu_power' || 
+          spec.name === 'recommended_psu' ||
+          spec.name === 'psu_power' ||
+          spec.name === 'power_supply'
+        );
+        console.log('⚡ GPU PSU spec from product.specifications array:', specFromArray);
+      }
+      
       if (gpuRecommendedPsu) {
         const power = typeof gpuRecommendedPsu === 'number' ? gpuRecommendedPsu : parseFloat(String(gpuRecommendedPsu));
         if (!isNaN(power)) {
           recommendedPsuPower = power;
           console.log('✅ Using GPU recommended PSU power:', power);
         } else {
-          // Fallback: calculate from actual consumption
-          recommendedPsuPower = actualPowerConsumption * (1 + PSU_HEADROOM_PERCENTAGE / 100);
-          console.log('✅ Calculated PSU power from consumption (GPU fallback):', recommendedPsuPower);
+          console.log('⚠️ GPU recommended_psu_power is not a valid number:', gpuRecommendedPsu, 'type:', typeof gpuRecommendedPsu);
         }
       } else {
-        // Fallback: calculate from actual consumption
-        recommendedPsuPower = actualPowerConsumption * (1 + PSU_HEADROOM_PERCENTAGE / 100);
-        console.log('✅ Calculated PSU power from consumption (no GPU rec):', recommendedPsuPower);
+        console.log('⚠️ GPU has no recommended_psu_power specification');
+        console.log('⚠️ Available GPU specifications keys:', Object.keys(gpuComponent.specifications));
       }
     } else {
-      // No GPU: calculate from actual consumption with headroom
-      recommendedPsuPower = actualPowerConsumption * (1 + PSU_HEADROOM_PERCENTAGE / 100);
-      console.log('✅ Calculated PSU power from consumption (no GPU):', recommendedPsuPower);
+      console.log('⚠️ No GPU selected, no PSU recommendation');
     }
     
     const result = {
-      actualPowerConsumption: Math.round(actualPowerConsumption),
+      actualPowerConsumption: 0, // Not used anymore as per requirements
       recommendedPsuPower: Math.round(recommendedPsuPower)
     };
     
@@ -317,56 +239,53 @@ export class SmartCompatibilityEngine {
   }
 
   /**
-   * Validate power requirements using semantic tags with advanced PSU analysis
+   * Validate power requirements according to new requirements:
+   * Only validate PSU when GPU with recommended_psu_power is selected
    */
   private static validateSmartPowerRequirements(
     components: ComponentWithTags[]
   ): CompatibilityIssue[] {
     const issues: CompatibilityIssue[] = [];
 
+    // Find GPU component
+    const gpuComponent = components.find(comp => 
+      comp.tags.includes(SemanticTag.HAS_GRAPHICS) || 
+      comp.tags.includes(SemanticTag.GRAPHICS_ACCELERATED) ||
+      comp.product.category?.slug === 'graphics-cards'
+    );
+
+    // Only validate PSU if GPU with recommended_psu_power is present
+    if (!gpuComponent || !gpuComponent.specifications['recommended_psu_power']) {
+      return issues; // No GPU or no recommended PSU power, no PSU validation needed
+    }
+
+    const recommendedPsuPower = gpuComponent.specifications['recommended_psu_power'];
+    const requiredWattage = typeof recommendedPsuPower === 'number' ? 
+      recommendedPsuPower : parseFloat(String(recommendedPsuPower));
+
+    if (isNaN(requiredWattage)) {
+      return issues; // Invalid recommended PSU power value
+    }
+
     // Find power providers (PSUs)
     const powerProviders = components.filter(comp =>
       comp.tags.includes(SemanticTag.POWER_PROVIDER)
     );
 
-    // Find power consumers
-    const powerConsumers = components.filter(comp =>
-      comp.tags.includes(SemanticTag.POWER_CONSUMER)
-    );
-
-    if (powerConsumers.length === 0) {
-      return issues; // No power consumers, no issues
-    }
-
-    // Progressive validation: Only show PSU missing error if we have multiple components
-    // or high-power components that definitely need a PSU
-    const hasMultipleComponents = components.length > 1;
-    const hasHighPowerComponent = powerConsumers.some(comp => {
-      const power = comp.specifications['power_consumption'] || comp.specifications['tdp'];
-      const powerValue = typeof power === 'number' ? power : parseFloat(String(power || '0'));
-      return !isNaN(powerValue) && powerValue > 100; // High power components (GPU, high-end CPU)
-    });
-
     if (powerProviders.length === 0) {
-      // Only show PSU error if we have multiple components or high-power components
-      if (hasMultipleComponents || hasHighPowerComponent) {
-        issues.push({
-          type: 'error',
-          component1: 'Power System',
-          component2: 'Configuration',
-          message: 'No power supply found',
-          details:
-            'A power supply unit (PSU) is required to power all components. Consider adding a PSU with at least 500W capacity.',
-          severity: 'high',
-        });
-      }
+      // Show PSU missing error only when GPU requires specific PSU power
+      issues.push({
+        type: 'error',
+        component1: 'Power System',
+        component2: 'Graphics Card',
+        message: 'Power supply required for graphics card',
+        details: `The selected graphics card requires a ${requiredWattage}W power supply. Please add a compatible PSU.`,
+        severity: 'high',
+      });
       return issues;
     }
 
-    // Calculate realistic power consumption using our enhanced method
-    const totalConsumption = this.calculateSmartPowerConsumption(components);
-
-    // Check each power provider with advanced analysis
+    // Check each power provider against GPU's recommended PSU power
     for (const provider of powerProviders) {
       const wattageSpec =
         provider.specifications['wattage'] || provider.specifications['power_output'];
@@ -377,45 +296,15 @@ export class SmartCompatibilityEngine {
           typeof wattageSpec === 'number' ? wattageSpec : parseFloat(String(wattageSpec));
 
         if (!isNaN(wattage)) {
-          // Determine optimal load range (PSUs are most efficient at 50-80% load)
-          const optimalMinLoad = wattage * 0.5;
-          const optimalMaxLoad = wattage * 0.8;
-          const maxSafeLoad = wattage * 0.9; // Never exceed 90% for safety
-
-          // Critical error: PSU cannot handle the load
-          if (totalConsumption > maxSafeLoad) {
-            const suggestedWattage = Math.ceil(totalConsumption / 0.8 / 50) * 50; // Round up to nearest 50W
+          // Check if PSU meets GPU's recommended power requirement
+          if (wattage < requiredWattage) {
             issues.push({
               type: 'error',
               component1: provider.product.title,
-              component2: 'Power Requirements',
-              message: `PSU capacity insufficient for system load`,
-              details: `System requires ${totalConsumption}W but PSU can safely provide only ${Math.round(maxSafeLoad)}W. Recommended: ${suggestedWattage}W+ PSU with 80+ certification.`,
+              component2: gpuComponent.product.title,
+              message: `PSU capacity insufficient for graphics card`,
+              details: `Graphics card requires ${requiredWattage}W PSU but selected PSU provides only ${wattage}W. Please choose a PSU with at least ${requiredWattage}W capacity.`,
               severity: 'high',
-            });
-          }
-          // Warning: PSU load is too high (above optimal range)
-          else if (totalConsumption > optimalMaxLoad) {
-            const loadPercentage = Math.round((totalConsumption / wattage) * 100);
-            issues.push({
-              type: 'warning',
-              component1: provider.product.title,
-              component2: 'Power Requirements',
-              message: `PSU operating above optimal efficiency range`,
-              details: `System load is ${totalConsumption}W (${loadPercentage}% of PSU capacity). PSUs are most efficient at 50-80% load. Consider a higher wattage PSU for better efficiency and longevity.`,
-              severity: 'medium',
-            });
-          }
-          // Info: PSU load is too low (below optimal range)
-          else if (totalConsumption < optimalMinLoad) {
-            const loadPercentage = Math.round((totalConsumption / wattage) * 100);
-            issues.push({
-              type: 'warning',
-              component1: provider.product.title,
-              component2: 'Power Requirements',
-              message: `PSU may be oversized for current system`,
-              details: `System load is ${totalConsumption}W (${loadPercentage}% of PSU capacity). While safe, a smaller PSU (${Math.ceil(totalConsumption / 0.7 / 50) * 50}W) might be more cost-effective and efficient.`,
-              severity: 'low',
             });
           }
 
@@ -438,13 +327,7 @@ export class SmartCompatibilityEngine {
           }
 
           // Check for modular cables recommendation for high-end builds
-          const hasHighEndGPU = components.some(
-            comp =>
-              comp.tags.includes(SemanticTag.GPU) &&
-              ((comp.specifications['power_consumption'] as number) || 0) > 200
-          );
-
-          if (hasHighEndGPU && totalConsumption > 400) {
+          if (requiredWattage >= 650) {
             const isModular = String(provider.specifications['modular'] || '').toLowerCase();
             if (!isModular.includes('modular') && !isModular.includes('yes')) {
               issues.push({
@@ -452,7 +335,7 @@ export class SmartCompatibilityEngine {
                 component1: provider.product.title,
                 component2: 'Cable Management',
                 message: `Consider modular PSU for high-performance build`,
-                details: `For builds with high power consumption (${totalConsumption}W), a modular PSU can improve airflow and cable management.`,
+                details: `For high-performance graphics cards requiring ${requiredWattage}W+ PSU, a modular PSU can improve airflow and cable management.`,
                 severity: 'low',
               });
             }
@@ -476,7 +359,10 @@ export class SmartCompatibilityEngine {
     const cpus = components.filter(comp => comp.tags.includes(SemanticTag.CPU));
     const motherboards = components.filter(comp => comp.tags.includes(SemanticTag.MOTHERBOARD));
     const memories = components.filter(comp => comp.tags.includes(SemanticTag.MEMORY));
-    const gpus = components.filter(comp => comp.tags.includes(SemanticTag.GPU));
+    const gpus = components.filter(comp => 
+      comp.tags.includes(SemanticTag.HAS_GRAPHICS) || 
+      comp.tags.includes(SemanticTag.GRAPHICS_ACCELERATED)
+    );
 
     // Validate CPU-Motherboard socket compatibility
     for (const cpu of cpus) {
@@ -886,7 +772,10 @@ export class SmartCompatibilityEngine {
     try {
       // Find key thermal components
       const cpus = components.filter(comp => comp.tags.includes(SemanticTag.CPU));
-      const gpus = components.filter(comp => comp.tags.includes(SemanticTag.GPU));
+      const gpus = components.filter(comp => 
+        comp.tags.includes(SemanticTag.HAS_GRAPHICS) || 
+        comp.tags.includes(SemanticTag.GRAPHICS_ACCELERATED)
+      );
       const coolers = components.filter(comp => comp.tags.includes(SemanticTag.PROVIDES_COOLING));
       const cases = components.filter(comp => comp.tags.includes(SemanticTag.CASE));
 

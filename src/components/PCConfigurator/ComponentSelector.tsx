@@ -69,13 +69,11 @@ export default function ComponentSelector({
 
       if (error) {
         setError('Error loading products');
-        console.error('Error loading compatible products:', error);
       } else {
         setProducts(data || []);
       }
-    } catch (err) {
+    } catch {
       setError('Error loading products');
-      console.error('Error loading compatible products:', err);
     } finally {
       setIsLoading(false);
     }
