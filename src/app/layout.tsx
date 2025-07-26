@@ -12,6 +12,8 @@ import { StripeProvider } from '@/contexts/StripeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import { OrganizationStructuredData, WebsiteStructuredData } from '@/components/seo/StructuredData';
+import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: 'TechCortex - Premium Computer Hardware',
@@ -109,6 +111,8 @@ export default function RootLayout({
             </ToastProvider>
           </CartProvider>
         </AuthProvider>
+        <SpeedInsights />
+      <Analytics />
       </body>
     </html>
   );
