@@ -45,15 +45,15 @@ export default function Footer() {
               products at competitive prices.
             </p>
             <div className="flex space-x-4">
-              <a href="#" className="text-gray-500 hover:text-primary">
+              <a href="https://www.facebook.com/techcortex.us" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-primary">
                 <FaFacebookF className="h-6 w-6" />
               </a>
-              <a href="#" className="text-gray-500 hover:text-primary">
+              <a href="https://www.instagram.com/techcortex.us/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-primary">
                 <FaInstagram className="h-6 w-6" />
               </a>
-              <a href="#" className="text-gray-500 hover:text-primary">
-                <FaXTwitter className="h-6 w-6" />
-              </a>
+              {/*<a href="#" className="text-gray-500 hover:text-primary">*/}
+              {/*  <FaXTwitter className="h-6 w-6" />*/}
+              {/*</a>*/}
             </div>
           </div>
 
