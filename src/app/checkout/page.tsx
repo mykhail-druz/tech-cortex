@@ -53,8 +53,8 @@ export default function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
-  const [paymentCompleted, setPaymentCompleted] = useState(false); // Добавляем флаг завершения платежа
   const [totalWithTax, setTotalWithTax] = useState(subtotal);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
   // Initialize tax calculation hook
   const {
@@ -91,7 +91,7 @@ export default function CheckoutPage() {
   });
   const router = useRouter();
 
-  // Redirect to cart if the cart is empty BUT NOT if payment was completed
+  // Redirect to cart if the cart is empty (but not after successful payment)
   useEffect(() => {
     if (!cartLoading && items.length === 0 && !paymentCompleted) {
       router.push('/cart');
@@ -131,8 +131,8 @@ export default function CheckoutPage() {
     }
   }, [authLoading, user, router, items]);
 
-  // Pre-fill form with user profile data if available
-  useEffect(() => {
+  // Manual autofill function for user profile data
+  const handleAutofill = () => {
     if (profile) {
       setFormData(prev => ({
         ...prev,
@@ -149,7 +149,7 @@ export default function CheckoutPage() {
         country: profile.country || 'US',
       }));
     }
-  }, [profile, user]);
+  };
 
   // Calculate tax when shipping address changes
   useEffect(() => {
@@ -499,11 +499,11 @@ export default function CheckoutPage() {
 
       // If we're using PayPal, we would handle that differently
       if (formData.paymentMethod === 'paypal') {
-        // Set payment completed flag BEFORE clearing the cart
-        setPaymentCompleted(true);
         // For now, just simulate a successful PayPal payment
+        setPaymentCompleted(true);
         await clearCart();
-        console.log('PayPal payment processed successfully. Redirection disabled as requested.');
+        console.log('PayPal payment processed successfully. Redirecting to thank-you page.');
+        router.push('/thank-you');
       }
 
       return true; // Возвращаем true, если всё прошло успешно
@@ -518,10 +518,8 @@ export default function CheckoutPage() {
   // Handle successful Stripe payment
   const handlePaymentSuccess = async (paymentIntentId: string) => {
     try {
-      console.log('Payment successful, updating order status for payment intent:', paymentIntentId);
-
-      // Set payment completed flag BEFORE clearing cart
       setPaymentCompleted(true);
+      console.log('Payment successful, updating order status for payment intent:', paymentIntentId);
 
       // Log all orders to see what's in the database
       const { data: allOrders, error: ordersError } = await dbService.getUserOrders(user?.id || '');
@@ -555,17 +553,17 @@ export default function CheckoutPage() {
 
       // Clear cart
       await clearCart();
-      console.log('Payment processed successfully. Redirection disabled as requested.');
+      console.log('Payment processed successfully. Redirecting to thank-you page.');
+      router.push('/thank-you');
     } catch (err) {
       console.error('Payment success handling error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
 
       // Even if there's an error, try to clear the cart
       try {
-        // Set payment completed flag BEFORE clearing cart
-        setPaymentCompleted(true);
         await clearCart();
-        console.log('Cart cleared after error. Redirection disabled as requested.');
+        console.log('Cart cleared after error. Redirecting to thank-you page.');
+        router.push('/thank-you');
       } catch (clearErr) {
         console.error('Error clearing cart after payment:', clearErr);
       }
@@ -628,37 +626,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // Показываем сообщение об успешном платеже если платеж завершен
-  if (paymentCompleted) {
-    return (
-      <div className="container mx-auto px-4 py-12">
-        <div className="max-w-4xl mx-auto">
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
-            <div className="mb-6">
-              <FaCheck className="mx-auto h-16 w-16 text-green-500" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Payment Successful!</h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Thank you for your order. Your payment has been processed successfully.
-            </p>
-            <div className="space-y-4">
-              <Link
-                href="/account/orders"
-                className="inline-block bg-primary text-white px-6 py-3 rounded-md hover:bg-primary/90 transition-colors"
-              >
-                View My Orders
-              </Link>
-              <div>
-                <Link href="/" className="text-primary hover:text-primary/80 font-medium">
-                  Continue Shopping
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -678,7 +645,18 @@ export default function CheckoutPage() {
             <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md overflow-hidden">
               {/* Contact information */}
               <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-medium mb-4">Contact Information</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-medium">Contact Information</h2>
+                  {profile && (
+                    <button
+                      type="button"
+                      onClick={handleAutofill}
+                      className="text-sm bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1 rounded-md border border-blue-200 transition-colors"
+                    >
+                      Use saved info
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import * as storageService from '@/lib/supabase/storageService';
 import ClientImage from '@/components/ui/ClientImage';
+import { US_STATES } from '@/lib/constants/addressConstants';
 
 export default function AccountPage() {
   const { user, profile, isLoading, updateProfile } = useAuth();
@@ -28,6 +29,7 @@ export default function AccountPage() {
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -36,9 +38,9 @@ export default function AccountPage() {
     }
   }, [user, isLoading, router]);
 
-  // Update form data when profile changes
+  // Update form data when profile changes (only if no unsaved changes)
   useEffect(() => {
-    if (profile) {
+    if (profile && !hasUnsavedChanges) {
       setFormData({
         first_name: profile.first_name || '',
         last_name: profile.last_name || '',
@@ -52,11 +54,12 @@ export default function AccountPage() {
         avatar_url: profile.avatar_url || '',
       });
     }
-  }, [profile]);
+  }, [profile, hasUnsavedChanges]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    setHasUnsavedChanges(true);
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +83,7 @@ export default function AccountPage() {
       setPreviewUrl(url);
 
       setError(null);
+      setHasUnsavedChanges(true);
     }
   };
 
@@ -161,6 +165,7 @@ export default function AccountPage() {
       setIsEditing(false);
       setAvatarFile(null);
       setPreviewUrl(null);
+      setHasUnsavedChanges(false);
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error(err);
@@ -174,6 +179,7 @@ export default function AccountPage() {
     setAvatarFile(null);
     setPreviewUrl(null);
     setError(null);
+    setHasUnsavedChanges(false);
     // Reset form data to current profile
     if (profile) {
       setFormData({
@@ -199,6 +205,7 @@ export default function AccountPage() {
     setAvatarFile(null);
     setPreviewUrl(null);
     setFormData(prev => ({ ...prev, avatar_url: '' }));
+    setHasUnsavedChanges(true);
 
     // Если у нас есть сохраненный аватар, удаляем его из storage
     if (currentAvatarUrl) {
@@ -252,6 +259,7 @@ export default function AccountPage() {
 
     // Устанавливаем Google аватар
     setFormData(prev => ({ ...prev, avatar_url: googleAvatarUrl }));
+    setHasUnsavedChanges(true);
 
     // Если у нас был свой аватар, удаляем его
     if (currentAvatarUrl) {
@@ -623,14 +631,20 @@ export default function AccountPage() {
                       >
                         State/Province
                       </label>
-                      <input
+                      <select
                         id="state"
                         name="state"
-                        type="text"
                         value={formData.state}
                         onChange={handleChange}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
-                      />
+                      >
+                        <option value="">Select a state</option>
+                        {US_STATES.map(state => (
+                          <option key={state.value} value={state.value}>
+                            {state.label}
+                          </option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label
