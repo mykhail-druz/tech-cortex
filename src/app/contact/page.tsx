@@ -182,16 +182,16 @@ function ContactUsContent() {
                 Custom-built PCs include our comprehensive 1-year service warranty.
               </p>
             </div>
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Do you provide on-site technical support?
-              </h3>
-              <p className="text-gray-600">
-                Absolutely! We provide on-site technical support throughout the Tampa Bay area. Our
-                certified technicians can help with installations, troubleshooting, network setup,
-                and maintenance at your home or business.
-              </p>
-            </div>
+            {/*<div className="bg-white p-6 rounded-lg shadow-md">*/}
+            {/*  <h3 className="text-lg font-semibold text-gray-900 mb-2">*/}
+            {/*    Do you provide on-site technical support?*/}
+            {/*  </h3>*/}
+            {/*  <p className="text-gray-600">*/}
+            {/*    Absolutely! We provide on-site technical support throughout the Tampa Bay area. Our*/}
+            {/*    certified technicians can help with installations, troubleshooting, network setup,*/}
+            {/*    and maintenance at your home or business.*/}
+            {/*  </p>*/}
+            {/*</div>*/}
             <div className="bg-white p-6 rounded-lg shadow-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
                 Can you build custom PCs for gaming and business?
