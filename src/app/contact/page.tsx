@@ -167,7 +167,7 @@ function ContactUsContent() {
                 Do you offer same-day delivery in St. Petersburg?
               </h3>
               <p className="text-gray-600">
-                Yes! We offer same-day delivery for orders placed before 2 PM on weekdays within St.
+                Yes! If available, we offer same-day delivery for orders placed before 2 PM on weekdays within St.
                 Petersburg and surrounding areas. Express delivery is available for urgent business
                 needs.
               </p>
