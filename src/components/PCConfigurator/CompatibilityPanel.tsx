@@ -16,7 +16,7 @@ export default function CompatibilityPanel({
   selectedComponents,
   recommendedPsuPower: configRecommendedPsuPower,
 }: CompatibilityPanelProps) {
-  const { issues, warnings, recommendedPsuPower: validationRecommendedPsuPower } = validationResult;
+  const { issues, warnings, recommendations, recommendedPsuPower: validationRecommendedPsuPower } = validationResult;
 
   // Use configuration power values as primary source, fallback to validation result
   const displayRecommendedPsuPower = configRecommendedPsuPower || validationRecommendedPsuPower;
@@ -33,9 +33,9 @@ export default function CompatibilityPanel({
   const hasCoreComponents = () => {
     // Use the same logic as PCConfigurator.tsx for consistency
     const components = selectedComponents;
-    const hasProcessorAndMotherboard = components['processor'] && components['motherboard'];
-    const hasProcessorWithOthers = components['processor'] && componentCount >= 2;
-    const hasMotherboardWithOthers = components['motherboard'] && componentCount >= 2;
+    const hasProcessorAndMotherboard = components['cpu'] && components['motherboard'];
+    const hasProcessorWithOthers = components['cpu'] && componentCount >= 2;
+    const hasMotherboardWithOthers = components['cpu'] && componentCount >= 2;
 
     return hasProcessorAndMotherboard || hasProcessorWithOthers || hasMotherboardWithOthers;
   };
@@ -77,12 +77,12 @@ export default function CompatibilityPanel({
   // Helper function to suggest next component
   const getNextRecommendedComponent = (selectedCategory: string) => {
     const recommendations: Record<string, string> = {
-      processors: 'a motherboard',
-      motherboards: 'a processor',
-      memory: 'a processor or motherboard',
-      'graphics-cards': 'a power supply',
-      'power-supplies': 'a case',
-      cases: 'storage',
+      cpu: 'a motherboard',
+      motherboard: 'a processor',
+      ram: 'a processor or motherboard',
+      gpu: 'a power supply',
+      psu: 'a case',
+      case: 'storage',
       storage: 'memory (RAM)',
       cooling: 'a graphics card',
     };
@@ -190,6 +190,28 @@ export default function CompatibilityPanel({
                   {warning.component1 && warning.component2 && (
                     <div className="text-xs text-yellow-500 mt-1">
                       {warning.component1} ↔ {warning.component2}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Recommendations */}
+        {recommendations && recommendations.length > 0 && (
+          <div className="mb-4">
+            <h4 className="font-semibold text-blue-800 mb-2">💡 Recommendations:</h4>
+            <div className="space-y-2">
+              {recommendations.map((recommendation, index) => (
+                <div key={index} className="bg-blue-50 border border-blue-200 rounded p-3">
+                  <div className="font-medium text-blue-800">{recommendation.message}</div>
+                  {recommendation.details && (
+                    <div className="text-sm text-blue-600 mt-1">{recommendation.details}</div>
+                  )}
+                  {recommendation.component1 && recommendation.component2 && (
+                    <div className="text-xs text-blue-500 mt-1">
+                      {recommendation.component1} ↔ {recommendation.component2}
                     </div>
                   )}
                 </div>

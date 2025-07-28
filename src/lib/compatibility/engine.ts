@@ -5,7 +5,6 @@ import {
 } from '@/lib/supabase/types/specifications';
 import { ProductWithDetails } from '@/lib/supabase/types/types';
 import { supabase } from '@/lib/supabaseClient';
-import { COMPONENT_POWER_CONSUMPTION, PSU_HEADROOM_PERCENTAGE } from './constants';
 
 /**
  * Main PC component compatibility checking engine
@@ -59,13 +58,12 @@ export class CompatibilityEngine {
     const warnings: CompatibilityIssue[] = [];
 
     // Extract components
-    const cpu = products['processors'];
-    const motherboard = products['motherboards'];
-    const memory = products['memory'];
-    const gpu = products['graphics-cards'];
-    const psu = products['power-supplies'];
-    const pcCase = products['cases'];
-
+    const cpu = products['cpu'];
+    const motherboard = products['motherboard'];
+    const memory = products['ram'];
+    const gpu = products['gpu'];
+    const psu = products['psu'];
+    const pcCase = products['case'];
 
     // 1. Check CPU + Motherboard compatibility
     if (cpu && motherboard) {
@@ -192,7 +190,6 @@ export class CompatibilityEngine {
         const cpuValue = this.getSpecValue(cpu, primarySpecName);
         const mbValue = this.getSpecValue(motherboard, secondarySpecName);
 
-
         if (!cpuValue || !mbValue) {
           issues.push({
             type: 'warning',
@@ -269,13 +266,22 @@ export class CompatibilityEngine {
   }
 
   /**
-   * Проверка требований по питанию
+   * Проверка требований по питанию согласно новым требованиям:
+   * Валидация БП только если есть GPU с recommended_psu_power
    */
   static validatePowerRequirements(
     products: Record<string, ProductWithDetails>,
     psu: ProductWithDetails
   ): CompatibilityIssue[] {
     const issues: CompatibilityIssue[] = [];
+
+    // Получаем рекомендуемую мощность от GPU
+    const recommendedPsuPower = this.calculatePowerConsumption(products);
+    
+    // Если нет рекомендации от GPU, не проводим валидацию БП
+    if (recommendedPsuPower === 0) {
+      return issues;
+    }
 
     const psuWattage = this.getSpecValue(psu, 'wattage') as number;
     if (!psuWattage) {
@@ -290,26 +296,15 @@ export class CompatibilityEngine {
       return issues;
     }
 
-    const totalPowerConsumption = this.calculatePowerConsumption(products);
-    const recommendedPower = totalPowerConsumption * (1 + PSU_HEADROOM_PERCENTAGE / 100);
-
-    if (psuWattage < recommendedPower) {
+    // Сравниваем мощность БП с рекомендацией от GPU
+    if (psuWattage < recommendedPsuPower) {
       issues.push({
         type: 'error',
         component1: 'Power supply unit',
         component2: 'System',
         message: 'Insufficient power supply unit capacity',
-        details: `Требуется: ${Math.ceil(recommendedPower)}W, Available: ${psuWattage}W`,
+        details: `Требуется: ${recommendedPsuPower}W (по рекомендации GPU), Available: ${psuWattage}W`,
         severity: 'critical',
-      });
-    } else if (psuWattage < totalPowerConsumption * 1.1) {
-      issues.push({
-        type: 'warning',
-        component1: 'Power supply unit',
-        component2: 'System',
-        message: 'Low power reserve of the power supply unit',
-        details: `A power supply with a capacity of ${Math.ceil(recommendedPower)}W`,
-        severity: 'medium',
       });
     }
 
@@ -364,66 +359,24 @@ export class CompatibilityEngine {
   }
 
   /**
-   * Подсчет общего энергопотребления
+   * Подсчет рекомендуемой мощности БП согласно новым требованиям:
+   * Используется только recommended_psu_power от GPU из базы данных
    */
   static calculatePowerConsumption(products: Record<string, ProductWithDetails>): number {
-    let totalConsumption = 0;
-
-    // Базовое потребление системы (материнская плата)
-    totalConsumption += COMPONENT_POWER_CONSUMPTION.MOTHERBOARD;
-
-    // CPU - используем TDP из спецификаций
-    if (products['processors']) {
-      const cpuTdp = this.getSpecValue(products['processors'], 'tdp') as number;
-      if (cpuTdp) {
-        totalConsumption += cpuTdp;
-      }
+    // Ищем видеокарту
+    const gpu = products['graphics-cards'];
+    
+    if (!gpu) {
+      return 0; // Нет GPU - нет рекомендации по БП
     }
 
-    // GPU - используем power_consumption из спецификаций
-    if (products['graphics-cards']) {
-      const gpuPower = this.getSpecValue(products['graphics-cards'], 'power_consumption') as number;
-      if (gpuPower) {
-        totalConsumption += gpuPower;
-      }
+    // Получаем recommended_psu_power от GPU
+    const recommendedPsuPower = this.getSpecValue(gpu, 'recommended_psu_power') as number;
+    
+    if (recommendedPsuPower && !isNaN(recommendedPsuPower)) {
+      return Math.round(recommendedPsuPower);
     }
 
-    // Memory - определяем тип памяти
-    if (products['memory']) {
-      const memoryType = this.getSpecValue(products['memory'], 'memory_type') as string;
-      const isDDR5 = memoryType && memoryType.toLowerCase().includes('ddr5');
-      const memoryModules = (this.getSpecValue(products['memory'], 'modules') as number) || 1;
-      const memoryPowerPerModule = isDDR5 ? COMPONENT_POWER_CONSUMPTION.MEMORY_DDR5 : COMPONENT_POWER_CONSUMPTION.MEMORY_DDR4;
-      totalConsumption += memoryPowerPerModule * memoryModules;
-    }
-
-    // Storage - определяем тип накопителя
-    if (products['storage']) {
-      const storageInterface = this.getSpecValue(products['storage'], 'interface') as string;
-      const isNVMe = storageInterface && storageInterface.toLowerCase().includes('nvme');
-      const isSSD = storageInterface && (storageInterface.toLowerCase().includes('ssd') || storageInterface.toLowerCase().includes('sata'));
-      
-      if (isNVMe) {
-        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_NVME;
-      } else if (isSSD) {
-        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_SSD_SATA;
-      } else {
-        totalConsumption += COMPONENT_POWER_CONSUMPTION.STORAGE_HDD;
-      }
-    }
-
-    // Cooling - определяем тип охлаждения
-    if (products['cooling']) {
-      const coolingTitle = products['cooling'].title.toLowerCase();
-      const isAIO = coolingTitle.includes('aio') || coolingTitle.includes('жидкост');
-      totalConsumption += isAIO ? COMPONENT_POWER_CONSUMPTION.COOLING_AIO : COMPONENT_POWER_CONSUMPTION.COOLING_AIR;
-    }
-
-    // Добавляем потребление корпусных вентиляторов
-    if (products['cases']) {
-      totalConsumption += COMPONENT_POWER_CONSUMPTION.CASE_FANS;
-    }
-
-    return totalConsumption;
+    return 0; // Нет recommended_psu_power - нет рекомендации по БП
   }
 }

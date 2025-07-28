@@ -389,6 +389,27 @@ export class SmartSpecificationSystem {
 
     // Check each compatibility rule
     for (const rule of this.tagCompatibilityRules) {
+      // Skip power consumption compatibility rule if conditions are not met
+      if (rule.id === 'power-consumption-compatibility') {
+        // Only check power supply compatibility if:
+        // 1. There's a GPU with recommended_psu_power, OR
+        // 2. There are at least 3 components including CPU and GPU
+        const hasGpuWithPowerReq = components.some(c => 
+          (c.tags.includes(SemanticTag.HAS_GRAPHICS) || c.tags.includes(SemanticTag.GRAPHICS_ACCELERATED)) && 
+          c.specifications['recommended_psu_power']
+        );
+        
+        const hasCpu = components.some(c => c.tags.includes(SemanticTag.PROCESSING_UNIT));
+        const hasGpu = components.some(c => 
+          c.tags.includes(SemanticTag.HAS_GRAPHICS) || c.tags.includes(SemanticTag.GRAPHICS_ACCELERATED)
+        );
+        const hasMinimalBuild = components.length >= 3 && hasCpu && hasGpu;
+        
+        if (!hasGpuWithPowerReq && !hasMinimalBuild) {
+          continue; // Skip power supply validation
+        }
+      }
+
       const componentsWithRequiredTag = components.filter(c => c.tags.includes(rule.requiredTag));
 
       if (componentsWithRequiredTag.length === 0) continue;

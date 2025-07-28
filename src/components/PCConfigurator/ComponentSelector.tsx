@@ -267,7 +267,7 @@ export default function ComponentSelector({
                 <ProductCard product={product} compact />
                 {isProductSelected(product) && (
                   <div className="mt-2 text-center">
-                    <span className="text-primary font-medium">✓ Selected</span>
+                    <span className="text-primary font-medium">Selected</span>
                   </div>
                 )}
               </div>

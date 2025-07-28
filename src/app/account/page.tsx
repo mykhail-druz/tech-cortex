@@ -758,7 +758,7 @@ export default function AccountPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">
           <Link
             href="/account/orders"
             className="group bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-200"
@@ -836,6 +836,32 @@ export default function AccountPage() {
               Security
             </h3>
             <p className="text-sm text-gray-500">Update password and security settings</p>
+          </Link>
+          <Link
+            href="/account/configurations"
+            className="group bg-white rounded-lg shadow-md p-6 border border-gray-200 hover:border-primary hover:shadow-lg transition-all duration-200"
+          >
+            <div className="flex items-center mb-3">
+              <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <svg
+                  className="w-5 h-5 text-primary"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
+                  />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-lg font-medium mb-2 group-hover:text-primary transition-colors">
+              PC Configurations
+            </h3>
+            <p className="text-sm text-gray-500">Manage your saved PC builds</p>
           </Link>
         </div>
       </div>

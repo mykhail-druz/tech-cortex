@@ -802,7 +802,7 @@ export const TAG_COMPATIBILITY_RULES: TagCompatibilityRule[] = [
     requiredTag: SemanticTag.POWER_CONSUMER,
     compatibleTags: [SemanticTag.POWER_PROVIDER],
     specificationKey: 'power_consumption',
-    severity: 'error'
+    severity: 'warning'
   },
   {
     id: 'cooling-compatibility',
@@ -811,7 +811,7 @@ export const TAG_COMPATIBILITY_RULES: TagCompatibilityRule[] = [
     requiredTag: SemanticTag.GENERATES_HEAT,
     compatibleTags: [SemanticTag.PROVIDES_COOLING],
     specificationKey: 'tdp',
-    severity: 'warning'
+    severity: 'info'
   },
   {
     id: 'memory-slot-compatibility',
@@ -829,6 +829,6 @@ export const TAG_COMPATIBILITY_RULES: TagCompatibilityRule[] = [
     requiredTag: SemanticTag.REQUIRES_FORM_FACTOR,
     compatibleTags: [SemanticTag.HAS_FORM_FACTOR],
     specificationKey: 'form_factor',
-    severity: 'error'
+    severity: 'warning'
   }
 ];

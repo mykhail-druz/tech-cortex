@@ -78,37 +78,6 @@ export const SOCKET_MEMORY_SPEED_COMPATIBILITY = {
   ],
 };
 
-// Среднестатистические значения энергопотребления компонентов (в ваттах)
-// Используются для всех компонентов кроме процессоров и видеокарт
-export const COMPONENT_POWER_CONSUMPTION = {
-  // Для процессоров используется TDP из спецификаций
-  // Для видеокарт используется recommended_psu_power из спецификаций
-  
-  // Материнские платы
-  MOTHERBOARD: 50, // Среднее потребление материнской платы
-  
-  // Память (за модуль)
-  MEMORY_DDR4: 4, // DDR4 модуль 8-16GB
-  MEMORY_DDR5: 5, // DDR5 модуль 8-16GB
-  
-  // Накопители
-  STORAGE_HDD: 8, // Жесткий диск
-  STORAGE_SSD_SATA: 3, // SATA SSD
-  STORAGE_SSD_NVME: 6, // NVMe SSD
-  
-  // Охлаждение
-  COOLING_AIR: 5, // Воздушное охлаждение
-  COOLING_AIO: 15, // Жидкостное охлаждение
-  
-  // Корпуса (вентиляторы)
-  CASE_FANS: 10, // Корпусные вентиляторы
-  
-  // Блоки питания (собственное потребление)
-  PSU_EFFICIENCY_LOSS: 0.1, // 10% потери эффективности
-};
-
-// Рекомендуемый запас мощности БП (в процентах)
-export const PSU_HEADROOM_PERCENTAGE = 20;
 
 // Минимальные требования совместимости
 export const COMPATIBILITY_REQUIREMENTS = {

@@ -29,7 +29,7 @@ export default function StripePaymentElement({
       return;
     }
 
-    // Check the payment intent status on mount
+    // Check the payment intent status on the mount
     stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
       if (paymentIntent) {
         switch (paymentIntent.status) {

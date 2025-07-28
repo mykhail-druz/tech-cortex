@@ -841,7 +841,7 @@ export class SpecificationValidator {
 
 // Интерфейсы для совместимости (перенесены из compatibility/specifications.ts)
 export interface CompatibilityIssue {
-  type: 'error' | 'warning';
+  type: 'error' | 'warning' | 'info';
   component1: string;
   component2: string;
   message: string;
@@ -853,6 +853,7 @@ export interface ValidationResult {
   isValid: boolean;
   issues: CompatibilityIssue[];
   warnings: CompatibilityIssue[];
+  recommendations?: CompatibilityIssue[];
   powerConsumption?: number; // Deprecated: use actualPowerConsumption instead
   actualPowerConsumption?: number;
   recommendedPsuPower?: number;

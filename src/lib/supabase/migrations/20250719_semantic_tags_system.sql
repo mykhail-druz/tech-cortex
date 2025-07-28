@@ -252,7 +252,7 @@ ON CONFLICT (id) DO UPDATE SET
 INSERT INTO tag_compatibility_rules (id, name, description, required_tag, compatible_tags, specification_key, severity) VALUES
 ('cpu-socket-compatibility', 'CPU Socket Compatibility', 'CPU requires compatible socket on motherboard', 'REQUIRES_SOCKET', ARRAY['HAS_SOCKET'], 'socket', 'error'),
 ('power-consumption-compatibility', 'Power Supply Compatibility', 'Power consumers need adequate power supply', 'POWER_CONSUMER', ARRAY['POWER_PROVIDER'], 'power_consumption', 'error'),
-('cooling-compatibility', 'Cooling Requirements', 'Heat generating components need cooling', 'GENERATES_HEAT', ARRAY['PROVIDES_COOLING'], 'tdp', 'warning'),
+('cooling-compatibility', 'Cooling Requirements', 'Heat generating components need cooling', 'GENERATES_HEAT', ARRAY['PROVIDES_COOLING'], 'tdp', 'info'),
 ('memory-slot-compatibility', 'Memory Slot Compatibility', 'RAM requires available memory slots', 'REQUIRES_SLOT', ARRAY['HAS_SLOTS'], 'memory_slots', 'error'),
 ('form-factor-compatibility', 'Form Factor Compatibility', 'Components must fit within case form factor', 'REQUIRES_FORM_FACTOR', ARRAY['HAS_FORM_FACTOR'], 'form_factor', 'error')
 

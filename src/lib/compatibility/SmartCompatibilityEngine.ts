@@ -51,21 +51,24 @@ export class SmartCompatibilityEngine {
       // Convert smart system results to ValidationResult format
       const issues: CompatibilityIssue[] = [];
       const warnings: CompatibilityIssue[] = [];
+      const recommendations: CompatibilityIssue[] = [];
 
       smartResult.issues.forEach(issue => {
         const compatibilityIssue: CompatibilityIssue = {
-          type: issue.severity === 'error' ? 'error' : 'warning',
+          type: issue.severity === 'error' ? 'error' : issue.severity === 'warning' ? 'warning' : 'info',
           component1: 'Smart System',
           component2: 'Compatibility Check',
           message: issue.message,
           details: issue.rule.description,
-          severity: issue.severity === 'error' ? 'high' : 'medium',
+          severity: issue.severity === 'error' ? 'high' : issue.severity === 'warning' ? 'medium' : 'low',
         };
 
         if (issue.severity === 'error') {
           issues.push(compatibilityIssue);
-        } else {
+        } else if (issue.severity === 'warning') {
           warnings.push(compatibilityIssue);
+        } else {
+          recommendations.push(compatibilityIssue);
         }
       });
 
@@ -76,21 +79,25 @@ export class SmartCompatibilityEngine {
       const powerIssues = this.validateSmartPowerRequirements(componentsWithTags);
       issues.push(...powerIssues.filter(i => i.type === 'error'));
       warnings.push(...powerIssues.filter(i => i.type === 'warning'));
+      recommendations.push(...powerIssues.filter(i => i.type === 'info'));
 
       // Add advanced compatibility validation
       const advancedIssues = this.validateAdvancedCompatibility(componentsWithTags);
       issues.push(...advancedIssues.filter(i => i.type === 'error'));
       warnings.push(...advancedIssues.filter(i => i.type === 'warning'));
+      recommendations.push(...advancedIssues.filter(i => i.type === 'info'));
 
       // Add enhanced cooling validation
       const coolingIssues = await this.validateEnhancedCooling(componentsWithTags);
       issues.push(...coolingIssues.filter(i => i.type === 'error'));
       warnings.push(...coolingIssues.filter(i => i.type === 'warning'));
+      recommendations.push(...coolingIssues.filter(i => i.type === 'info'));
 
       return {
         isValid: issues.length === 0,
         issues,
         warnings,
+        recommendations: recommendations.length > 0 ? recommendations : undefined,
         powerConsumption: powerCalculation.recommendedPsuPower, // Keep for backward compatibility
         actualPowerConsumption: powerCalculation.actualPowerConsumption,
         recommendedPsuPower: powerCalculation.recommendedPsuPower,
@@ -138,6 +145,21 @@ export class SmartCompatibilityEngine {
             specifications[spec.name] = spec.value;
             console.log(`📋 Spec: ${spec.name} = ${spec.value} (type: ${typeof spec.value})`);
           });
+          
+          // Add fallback for socket specifications with alternative names
+          if (!specifications['socket']) {
+            const socketAliases = ['Socket', 'connector_type', 'Connector Type', 'connector', 'Socket Type'];
+            for (const alias of socketAliases) {
+              const socketSpec = product.specifications.find(spec => 
+                spec.name.toLowerCase() === alias.toLowerCase()
+              );
+              if (socketSpec) {
+                specifications['socket'] = socketSpec.value;
+                console.log(`🔧 Found socket via alias '${alias}': ${socketSpec.value}`);
+                break;
+              }
+            }
+          }
         } else {
           console.log(`⚠️ No specifications found for ${product.title}`);
         }
@@ -195,7 +217,7 @@ export class SmartCompatibilityEngine {
     }
     
     // Only use GPU's recommended_psu_power as per requirements
-    let recommendedPsuPower = 0;
+    let recommendedPsuPower = undefined;
     
     if (gpuComponent) {
       // Check both specifications object and product.specifications array
@@ -231,7 +253,7 @@ export class SmartCompatibilityEngine {
     
     const result = {
       actualPowerConsumption: 0, // Not used anymore as per requirements
-      recommendedPsuPower: Math.round(recommendedPsuPower)
+      recommendedPsuPower: recommendedPsuPower !== undefined ? Math.round(recommendedPsuPower) : undefined
     };
     
     console.log('🔋 Final power calculation result:', result);
@@ -367,11 +389,43 @@ export class SmartCompatibilityEngine {
     // Validate CPU-Motherboard socket compatibility
     for (const cpu of cpus) {
       const cpuSocket = cpu.specifications['socket'];
-      if (!cpuSocket) continue;
+      console.log(`🔍 CPU ${cpu.product.title} socket:`, cpuSocket);
+      console.log(`🔍 CPU specifications:`, cpu.specifications);
+      
+      if (!cpuSocket) {
+        console.log(`⚠️ No socket specification found for CPU: ${cpu.product.title}`);
+        // Add warning about missing socket specification
+        issues.push({
+          type: 'warning',
+          component1: cpu.product.title,
+          component2: 'System',
+          message: 'CPU socket specification missing',
+          details: `Socket information is not available for ${cpu.product.title}. Socket compatibility cannot be validated. Please ensure the product has socket specification data.`,
+          severity: 'medium',
+        });
+        continue;
+      }
 
       for (const motherboard of motherboards) {
         const mbSocket = motherboard.specifications['socket'];
         const chipset = motherboard.specifications['chipset'];
+        
+        console.log(`🔍 Motherboard ${motherboard.product.title} socket:`, mbSocket);
+        console.log(`🔍 Motherboard specifications:`, motherboard.specifications);
+        
+        if (!mbSocket) {
+          console.log(`⚠️ No socket specification found for Motherboard: ${motherboard.product.title}`);
+          // Add warning about missing socket specification
+          issues.push({
+            type: 'warning',
+            component1: motherboard.product.title,
+            component2: cpu.product.title,
+            message: 'Motherboard socket specification missing',
+            details: `Socket information is not available for ${motherboard.product.title}. Socket compatibility with ${cpu.product.title} cannot be validated. Please ensure the product has socket specification data.`,
+            severity: 'medium',
+          });
+          continue;
+        }
 
         if (mbSocket && cpuSocket !== mbSocket) {
           issues.push({
@@ -478,8 +532,6 @@ export class SmartCompatibilityEngine {
 
     // Validate GPU compatibility
     for (const gpu of gpus) {
-      const gpuPower = gpu.specifications['power_consumption'];
-
       // Check PCIe slot compatibility
       for (const motherboard of motherboards) {
         const pcieSlots = motherboard.specifications['pcie_slots'] || '1x PCIe x16';
@@ -492,30 +544,6 @@ export class SmartCompatibilityEngine {
             details: 'High-performance GPUs require PCIe x16 slots for optimal performance.',
             severity: 'medium',
           });
-        }
-      }
-
-      // Check GPU power requirements
-      if (gpuPower) {
-        const powerValue = typeof gpuPower === 'number' ? gpuPower : parseInt(String(gpuPower));
-        if (!isNaN(powerValue) && powerValue > 150) {
-          const powerProviders = components.filter(comp =>
-            comp.tags.includes(SemanticTag.POWER_PROVIDER)
-          );
-          for (const psu of powerProviders) {
-            const pciePower =
-              psu.specifications['pcie_connectors'] || psu.specifications['gpu_connectors'];
-            if (!pciePower || String(pciePower).toLowerCase().includes('none')) {
-              issues.push({
-                type: 'error',
-                component1: gpu.product.title,
-                component2: psu.product.title,
-                message: 'GPU requires dedicated power connectors',
-                details: `High-performance GPU (${powerValue}W) requires PCIe power connectors from PSU.`,
-                severity: 'high',
-              });
-            }
-          }
         }
       }
     }
@@ -781,7 +809,7 @@ export class SmartCompatibilityEngine {
 
       // Validate CPU cooling
       for (const cpu of cpus) {
-        const cpuTDP = cpu.specifications['tdp'] || cpu.specifications['power_consumption'];
+        const cpuTDP = cpu.specifications['tdp'];
         const cpuSocket = cpu.specifications['socket'];
 
         if (cpuTDP) {
@@ -867,7 +895,7 @@ export class SmartCompatibilityEngine {
 
       // Validate GPU thermal considerations
       for (const gpu of gpus) {
-        const gpuTDP = gpu.specifications['power_consumption'] || gpu.specifications['tdp'];
+        const gpuTDP = gpu.specifications['tdp'];
         const gpuLength = gpu.specifications['length'];
 
         if (gpuTDP) {
@@ -963,8 +991,7 @@ export class SmartCompatibilityEngine {
 
     for (const component of components) {
       if (component.tags.includes(SemanticTag.GENERATES_HEAT)) {
-        const tdp =
-          component.specifications['tdp'] || component.specifications['power_consumption'];
+        const tdp = component.specifications['tdp'];
 
         if (tdp) {
           const tdpValue = typeof tdp === 'number' ? tdp : parseFloat(String(tdp));

@@ -1,8 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Product, Category } from '@/lib/supabase/types/types';
 import { EnhancedPCConfiguration, ValidationResult } from '@/lib/supabase/types/specifications';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
+import AddToCartModal from './AddToCartModal';
+import SaveConfigurationModal from './SaveConfigurationModal';
 
 interface ConfigurationSummaryProps {
   configuration: EnhancedPCConfiguration;
@@ -10,6 +14,7 @@ interface ConfigurationSummaryProps {
   validationResult: ValidationResult;
   categories: Category[];
   getCategoryDisplayName: (category: Category) => string;
+  clearConfiguration: () => void;
 }
 
 export default function ConfigurationSummary({
@@ -18,7 +23,13 @@ export default function ConfigurationSummary({
   validationResult,
   categories,
   getCategoryDisplayName,
+  clearConfiguration,
 }: ConfigurationSummaryProps) {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [isAddToCartModalOpen, setIsAddToCartModalOpen] = useState(false);
+  const [isSaveConfigModalOpen, setIsSaveConfigModalOpen] = useState(false);
+  
   const selectedComponents = Object.entries(configuration.components).filter(
     ([, componentId]) => componentId
   );
@@ -26,6 +37,28 @@ export default function ConfigurationSummary({
   const getCategoryNameBySlug = (slug: string): string => {
     const category = categories.find(c => c.slug === slug);
     return category ? getCategoryDisplayName(category) : slug;
+  };
+
+  const handleAddToCart = () => {
+    if (validationResult.issues.length > 0) {
+      return; // Don't add to cart if there are compatibility issues
+    }
+    setIsAddToCartModalOpen(true);
+  };
+
+  const handleSaveConfiguration = () => {
+    // Check if user is logged in
+    if (!user) {
+      router.push('/auth/login');
+      return;
+    }
+
+    // Check if there are components to save
+    if (selectedComponents.length === 0) {
+      return;
+    }
+
+    setIsSaveConfigModalOpen(true);
   };
 
   if (selectedComponents.length === 0) {
@@ -185,19 +218,51 @@ export default function ConfigurationSummary({
         <div className="mt-6 pt-6 border-t">
           <div className="flex space-x-4">
             <button
-              className="flex-1 bg-primary text-white py-3 px-6 rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              onClick={handleAddToCart}
+              className="flex-1 bg-primary text-white py-3 px-6 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={validationResult.issues.length > 0}
             >
-              {validationResult.issues.length > 0
-                ? 'Fix compatibility errors'
-                : 'Add to Cart'}
+              {validationResult.issues.length > 0 
+                ? 'Fix compatibility errors' 
+                : 'Add to Cart'
+              }
             </button>
-            <button className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+            <button 
+              onClick={handleSaveConfiguration}
+              className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={selectedComponents.length === 0}
+            >
               Save Configuration
+            </button>
+            <button
+              onClick={clearConfiguration}
+              className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={selectedComponents.length === 0}
+            >
+              Clear All
             </button>
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <AddToCartModal
+        isOpen={isAddToCartModalOpen}
+        onClose={() => setIsAddToCartModalOpen(false)}
+        selectedComponents={selectedComponents}
+        products={products}
+        getCategoryNameBySlug={getCategoryNameBySlug}
+        totalPrice={totalPrice}
+      />
+
+      <SaveConfigurationModal
+        isOpen={isSaveConfigModalOpen}
+        onClose={() => setIsSaveConfigModalOpen(false)}
+        configuration={configuration}
+        selectedComponents={selectedComponents}
+        products={products}
+        totalPrice={totalPrice}
+      />
     </div>
   );
 }

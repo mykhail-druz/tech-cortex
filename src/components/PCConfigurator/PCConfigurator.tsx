@@ -10,6 +10,11 @@ import {
 } from '@/lib/supabase/types/specifications';
 import { SmartCompatibilityEngine } from '@/lib/compatibility/SmartCompatibilityEngine';
 import { usePCCategories } from '@/hooks/usePCCategories';
+import {
+  getConfigurationForBuilder,
+  getPublicConfigurationForBuilder,
+} from '@/lib/supabase/services/configurationService';
+import { getProductById } from '@/lib/supabase/db';
 import ComponentSelector from './ComponentSelector';
 import CompatibilityPanel from './CompatibilityPanel';
 import ConfigurationSummary from './ConfigurationSummary';
@@ -37,8 +42,8 @@ export default function PCConfigurator() {
 
   // Interface state
   const [activeCategory, setActiveCategory] = useState<string>('');
-  const [isValidating, setIsValidating] = useState(false);
   const [validationTimeout, setValidationTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [isLoadingConfiguration, setIsLoadingConfiguration] = useState(false);
 
   // Product cache
   const [productsCache, setProductsCache] = useState<Record<string, Product>>({});
@@ -64,13 +69,146 @@ export default function PCConfigurator() {
     };
   }, [validationTimeout]);
 
+  // Helper function to fetch and cache product data for component IDs
+  const fetchAndCacheProducts = async (components: Record<string, string | string[]>) => {
+    const productIds: string[] = [];
+
+    // Collect all product IDs from components
+    Object.values(components).forEach(componentId => {
+      if (typeof componentId === 'string') {
+        productIds.push(componentId);
+      } else if (Array.isArray(componentId)) {
+        productIds.push(...componentId);
+      }
+    });
+
+    // Fetch product data for all IDs
+    const productPromises = productIds.map(async id => {
+      try {
+        const result = await getProductById(id);
+        if (result.data && !result.error) {
+          return { id, product: result.data };
+        }
+        console.warn(`Failed to fetch product ${id}:`, result.error);
+        return null;
+      } catch (error) {
+        console.error(`Error fetching product ${id}:`, error);
+        return null;
+      }
+    });
+
+    // Wait for all products to be fetched
+    const productResults = await Promise.all(productPromises);
+
+    // Update products cache with fetched data
+    const newProductsCache: Record<string, Product> = {};
+    productResults.forEach(result => {
+      if (result && result.product) {
+        newProductsCache[result.id] = result.product;
+      }
+    });
+
+    if (Object.keys(newProductsCache).length > 0) {
+      setProductsCache(prev => ({ ...prev, ...newProductsCache }));
+      console.log(
+        `Cached ${Object.keys(newProductsCache).length} products for loaded configuration`
+      );
+    }
+  };
+
+  // Check for configuration to load from localStorage on mount
+  useEffect(() => {
+    const loadConfigurationFromStorage = async () => {
+      // Check for regular user configuration
+      const configIdToLoad = localStorage.getItem('loadConfigurationId');
+      // Check for public configuration
+      const publicConfigIdToLoad = localStorage.getItem('loadPublicConfigurationId');
+
+      if (configIdToLoad) {
+        try {
+          // Set loading flag to prevent validation from overwriting loaded PSU power
+          setIsLoadingConfiguration(true);
+          
+          // Clear the localStorage item immediately to prevent re-loading
+          localStorage.removeItem('loadConfigurationId');
+
+          // Fetch the user's configuration data
+          const result = await getConfigurationForBuilder(configIdToLoad);
+
+          if (result.success && result.data) {
+            // Load the configuration components into the state
+            setConfiguration(prevConfig => ({
+              ...prevConfig,
+              components: result.data!.components,
+              compatibilityStatus: result.data!.configuration.compatibility_status,
+              powerConsumption: result.data!.configuration.power_consumption,
+              recommendedPsuPower: result.data!.configuration.recommended_psu_power,
+            }));
+
+            // Fetch and cache product data for all components
+            await fetchAndCacheProducts(result.data.components);
+
+            console.log('User configuration loaded successfully:', result.data.configuration.name);
+          } else {
+            console.error('Failed to load user configuration:', result.error);
+          }
+        } catch (error) {
+          console.error('Error loading user configuration:', error);
+        } finally {
+          // Clear loading flag after products are cached
+          setIsLoadingConfiguration(false);
+        }
+      } else if (publicConfigIdToLoad) {
+        try {
+          // Set loading flag to prevent validation from overwriting loaded PSU power
+          setIsLoadingConfiguration(true);
+          
+          // Clear the localStorage item immediately to prevent re-loading
+          localStorage.removeItem('loadPublicConfigurationId');
+
+          // Fetch the public configuration data
+          const result = await getPublicConfigurationForBuilder(publicConfigIdToLoad);
+
+          if (result.success && result.data) {
+            // Load the configuration components into the state
+            setConfiguration(prevConfig => ({
+              ...prevConfig,
+              components: result.data!.components,
+              compatibilityStatus: result.data!.configuration.compatibility_status,
+              powerConsumption: result.data!.configuration.power_consumption,
+              recommendedPsuPower: result.data!.configuration.recommended_psu_power,
+            }));
+
+            // Fetch and cache product data for all components
+            await fetchAndCacheProducts(result.data.components);
+
+            console.log(
+              'Public configuration loaded successfully:',
+              result.data.configuration.name
+            );
+          } else {
+            console.error('Failed to load public configuration:', result.error);
+          }
+        } catch (error) {
+          console.error('Error loading public configuration:', error);
+        } finally {
+          // Clear loading flag after products are cached
+          setIsLoadingConfiguration(false);
+        }
+      }
+    };
+
+    loadConfigurationFromStorage();
+  }, []); // Run only on mount
+
   // Helper function to check if we have core components for meaningful validation
   const hasCoreComponents = () => {
     const components = configuration.components;
-    const hasProcessorAndMotherboard = components['processors'] && components['motherboards'];
-    const hasProcessorWithOthers = components['processors'] && Object.keys(components).length >= 2;
-    const hasMotherboardWithOthers = components['motherboards'] && Object.keys(components).length >= 2;
-    
+    const hasProcessorAndMotherboard = components['cpu'] && components['motherboard'];
+    const hasProcessorWithOthers = components['cpu'] && Object.keys(components).length >= 2;
+    const hasMotherboardWithOthers =
+      components['motherboard'] && Object.keys(components).length >= 2;
+
     return hasProcessorAndMotherboard || hasProcessorWithOthers || hasMotherboardWithOthers;
   };
 
@@ -84,7 +222,7 @@ export default function PCConfigurator() {
   const getParentCategorySlug = (categorySlug: string): string => {
     const category = pcCategories.find(cat => cat.slug === categorySlug);
     if (!category) return categorySlug;
-    
+
     // If it's a subcategory, find its parent
     if (category.is_subcategory && category.parent_id) {
       const parentCategory = pcCategories.find(cat => cat.id === category.parent_id);
@@ -92,7 +230,7 @@ export default function PCConfigurator() {
         return parentCategory.slug;
       }
     }
-    
+
     // Return original slug if not a subcategory or parent not found
     return categorySlug;
   };
@@ -100,10 +238,10 @@ export default function PCConfigurator() {
   // Actual validation logic (without debouncing)
   const performValidation = async () => {
     const componentCount = Object.keys(configuration.components).length;
-    
+
     // Always calculate power consumption and total price regardless of validation state
     const totalPrice = calculateTotalPrice();
-    
+
     // Collect products for power calculation - map subcategories to parent categories
     const products: Record<string, Product> = {};
     Object.entries(configuration.components).forEach(([category, componentId]) => {
@@ -132,33 +270,39 @@ export default function PCConfigurator() {
     if (componentCount === 1 || !hasCoreComponents()) {
       // Calculate power consumption even for incomplete configurations
       let powerConsumption = 0;
-      let recommendedPsuPower = 0;
-      
+      let recommendedPsuPower = undefined;
+
       try {
         const result = await SmartCompatibilityEngine.validateConfiguration(products);
         powerConsumption = result.actualPowerConsumption || result.powerConsumption || 0;
-        recommendedPsuPower = result.recommendedPsuPower || Math.ceil((powerConsumption * 1.25) / 50) * 50;
+        // Only use PSU recommendation if GPU with recommended_psu_power is selected
+        recommendedPsuPower =
+          result.recommendedPsuPower > 0 ? result.recommendedPsuPower : undefined;
       } catch {
         // Fallback power calculation if smart engine fails
         powerConsumption = Object.values(products).reduce((total, product) => {
           // Basic power estimation based on category
           const categoryPower: Record<string, number> = {
-            'processors': 65,
-            'graphics-cards': 150,
-            'memory': 5,
-            'storage': 10,
-            'motherboards': 25,
-            'power-supplies': 0,
-            'cases': 0,
-            'cooling': 15
+            cpu: 65,
+            gpu: 150,
+            ram: 5,
+            storage: 10,
+            motherboard: 25,
+            psu: 0,
+            case: 0,
+            cooling: 15,
           };
-          
-          const category = Object.keys(configuration.components).find(cat => 
-            configuration.components[cat] === product.id
+
+          const category = Object.keys(configuration.components).find(
+            cat => configuration.components[cat] === product.id
           );
           return total + (categoryPower[category || ''] || 0);
         }, 0);
-        recommendedPsuPower = Math.ceil((powerConsumption * 1.25) / 50) * 50;
+        // Don't calculate PSU recommendation in fallback - only when GPU specifies it
+        // But preserve loaded PSU power when loading a configuration
+        if (!isLoadingConfiguration) {
+          recommendedPsuPower = undefined;
+        }
       }
 
       setValidationResult({ isValid: true, issues: [], warnings: [] });
@@ -168,12 +312,14 @@ export default function PCConfigurator() {
         totalPrice,
         powerConsumption,
         actualPowerConsumption: powerConsumption,
-        recommendedPsuPower,
+        // Preserve original recommendedPsuPower from loaded configuration if SmartCompatibilityEngine can't calculate it
+        // Also preserve it when loading a configuration to prevent overwriting loaded values
+        recommendedPsuPower:
+          recommendedPsuPower !== undefined ? recommendedPsuPower : prev.recommendedPsuPower,
       }));
       return;
     }
 
-    setIsValidating(true);
     try {
       // Collect products for compatibility check - map subcategories to parent categories
       const products: Record<string, Product> = {};
@@ -208,7 +354,11 @@ export default function PCConfigurator() {
         totalPrice: calculateTotalPrice(),
         powerConsumption: result.powerConsumption, // Keep for backward compatibility
         actualPowerConsumption: result.actualPowerConsumption,
-        recommendedPsuPower: result.recommendedPsuPower,
+        // Preserve original recommendedPsuPower from loaded configuration if SmartCompatibilityEngine can't calculate it
+        recommendedPsuPower:
+          result.recommendedPsuPower !== undefined
+            ? result.recommendedPsuPower
+            : prev.recommendedPsuPower,
       }));
     } catch {
       setValidationResult({
@@ -226,7 +376,7 @@ export default function PCConfigurator() {
         warnings: [],
       });
     } finally {
-      setIsValidating(false);
+      // Validation completed
     }
   };
 
@@ -332,7 +482,7 @@ export default function PCConfigurator() {
     if (!shouldShowCompatibilityIssues()) {
       return [];
     }
-    
+
     return validationResult.issues.filter(
       issue =>
         issue.component1?.toLowerCase().includes(categorySlug) ||
@@ -391,65 +541,6 @@ export default function PCConfigurator() {
 
   return (
     <div className="space-y-8">
-      {/* Header with overall status */}
-      <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-2xl font-bold mb-2">PC Configuration</h2>
-            <div className="flex items-center space-x-4">
-              <div
-                className={`px-3 py-1 rounded text-sm font-medium ${
-                  configuration.compatibilityStatus === 'valid'
-                    ? 'bg-green-100 text-green-800'
-                    : configuration.compatibilityStatus === 'error'
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-yellow-100 text-yellow-800'
-                }`}
-              >
-                {configuration.compatibilityStatus === 'valid'
-                  ? '✅ Compatible Configuration'
-                  : configuration.compatibilityStatus === 'error'
-                    ? '❌ Compatibility Issues Found'
-                    : '⚠️ Warnings Detected'}
-              </div>
-              {isValidating && (
-                <div className="text-sm text-gray-500">🔍 Checking compatibility...</div>
-              )}
-            </div>
-          </div>
-
-          <div className="text-right">
-            <div className="text-2xl font-bold text-gray-900">
-              {configuration.totalPrice ? `$${configuration.totalPrice.toFixed(2)}` : '$0.00'}
-            </div>
-            {configuration.recommendedPsuPower && configuration.recommendedPsuPower > 0 && (
-              <div className="space-y-1">
-                <div className="text-sm text-gray-600">
-                  <span className="font-medium">Power Information:</span>
-                </div>
-                <div className="text-sm text-gray-700">
-                  <span className="inline-flex items-center">
-                    🔌 Recommended PSU:{' '}
-                    <span className="font-semibold ml-1">
-                      {configuration.recommendedPsuPower}W
-                    </span>
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-4 flex space-x-4">
-          <button
-            onClick={clearConfiguration}
-            className="px-4 py-2 border border-gray-300 rounded font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            Clear All
-          </button>
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
         {/* Component categories list - increased width for better text display */}
         <div className="xl:col-span-3">
@@ -540,7 +631,7 @@ export default function PCConfigurator() {
 
         {/* Compatibility panel - remaining space */}
         <div className="xl:col-span-3">
-          <CompatibilityPanel 
+          <CompatibilityPanel
             validationResult={validationResult}
             componentCount={Object.keys(configuration.components).length}
             selectedComponents={safeSelectedComponents}
@@ -556,6 +647,7 @@ export default function PCConfigurator() {
         validationResult={validationResult}
         categories={pcCategories}
         getCategoryDisplayName={getCategoryDisplayName}
+        clearConfiguration={clearConfiguration}
       />
     </div>
   );
