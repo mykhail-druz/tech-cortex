@@ -75,7 +75,7 @@ export default function ProductsContent() {
 
           // Navigate to the URL with saved filters
           if (params.toString()) {
-            router.push(`/products?${params.toString()}`);
+            router.replace(`/products?${params.toString()}`);
           }
         }
       } catch (error) {
