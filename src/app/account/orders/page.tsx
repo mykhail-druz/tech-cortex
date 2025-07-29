@@ -38,7 +38,8 @@ function OrdersContent() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/login?redirect=/account/orders');
+      // Use replace instead of push to prevent redirect loop when using browser back button
+      router.replace('/auth/login?redirect=/account/orders');
     }
   }, [user, authLoading, router]);
 

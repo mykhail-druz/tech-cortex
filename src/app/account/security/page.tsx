@@ -18,7 +18,8 @@ export default function SecurityPage() {
   // Redirect if not authenticated
   useEffect(() => {
     if (!authLoading && !user) {
-      router.push('/auth/login?redirect=/account/security');
+      // Use replace instead of push to prevent redirect loop when using browser back button
+      router.replace('/auth/login?redirect=/account/security');
     }
   }, [user, authLoading, router]);
 

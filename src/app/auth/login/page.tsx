@@ -69,7 +69,8 @@ function LoginContent() {
       }
 
       // Redirect to the specified redirect URL or home page on successful login
-      router.push(redirectTo);
+      // Use replace instead of push to allow browser back button to work properly
+      router.replace(redirectTo);
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
       console.error(err);

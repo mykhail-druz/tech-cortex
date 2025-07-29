@@ -34,7 +34,8 @@ export default function AccountPage() {
   // Redirect if not authenticated
   React.useEffect(() => {
     if (!isLoading && !user) {
-      router.push('/auth/login?redirect=/account');
+      // Use replace instead of push to prevent redirect loop when using browser back button
+      router.replace('/auth/login?redirect=/account');
     }
   }, [user, isLoading, router]);
 
