@@ -191,7 +191,7 @@ async function HomeContent() {
             </Link>
           </div>
 
-          {/* Layout with HomeSidebar on left and categories grid on right */}
+          {/* Layout with HomeSidebar on a left and categories grid on right */}
           <div className="flex flex-col lg:flex-row gap-8">
             {/* HomeSidebar */}
             <div className="lg:w-1/4 flex-shrink-0">
@@ -210,14 +210,14 @@ async function HomeContent() {
                         className="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-primary transition-colors duration-200"
                       >
                         {category.image_url && (
-                          <div className="h-48 w-full bg-gray-50">
+                          <div className="h-56 w-full bg-gray-50 flex items-center justify-center">
                             <Image
                               src={category.image_url}
                               alt={category.title || ''}
                               width={400}
-                              height={192}
+                              height={224}
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                              className="w-full h-full object-cover object-center"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                         )}
@@ -254,14 +254,14 @@ async function HomeContent() {
                         className="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-primary transition-colors duration-200"
                       >
                         {category.image_url && (
-                          <div className="h-48 w-full bg-gray-50">
+                          <div className="h-56 w-full bg-white flex items-center justify-center">
                             <Image
                               src={category.image_url}
                               alt={category.name}
                               width={400}
-                              height={192}
+                              height={224}
                               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                              className="w-full h-full object-cover object-center"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                         )}
@@ -586,7 +586,7 @@ export default function Home() {
     <main className="min-h-screen bg-white">
       <Suspense fallback={<LoadingSpinner message="Loading amazing deals..." />}>
         {/* Hero Section Only */}
-        <section className="relative overflow-hidden mb-16 h-[55vh] flex items-center rounded-3xl mt-8">
+        <section className="relative overflow-hidden mb-16 h-[75vh] md:h-[55vh] flex items-center rounded-3xl mt-8">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 "></div>
           <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
