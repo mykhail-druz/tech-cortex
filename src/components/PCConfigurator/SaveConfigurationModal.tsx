@@ -5,6 +5,7 @@ import { EnhancedPCConfiguration } from '@/lib/supabase/types/specifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { saveConfiguration, generateConfigurationName } from '@/lib/supabase/services/configurationService';
+import { FaCheckCircle, FaRegTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
 
 interface SaveConfigurationModalProps {
   isOpen: boolean;
@@ -171,13 +172,28 @@ const SaveConfigurationModal: React.FC<SaveConfigurationModalProps> = ({
             </div>
             <div>
               <span className="text-gray-600">Compatibility:</span>
-              <span className={`ml-2 font-medium ${
+              <span className={`ml-2 font-medium flex items-center gap-1 ${
                 configuration.compatibilityStatus === 'valid' ? 'text-green-600' :
                 configuration.compatibilityStatus === 'error' ? 'text-red-600' : 'text-yellow-600'
               }`}>
-                {configuration.compatibilityStatus === 'valid' && '✅ Compatible'}
-                {configuration.compatibilityStatus === 'error' && '❌ Has Errors'}
-                {configuration.compatibilityStatus === 'warning' && '⚠️ Has Warnings'}
+                {configuration.compatibilityStatus === 'valid' && (
+                  <>
+                    <FaCheckCircle className="w-3 h-3" />
+                    Compatible
+                  </>
+                )}
+                {configuration.compatibilityStatus === 'error' && (
+                  <>
+                    <FaRegTimesCircle className="w-3 h-3" />
+                    Has Errors
+                  </>
+                )}
+                {configuration.compatibilityStatus === 'warning' && (
+                  <>
+                    <FaExclamationTriangle className="w-3 h-3" />
+                    Has Warnings
+                  </>
+                )}
               </span>
             </div>
             {configuration.recommendedPsuPower && configuration.recommendedPsuPower > 0 && (

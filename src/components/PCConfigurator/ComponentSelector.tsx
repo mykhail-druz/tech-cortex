@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Product } from '@/lib/supabase/types/types';
 import { CompatibilityIssue } from '@/lib/supabase/types/specifications';
 import { getCompatibleProducts } from '@/lib/supabase/db';
 import ProductCard from '@/components/product/ProductCard';
+import { FaExclamationTriangle, FaTimes, FaCheckCircle } from 'react-icons/fa';
 
 interface ComponentSelectorProps {
   categorySlug: string;
@@ -30,66 +31,94 @@ export default function ComponentSelector({
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [priceRange, setPriceRange] = useState<{ min?: number; max?: number }>({});
-  const [specificationFilters, setSpecificationFilters] = useState<Record<string, any>>({});
 
   // Determine if a category supports multiple selection
   const isMultiSelectCategory = ['memory', 'storage'].includes(categorySlug);
 
-  useEffect(() => {
-    loadCompatibleProducts();
-  }, [categorySlug, selectedComponents]);
+  // Memoize other components to avoid unnecessary reloads
+  const otherComponents = useMemo(() => {
+    const filtered = Object.fromEntries(
+      Object.entries(selectedComponents).filter(([cat]) => cat !== categorySlug)
+    );
 
-  const loadCompatibleProducts = async () => {
-    setIsLoading(true);
-    setError(null);
+    // Convert arrays to strings for compatibility query
+    const simpleComponents: Record<string, string> = {};
+    Object.entries(filtered).forEach(([cat, value]) => {
+      if (typeof value === 'string') {
+        simpleComponents[cat] = value;
+      } else if (Array.isArray(value) && value.length > 0) {
+        simpleComponents[cat] = value[0]; // Take first element for compatibility
+      }
+    });
 
+    return simpleComponents;
+  }, [selectedComponents, categorySlug]);
+
+  // Create a stable key for caching to prevent unnecessary reloads
+  const compatibilityKey = useMemo(() => {
+    return JSON.stringify(otherComponents);
+  }, [otherComponents]);
+
+  // Track previous compatibility key to avoid unnecessary API calls
+  const [prevCompatibilityKey, setPrevCompatibilityKey] = useState<string>('');
+  const [cachedProducts, setCachedProducts] = useState<Product[]>([]);
+
+  const loadCompatibleProducts = useCallback(async () => {
     // Don't try to load products if categorySlug is empty
     if (!categorySlug) {
       setIsLoading(false);
       return;
     }
 
+    // Check if we can use cached products (compatibility key hasn't changed)
+    if (compatibilityKey === prevCompatibilityKey && cachedProducts.length > 0) {
+      // Use cached products without showing loading state
+      setProducts(cachedProducts);
+      setError(null);
+      return;
+    }
+
+    // Only show loading state for new requests
+    setIsLoading(true);
+    setError(null);
+
     try {
-      // Get selected components excluding the current category
-      const otherComponents = Object.fromEntries(
-        Object.entries(selectedComponents).filter(([cat]) => cat !== categorySlug)
-      );
-
-      // Convert arrays to strings for a query
-      const simpleComponents: Record<string, string> = {};
-      Object.entries(otherComponents).forEach(([cat, value]) => {
-        if (typeof value === 'string') {
-          simpleComponents[cat] = value;
-        } else if (Array.isArray(value) && value.length > 0) {
-          simpleComponents[cat] = value[0]; // Take first element for compatibility
-        }
-      });
-
-      const { data, error } = await getCompatibleProducts(categorySlug, simpleComponents);
+      const { data, error } = await getCompatibleProducts(categorySlug, otherComponents);
 
       if (error) {
         setError('Error loading products');
       } else {
-        setProducts(data || []);
+        const newProducts = data || [];
+        setProducts(newProducts);
+
+        // Cache the results
+        setCachedProducts(newProducts);
+        setPrevCompatibilityKey(compatibilityKey);
       }
     } catch {
       setError('Error loading products');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categorySlug, otherComponents, compatibilityKey, prevCompatibilityKey, cachedProducts]);
 
-  const filteredProducts = products.filter(product => {
-    // Search by name
-    const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase());
+  useEffect(() => {
+    loadCompatibleProducts();
+  }, [loadCompatibleProducts]);
 
-    // Price filter
-    const matchesPrice =
-      (priceRange.min === undefined || product.price >= priceRange.min) &&
-      (priceRange.max === undefined || product.price <= priceRange.max);
+  const filteredProducts = useMemo(() => {
+    return products.filter(product => {
+      // Search by name
+      const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch && matchesPrice;
-  });
+      // Price filter
+      const matchesPrice =
+        (priceRange.min === undefined || product.price >= priceRange.min) &&
+        (priceRange.max === undefined || product.price <= priceRange.max);
+
+      return matchesSearch && matchesPrice;
+    });
+  }, [products, searchTerm, priceRange]);
 
   const handleProductSelect = (product: Product) => {
     if (isMultiSelectCategory) {
@@ -159,7 +188,10 @@ export default function ComponentSelector({
         {/* Show compatibility issues */}
         {compatibilityIssues.length > 0 && (
           <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-            <div className="text-sm text-red-800 font-medium mb-1">⚠️ Compatibility Issues:</div>
+            <div className="text-sm text-red-800 font-medium mb-1 flex items-center gap-1">
+              <FaExclamationTriangle className="w-4 h-4" />
+              Compatibility Issues:
+            </div>
             {compatibilityIssues.map((issue, index) => (
               <div key={index} className="text-sm text-red-700">
                 • {issue.message}
@@ -182,7 +214,7 @@ export default function ComponentSelector({
                     onClick={() => handleProductSelect(product)}
                     className="text-red-600 hover:text-red-800"
                   >
-                    ✕
+                    <FaTimes className="w-4 h-4" />
                   </button>
                 </div>
               ))}
@@ -192,7 +224,10 @@ export default function ComponentSelector({
 
         {selectedProduct && !isMultiSelectCategory && (
           <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded">
-            <div className="text-sm text-green-800 font-medium mb-1">✅ Selected:</div>
+            <div className="text-sm text-green-800 font-medium mb-1 flex items-center gap-1">
+              <FaCheckCircle className="w-4 h-4" />
+              Selected:
+            </div>
             <div className="flex justify-between items-center">
               <span className="text-green-700">{selectedProduct.title}</span>
               <button

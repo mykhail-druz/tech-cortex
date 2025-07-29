@@ -156,7 +156,6 @@ async function HomeContent() {
 
   return (
     <div className="w-full">
-
       {/* Featured Categories */}
       <section className="mb-20">
         <div className="container mx-auto px-4">
@@ -185,114 +184,107 @@ async function HomeContent() {
             </Link>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Display featured categories if available */}
-            {featuredCategories && featuredCategories.length > 0
-              ? featuredCategories.map((category, index) => (
-                  <Link
-                    key={category.id}
-                    href={category.cta_link || '/products'}
-                    className={cn(
-                      'group relative overflow-hidden rounded-xl shadow-lg border border-transparent h-72 flex items-end transition-all duration-500 hover:-translate-y-2 hover:shadow-xl',
-                      index % 4 === 0
-                        ? 'hover:border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50'
-                        : index % 4 === 1
-                          ? 'hover:border-green-200 bg-gradient-to-br from-green-50 to-green-100/50'
-                          : index % 4 === 2
-                            ? 'hover:border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50'
-                            : 'hover:border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50'
-                    )}
-                  >
-                    {category.image_url && (
-                      <div className="absolute inset-0 w-full h-full">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 opacity-80 group-hover:opacity-90 transition-opacity duration-300"></div>
-                        <Image
-                          src={category.image_url}
-                          alt={category.title || ''}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                          className="object-cover object-center transition-transform duration-700 group-hover:scale-110"
-                        />
-                      </div>
-                    )}
-                    <div className="relative z-20 p-7 w-full">
-                      <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-white/95 transition-colors">
-                        {category.title}
-                      </h3>
-                      <p className="text-sm text-gray-200 mb-5 group-hover:text-white/90 transition-colors">
-                        {category.subtitle}
-                      </p>
-                      <div className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium text-white hover:bg-white/30 transition-all duration-300 group-hover:shadow-md">
-                        Browse Products
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 ml-2 transform transition-transform group-hover:translate-x-1"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              : /* If no featured categories, display all regular categories */
-                (categories || []).map((category, index) => (
-                  <Link
-                    key={category.id}
-                    href={`/products?category=${category.slug}`}
-                    className={cn(
-                      'group relative overflow-hidden rounded-xl shadow-lg border border-transparent h-72 flex items-end transition-all duration-500 hover:-translate-y-2 hover:shadow-xl',
-                      index % 4 === 0
-                        ? 'hover:border-blue-200 bg-gradient-to-br from-blue-50 to-blue-100/50'
-                        : index % 4 === 1
-                          ? 'hover:border-green-200 bg-gradient-to-br from-green-50 to-green-100/50'
-                          : index % 4 === 2
-                            ? 'hover:border-purple-200 bg-gradient-to-br from-purple-50 to-purple-100/50'
-                            : 'hover:border-amber-200 bg-gradient-to-br from-amber-50 to-amber-100/50'
-                    )}
-                  >
-                    {category.image_url && (
-                      <div className="absolute inset-0 w-full h-full">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent z-10 opacity-80 group-hover:opacity-90 transition-opacity duration-300"></div>
-                        <Image
-                          src={category.image_url}
-                          alt={category.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                          className="object-cover object-center transition-transform duration-700 group-hover:scale-110"
-                        />
-                      </div>
-                    )}
-                    <div className="relative z-20 p-7 w-full">
-                      <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-white/95 transition-colors">
-                        {category.name}
-                      </h3>
-                      <p className="text-sm text-gray-200 mb-5 group-hover:text-white/90 transition-colors">
-                        {category.description}
-                      </p>
-                      <div className="inline-flex items-center px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-sm font-medium text-white hover:bg-white/30 transition-all duration-300 group-hover:shadow-md">
-                        Browse Products
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          className="h-4 w-4 ml-2 transform transition-transform group-hover:translate-x-1"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+          {/* Layout with HomeSidebar on left and categories grid on right */}
+          <div className="flex flex-col lg:flex-row gap-8">
+            {/* HomeSidebar */}
+            <div className="lg:w-1/4 flex-shrink-0">
+              <HomeSidebar />
+            </div>
+
+            {/* Categories Grid */}
+            <div className="lg:w-3/4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                {/* Display featured categories if available */}
+                {featuredCategories && featuredCategories.length > 0
+                  ? featuredCategories.map(category => (
+                      <Link
+                        key={category.id}
+                        href={category.cta_link || '/products'}
+                        className="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-primary transition-colors duration-200"
+                      >
+                        {category.image_url && (
+                          <div className="h-48 w-full bg-gray-50">
+                            <Image
+                              src={category.image_url}
+                              alt={category.title || ''}
+                              width={400}
+                              height={192}
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                        )}
+                        <div className="p-6">
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary transition-colors">
+                            {category.title}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                            {category.subtitle}
+                          </p>
+                          <div className="inline-flex items-center text-primary font-medium text-sm">
+                            Browse Products
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 ml-1"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                    ))
+                  : /* If no featured categories, display all regular categories */
+                    (categories || []).map(category => (
+                      <Link
+                        key={category.id}
+                        href={`/products?category=${category.slug}`}
+                        className="group bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-primary transition-colors duration-200"
+                      >
+                        {category.image_url && (
+                          <div className="h-48 w-full bg-gray-50">
+                            <Image
+                              src={category.image_url}
+                              alt={category.name}
+                              width={400}
+                              height={192}
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className="w-full h-full object-cover object-center"
+                            />
+                          </div>
+                        )}
+                        <div className="p-6">
+                          <h3 className="text-xl font-semibold text-gray-900 mb-2 group-hover:text-primary transition-colors">
+                            {category.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                            {category.description}
+                          </p>
+                          <div className="inline-flex items-center text-primary font-medium text-sm">
+                            Browse Products
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4 ml-1"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -626,18 +618,18 @@ export default function Home() {
     <main className="min-h-screen bg-white">
       <Suspense fallback={<LoadingSpinner message="Loading amazing deals..." />}>
         {/* Hero Section Only */}
-        <section className="relative overflow-hidden mb-16 min-h-[90vh] flex items-center">
+        <section className="relative overflow-hidden mb-16 min-h-[40vh] md:min-h-[50vh] flex items-center rounded-3xl mt-8">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900"></div>
           <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
 
           {/* Animated Particles */}
-          <div className="absolute inset-0">
-            <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-pulse opacity-60"></div>
-            <div className="absolute top-40 right-20 w-1 h-1 bg-purple-400 rounded-full animate-ping opacity-40"></div>
-            <div className="absolute bottom-32 left-1/4 w-3 h-3 bg-pink-400 rounded-full animate-bounce opacity-50"></div>
-            <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse opacity-70"></div>
-            <div className="absolute bottom-20 right-10 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-50"></div>
+          <div className="absolute inset-0 ">
+            <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-pulse opacity-60 z-10"></div>
+            <div className="absolute top-40 right-20 w-1 h-1 bg-purple-400 rounded-full animate-ping opacity-40 z-10"></div>
+            <div className="absolute bottom-32 left-1/4 w-3 h-3 bg-pink-400 rounded-full animate-bounce opacity-50 z-10"></div>
+            <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse opacity-70 z-10"></div>
+            <div className="absolute bottom-20 right-10 w-2 h-2 bg-cyan-400 rounded-full animate-ping opacity-50 z-10"></div>
           </div>
 
           {/* Geometric Shapes */}
@@ -668,11 +660,11 @@ export default function Home() {
                 </h1>
 
                 <p className="text-xl text-blue-100 mb-8 max-w-xl leading-relaxed animate-fade-in-up delay-200">
-                  Discover premium computer hardware for gaming, productivity, and creative workflows.
-                  Build the perfect setup with our cutting-edge components.
+                  Discover premium computer hardware for gaming, productivity, and creative
+                  workflows. Build the perfect setup with our cutting-edge components.
                 </p>
 
-                <div className="flex flex-wrap gap-4 justify-center md:justify-start animate-fade-in-up delay-300">
+                <div className="flex flex-wrap gap-4 justify-center md:justify-start animate-fade-in-up delay-300 z-20">
                   <Link
                     href="/products"
                     className="group bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-full font-semibold transition-all duration-300 inline-flex items-center shadow-lg hover:shadow-2xl transform hover:-translate-y-1 hover:scale-105"
@@ -720,7 +712,7 @@ export default function Home() {
                 <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-xl backdrop-blur-sm border border-white/10 animate-float delay-1000"></div>
                 <div className="absolute top-1/2 -left-8 w-12 h-12 bg-gradient-to-br from-cyan-400/20 to-blue-400/20 rounded-full backdrop-blur-sm border border-white/10 animate-float delay-500"></div>
 
-                <div className="relative w-full h-64 md:h-96 lg:h-[500px]">
+                <div className="relative hidden md:block w-full h-64 md:h-96 lg:h-[500px]">
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl"></div>
                   <Image
                     src="/hero-computer.png"
@@ -735,43 +727,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Content with Sidebar on left and main content on right */}
-        <div className="max-w-[1920px] mx-auto px-4 md:px-6 lg:px-8 overflow-visible">
-          <div className="flex flex-col md:flex-row overflow-visible">
-            {/* Sidebar - Categories with hover effect (left side) */}
-            <div className="hidden md:block md:w-72 lg:w-80 flex-shrink-0 md:pr-8 overflow-visible">
-              <HomeSidebar />
-            </div>
-            
-            {/* Main Content Area (right side) */}
-            <div className="flex-1">
-              {/* Mobile categories button */}
-              <div className="md:hidden mb-10 flex justify-center">
-                <Link
-                  href="/products"
-                  className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg shadow-md"
-                >
-                  Browse Categories
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 ml-2"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </Link>
-              </div>
-              
-              {/* Main Content (without hero) */}
-              <HomeContent />
-            </div>
-          </div>
-        </div>
+        {/* Main Content (without hero) */}
+        <HomeContent />
 
         {/* Floating "Back to Top" button */}
         <BackToTopButton />

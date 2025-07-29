@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import AddToCartModal from './AddToCartModal';
 import SaveConfigurationModal from './SaveConfigurationModal';
+import { FaCheckCircle, FaRegTimesCircle, FaExclamationTriangle } from 'react-icons/fa';
 
 interface ConfigurationSummaryProps {
   configuration: EnhancedPCConfiguration;
@@ -29,7 +30,7 @@ export default function ConfigurationSummary({
   const router = useRouter();
   const [isAddToCartModalOpen, setIsAddToCartModalOpen] = useState(false);
   const [isSaveConfigModalOpen, setIsSaveConfigModalOpen] = useState(false);
-  
+
   const selectedComponents = Object.entries(configuration.components).filter(
     ([, componentId]) => componentId
   );
@@ -177,9 +178,24 @@ export default function ConfigurationSummary({
                       : 'bg-yellow-100 text-yellow-800'
                 }`}
               >
-                {configuration.compatibilityStatus === 'valid' && '✅ Compatible'}
-                {configuration.compatibilityStatus === 'error' && '❌ Errors'}
-                {configuration.compatibilityStatus === 'warning' && '⚠️ Warnings'}
+                {configuration.compatibilityStatus === 'valid' && (
+                  <>
+                    <FaCheckCircle className="w-3 h-3 mr-1" />
+                    Compatible
+                  </>
+                )}
+                {configuration.compatibilityStatus === 'error' && (
+                  <>
+                    <FaRegTimesCircle className="w-3 h-3 mr-1" />
+                    Errors
+                  </>
+                )}
+                {configuration.compatibilityStatus === 'warning' && (
+                  <>
+                    <FaExclamationTriangle className="w-3 h-3 mr-1" />
+                    Warnings
+                  </>
+                )}
               </div>
               <div className="text-gray-600 mt-1">Compatibility</div>
             </div>
@@ -222,12 +238,9 @@ export default function ConfigurationSummary({
               className="flex-1 bg-primary text-white py-3 px-6 rounded-lg font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={validationResult.issues.length > 0}
             >
-              {validationResult.issues.length > 0 
-                ? 'Fix compatibility errors' 
-                : 'Add to Cart'
-              }
+              {validationResult.issues.length > 0 ? 'Fix compatibility errors' : 'Add to Cart'}
             </button>
-            <button 
+            <button
               onClick={handleSaveConfiguration}
               className="px-6 py-3 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={selectedComponents.length === 0}

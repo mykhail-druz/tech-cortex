@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
+import { FaCheckCircle, FaRegTimesCircle, FaCircle, FaWrench } from 'react-icons/fa';
 import { Product } from '@/lib/supabase/types/types';
 import {
   EnhancedPCConfiguration,
@@ -128,7 +129,7 @@ export default function PCConfigurator() {
         try {
           // Set loading flag to prevent validation from overwriting loaded PSU power
           setIsLoadingConfiguration(true);
-          
+
           // Clear the localStorage item immediately to prevent re-loading
           localStorage.removeItem('loadConfigurationId');
 
@@ -162,7 +163,7 @@ export default function PCConfigurator() {
         try {
           // Set loading flag to prevent validation from overwriting loaded PSU power
           setIsLoadingConfiguration(true);
-          
+
           // Clear the localStorage item immediately to prevent re-loading
           localStorage.removeItem('loadPublicConfigurationId');
 
@@ -513,15 +514,15 @@ export default function PCConfigurator() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'selected':
-        return '✅';
+        return <FaCheckCircle className="text-green-500 w-4 h-4" />;
       case 'incompatible':
-        return '❌';
+        return <FaRegTimesCircle className="text-red-500 w-4 h-4" />;
       default:
-        return '⚪';
+        return <FaCircle className="text-gray-400 w-4 h-4" />;
     }
   };
 
-  // Create safe version of selectedComponents for ComponentSelector
+  // Create a safe version of selectedComponents for ComponentSelector
   const safeSelectedComponents: Record<string, string | string[]> = {};
   Object.entries(configuration.components).forEach(([key, value]) => {
     if (value !== undefined) {
@@ -576,7 +577,9 @@ export default function PCConfigurator() {
                             />
                           </span>
                         ) : (
-                          <span className="text-lg">{category.pc_icon || '🔧'}</span>
+                          <span className="text-lg">
+                            {category.pc_icon || <FaWrench className="w-5 h-5 text-gray-600" />}
+                          </span>
                         )}
                         <div>
                           <div className="font-medium text-gray-900">
@@ -595,7 +598,11 @@ export default function PCConfigurator() {
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        {issues.length > 0 ? <span>❌</span> : <span>{getStatusIcon(status)}</span>}
+                        {issues.length > 0 ? (
+                          <FaRegTimesCircle className="text-red-500 w-4 h-4" />
+                        ) : (
+                          <span>{getStatusIcon(status)}</span>
+                        )}
                         {issues.length > 0 && (
                           <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded">
                             {issues.length}

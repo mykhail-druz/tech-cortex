@@ -2,6 +2,15 @@
 
 import React from 'react';
 import { ValidationResult } from '@/lib/supabase/types/specifications';
+import {
+  FaRocket,
+  FaWrench,
+  FaBolt,
+  FaCheckCircle,
+  FaRegTimesCircle,
+  FaLightbulb,
+  FaInfoCircle,
+} from 'react-icons/fa';
 
 interface CompatibilityPanelProps {
   validationResult: ValidationResult;
@@ -16,7 +25,12 @@ export default function CompatibilityPanel({
   selectedComponents,
   recommendedPsuPower: configRecommendedPsuPower,
 }: CompatibilityPanelProps) {
-  const { issues, warnings, recommendations, recommendedPsuPower: validationRecommendedPsuPower } = validationResult;
+  const {
+    issues,
+    warnings,
+    recommendations,
+    recommendedPsuPower: validationRecommendedPsuPower,
+  } = validationResult;
 
   // Use configuration power values as primary source, fallback to validation result
   const displayRecommendedPsuPower = configRecommendedPsuPower || validationRecommendedPsuPower;
@@ -47,7 +61,12 @@ export default function CompatibilityPanel({
 
     if (mode === 'empty') {
       return {
-        title: '🚀 Start Building Your PC',
+        title: (
+          <span className="flex items-center gap-1">
+            <FaRocket className="w-4 h-4" />
+            Start Building Your PC
+          </span>
+        ),
         message: 'Select components to begin building your configuration',
         type: 'info',
       };
@@ -57,7 +76,12 @@ export default function CompatibilityPanel({
       const selectedCategory = Object.keys(selectedComponents)[0];
       const nextRecommendation = getNextRecommendedComponent(selectedCategory);
       return {
-        title: '🔧 Building Your Configuration...',
+        title: (
+          <span className="flex items-center gap-1">
+            <FaWrench className="w-4 h-4" />
+            Building Your Configuration...
+          </span>
+        ),
         message: `Great choice! Now add ${nextRecommendation} to continue building`,
         type: 'building',
       };
@@ -65,7 +89,12 @@ export default function CompatibilityPanel({
 
     if (mode === 'partial' && !coreComponents) {
       return {
-        title: '⚡ Add Core Components',
+        title: (
+          <span className="flex items-center gap-1">
+            <FaBolt className="w-4 h-4" />
+            Add Core Components
+          </span>
+        ),
         message: 'Add a processor and motherboard to check compatibility',
         type: 'partial',
       };
@@ -149,9 +178,17 @@ export default function CompatibilityPanel({
             <div
               className={`font-medium ${issues.length === 0 ? 'text-green-800' : 'text-red-800'}`}
             >
-              {issues.length === 0
-                ? '✅ Configuration is compatible'
-                : '❌ Compatibility issues detected'}
+              {issues.length === 0 ? (
+                <span className="flex items-center gap-1">
+                  <FaCheckCircle className="w-4 h-4" />
+                  Configuration is compatible
+                </span>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <FaRegTimesCircle className="w-4 h-4" />
+                  Compatibility issues detected
+                </span>
+              )}
             </div>
           </div>
         )}
@@ -201,7 +238,10 @@ export default function CompatibilityPanel({
         {/* Recommendations */}
         {recommendations && recommendations.length > 0 && (
           <div className="mb-4">
-            <h4 className="font-semibold text-blue-800 mb-2">💡 Recommendations:</h4>
+            <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-1">
+              <FaLightbulb className="w-4 h-4" />
+              Recommendations:
+            </h4>
             <div className="space-y-2">
               {recommendations.map((recommendation, index) => (
                 <div key={index} className="bg-blue-50 border border-blue-200 rounded p-3">
@@ -223,7 +263,10 @@ export default function CompatibilityPanel({
         {/* Power Information - shown when PSU recommendation is available */}
         {displayRecommendedPsuPower && displayRecommendedPsuPower > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-            <h4 className="font-semibold text-blue-800 mb-2">⚡ Power Information</h4>
+            <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-1">
+              <FaBolt className="w-4 h-4" />
+              Power Information
+            </h4>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-blue-600">Recommended PSU:</span>
@@ -231,8 +274,9 @@ export default function CompatibilityPanel({
                   {displayRecommendedPsuPower}W
                 </span>
               </div>
-              <div className="text-xs text-blue-600 mt-2">
-                ℹ️ Based on component specifications and safety margins
+              <div className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                <FaInfoCircle className="w-3 h-3" />
+                Based on component specifications and safety margins
               </div>
             </div>
           </div>
