@@ -37,6 +37,7 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
   const [isHovered, setIsHovered] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const categoryRef = useRef<HTMLDivElement>(null);
+  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Update dropdown position when hovering
   const updateDropdownPosition = () => {
@@ -46,6 +47,29 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
         top: rect.top,
         left: rect.right + 10, // 10px offset from the right edge of the category item
       });
+    }
+  };
+
+  // Helper functions for managing dropdown visibility with timeout
+  const showDropdown = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
+    }
+    updateDropdownPosition();
+    setIsHovered(true);
+  };
+
+  const hideDropdown = () => {
+    hideTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+    }, 150); // 150ms delay to allow mouse transition
+  };
+
+  const cancelHideDropdown = () => {
+    if (hideTimeoutRef.current) {
+      clearTimeout(hideTimeoutRef.current);
+      hideTimeoutRef.current = null;
     }
   };
 
@@ -68,15 +92,21 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
     }
   }, [isHovered]);
 
+  // Cleanup timeout on component unmount
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current) {
+        clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div
       ref={categoryRef}
       className="relative group"
-      onMouseEnter={() => {
-        updateDropdownPosition();
-        setIsHovered(true);
-      }}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={showDropdown}
+      onMouseLeave={hideDropdown}
     >
       <button
         onClick={() => onCategoryClick(category.slug)}
@@ -126,7 +156,7 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
         )}
       </button>
 
-      {/* Subcategories on hover - always visible, not hiding on mouse leave */}
+      {/* Subcategories on hover - stays visible when hovering over dropdown */}
       {isHovered && category.subcategories && category.subcategories.length > 0 && (
         <div
           className="fixed bg-white shadow-xl rounded-md border border-primary-200 min-w-[280px] max-w-[350px] max-h-[90vh] overflow-y-auto z-[100] animate-fadeIn"
@@ -134,6 +164,8 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
           }}
+          onMouseEnter={cancelHideDropdown}
+          onMouseLeave={hideDropdown}
         >
           <div className="p-4">
             <h4 className="font-semibold  mb-3 border-b pb-2 sticky top-0 bg-white">
