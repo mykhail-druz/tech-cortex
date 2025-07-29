@@ -8,6 +8,7 @@ import BackToTopButton from '@/components/ui/BackToTopButton';
 import NewsletterSection from '@/components/ui/NewsletterSection';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import HomeSidebar from '@/components/layout/HomeSidebar';
+import FeaturesSection from '@/components/ui/FeaturesSection';
 
 // Типы для данных
 interface FeaturedCategory {
@@ -58,7 +59,7 @@ function calculateDiscount(price: number, oldPrice: number | null) {
 }
 
 // Product card component
-function ProductCard({ product }: { product: Product }) {
+function ProductCard({ product, isNew = false }: { product: Product; isNew?: boolean }) {
   const discountPercentage = calculateDiscount(product.price, product.old_price);
 
   return (
@@ -88,6 +89,12 @@ function ProductCard({ product }: { product: Product }) {
           {!product.in_stock && (
             <div className="absolute top-3 left-3 bg-gray-800 text-white text-xs font-bold px-4 py-1.5 rounded-full shadow-sm">
               Out of Stock
+            </div>
+          )}
+
+          {isNew && product.in_stock && (
+            <div className="absolute top-3 left-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">
+              NEW
             </div>
           )}
 
@@ -468,7 +475,7 @@ async function HomeContent() {
 
               <div className="space-y-6">
                 {newArrivals.map(product => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard key={product.id} product={product} isNew={true} />
                 ))}
               </div>
             </div>
@@ -568,46 +575,7 @@ async function HomeContent() {
       <NewsletterSection />
 
       {/* Features Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Why Choose TechCortex?</h2>
-            <p className="text-xl text-gray-600">Your trusted partner in PC building</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
-                🔧
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Expert Guidance</h3>
-              <p className="text-gray-600">
-                Our compatibility checker ensures all your components work perfectly together
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
-                ⚡
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Premium Quality</h3>
-              <p className="text-gray-600">
-                Only the highest quality components from trusted brands and manufacturers
-              </p>
-            </div>
-
-            <div className="text-center">
-              <div className="w-16 h-16 bg-primary text-white rounded-full flex items-center justify-center text-2xl mx-auto mb-4">
-                🚚
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Fast Delivery</h3>
-              <p className="text-gray-600">
-                Quick and secure shipping to get your components to you as soon as possible
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
+      <FeaturesSection />
     </div>
   );
 }
@@ -620,11 +588,11 @@ export default function Home() {
         {/* Hero Section Only */}
         <section className="relative overflow-hidden mb-16 h-[55vh] flex items-center rounded-3xl mt-8">
           {/* Animated Background */}
-          <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900 "></div>
           <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
 
           {/* Animated Particles */}
-          <div className="absolute inset-0 ">
+          <div className="absolute inset-0">
             <div className="absolute top-20 left-10 w-2 h-2 bg-blue-400 rounded-full animate-pulse opacity-60 z-10"></div>
             <div className="absolute top-40 right-20 w-1 h-1 bg-purple-400 rounded-full animate-ping opacity-40 z-10"></div>
             <div className="absolute bottom-32 left-1/4 w-3 h-3 bg-pink-400 rounded-full animate-bounce opacity-50 z-10"></div>
@@ -706,7 +674,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="md:w-1/2 relative animate-fade-in-right">
+              <div className="md:w-1/2 relative animate-fade-in-right hidden md:block">
                 {/* Floating Elements */}
                 <div className="absolute -top-4 -left-4 w-20 h-20 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-2xl backdrop-blur-sm border border-white/10 animate-float"></div>
                 <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-xl backdrop-blur-sm border border-white/10 animate-float delay-1000"></div>

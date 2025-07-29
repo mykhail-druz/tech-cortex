@@ -45,10 +45,20 @@ export default function Footer() {
               products at competitive prices.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.facebook.com/techcortex.us" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-primary">
+              <a
+                href="https://www.facebook.com/techcortex.us"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-primary"
+              >
                 <FaFacebookF className="h-6 w-6" />
               </a>
-              <a href="https://www.instagram.com/techcortex.us/" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-primary">
+              <a
+                href="https://www.instagram.com/techcortex.us/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-500 hover:text-primary"
+              >
                 <FaInstagram className="h-6 w-6" />
               </a>
               {/*<a href="#" className="text-gray-500 hover:text-primary">*/}
@@ -195,12 +205,9 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-200 mt-8 pt-8">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-500 text-sm">
-              &copy; {new Date().getFullYear()} TechCortex. All rights reserved.
-            </p>
-            <div className="mt-4 md:mt-0">
-              <ul className="flex space-x-6">
+          <div className="flex flex-col md:flex-row space justify-between items-center">
+            <div className="mb-8 md:mb-0">
+              <ul className=" flex flex-col md:flex-row space-y-4 space-x-0 md:space-y-0 md:space-x-4 text-center">
                 <li>
                   <Link href="/terms-of-use" className="text-gray-500 hover:text-primary text-sm">
                     Terms of Use
@@ -212,7 +219,10 @@ export default function Footer() {
                   </Link>
                 </li>
                 <li>
-                  <Link href="/shipping-policy" className="text-gray-500 hover:text-primary text-sm">
+                  <Link
+                    href="/shipping-policy"
+                    className="text-gray-500 hover:text-primary text-sm"
+                  >
                     Shipping & Returns
                   </Link>
                 </li>
@@ -223,6 +233,9 @@ export default function Footer() {
                 </li>
               </ul>
             </div>
+            <p className="text-gray-500 text-sm">
+              &copy; {new Date().getFullYear()} TechCortex. All rights reserved.
+            </p>
           </div>
         </div>
       </div>

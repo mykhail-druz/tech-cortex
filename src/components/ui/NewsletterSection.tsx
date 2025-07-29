@@ -36,44 +36,44 @@ export default function NewsletterSection() {
   };
 
   return (
-    <section className="mb-20">
+    <section className="mb-12 sm:mb-16 md:mb-20">
       <div className="container mx-auto px-4">
-        <div className="relative bg-gradient-to-r from-gray-900 to-blue-900 rounded-2xl overflow-hidden shadow-xl">
+        <div className="relative bg-gradient-to-r from-gray-900 to-blue-900 rounded-xl sm:rounded-2xl overflow-hidden shadow-xl">
           <div className="absolute inset-0 opacity-10"></div>
 
-          <div className="relative p-8 md:p-16 flex flex-col md:flex-row items-center">
-            <div className="md:w-1/2 mb-10 md:mb-0 md:pr-12">
-              <span className="inline-block px-4 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-semibold mb-6">
+          <div className="relative p-4 sm:p-6 md:p-16 flex flex-col md:flex-row items-center">
+            <div className="md:w-1/2 mb-8 md:mb-0 md:pr-12">
+              <span className="inline-block px-3 py-1 sm:px-4 bg-blue-500/20 text-blue-300 rounded-full text-xs sm:text-sm font-semibold mb-4 sm:mb-6">
                 Stay Connected
               </span>
-              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-6">
+              <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-white mb-4 sm:mb-6 leading-tight">
                 Subscribe to Our Newsletter
               </h2>
-              <p className="text-lg text-gray-300 mb-6 max-w-lg">
+              <p className="text-base sm:text-lg text-gray-300 mb-6 max-w-lg leading-relaxed">
                 Stay updated with the latest products, exclusive offers, and tech news directly in
                 your inbox.
               </p>
 
-              <div className="flex flex-wrap gap-4">
+              <div className="flex sm:flex-row flex-wrap gap-3 sm:gap-4">
                 <div className="flex items-center">
-                  <div className="bg-blue-500/20 p-2 rounded-full mr-3">
+                  <div className="bg-blue-500/20 p-1.5 sm:p-2 rounded-full mr-2 sm:mr-3 flex-shrink-0">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-blue-300"
+                      className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
                       <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
                     </svg>
                   </div>
-                  <span className="text-gray-300">Product Alerts</span>
+                  <span className="text-sm sm:text-base text-gray-300">Product Alerts</span>
                 </div>
 
                 <div className="flex items-center">
-                  <div className="bg-blue-500/20 p-2 rounded-full mr-3">
+                  <div className="bg-blue-500/20 p-1.5 sm:p-2 rounded-full mr-2 sm:mr-3 flex-shrink-0">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-blue-300"
+                      className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -84,14 +84,14 @@ export default function NewsletterSection() {
                       />
                     </svg>
                   </div>
-                  <span className="text-gray-300">Exclusive Deals</span>
+                  <span className="text-sm sm:text-base text-gray-300">Exclusive Deals</span>
                 </div>
 
                 <div className="flex items-center">
-                  <div className="bg-blue-500/20 p-2 rounded-full mr-3">
+                  <div className="bg-blue-500/20 p-1.5 sm:p-2 rounded-full mr-2 sm:mr-3 flex-shrink-0">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="h-5 w-5 text-blue-300"
+                      className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300"
                       viewBox="0 0 20 20"
                       fill="currentColor"
                     >
@@ -102,14 +102,14 @@ export default function NewsletterSection() {
                       />
                     </svg>
                   </div>
-                  <span className="text-gray-300">Weekly Updates</span>
+                  <span className="text-sm sm:text-base text-gray-300">Weekly Updates</span>
                 </div>
               </div>
             </div>
 
             <div className="md:w-1/2 w-full">
-              <div className="bg-white/10 backdrop-blur-sm p-8 rounded-xl">
-                <form onSubmit={handleNewsletterSubscribe} className="space-y-4">
+              <div className="bg-white/10 backdrop-blur-sm p-4 sm:p-6 md:p-8 rounded-lg sm:rounded-xl">
+                <form onSubmit={handleNewsletterSubscribe} className="space-y-4 sm:space-y-5">
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-200 mb-2">
                       Email Address
@@ -120,19 +120,22 @@ export default function NewsletterSection() {
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="w-full px-5 py-4 bg-white/5 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-white placeholder-gray-400"
+                      className="w-full px-4 py-3 sm:px-5 sm:py-4 bg-white/5 border border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent text-white placeholder-gray-400 text-base"
                       required
                     />
                   </div>
 
-                  <div className="flex items-center">
+                  <div className="flex items-start sm:items-center">
                     <input
                       id="terms-of-use"
                       type="checkbox"
-                      className="h-4 w-4 text-blue-500 focus:ring-blue-400 border-gray-700 rounded"
+                      className="h-5 w-5 text-blue-500 focus:ring-blue-400 border-gray-700 rounded mt-0.5 sm:mt-0 flex-shrink-0"
                       required
                     />
-                    <label htmlFor="terms-of-use" className="ml-2 block text-sm text-gray-300">
+                    <label
+                      htmlFor="terms-of-use"
+                      className="ml-2 sm:ml-3 block text-sm text-gray-300 leading-relaxed"
+                    >
                       I agree to receive marketing emails and understand I can unsubscribe anytime
                     </label>
                   </div>
@@ -140,7 +143,7 @@ export default function NewsletterSection() {
                   <button
                     type="submit"
                     disabled={isSubscribing}
-                    className="w-full px-6 py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold text-base flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full px-6 py-3 sm:py-4 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold text-base flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px] touch-manipulation"
                   >
                     {isSubscribing ? (
                       <>
