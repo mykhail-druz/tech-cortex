@@ -85,11 +85,11 @@ export default function Header() {
             <Link href="/" className="flex items-center" aria-label="Go to homepage">
               <div className="relative flex items-center h-16 py-2">
                 <Image
-                  src="/header-logo.png"
+                  src="/header-logo.svg"
                   alt="TechCortex Logo"
                   width={120}
                   height={120}
-                  className="h-8 sm:h-9 md:h-10 lg:h-16 w-auto object-contain transition-all duration-300"
+                  className="h-8 sm:h-9 md:h-10 lg:h-12 w-auto object-contain transition-all duration-300"
                   style={{ maxWidth: '100%', objectPosition: 'left center' }}
                   priority
                   quality={90}

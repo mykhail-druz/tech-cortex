@@ -63,16 +63,16 @@ function ProductCard({ product, isNew = false }: { product: Product; isNew?: boo
   const discountPercentage = calculateDiscount(product.price, product.old_price);
 
   return (
-    <div className="group bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-lg hover:border-primary transition-all duration-300 transform hover:-translate-y-1">
+    <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-100 hover:shadow-md transition-shadow duration-200">
       <Link href={`/products/${product.slug}`} className="block">
-        <div className="relative h-52 w-full bg-gray-50">
+        <div className="relative h-56 w-full bg-white overflow-hidden">
           {product.main_image_url ? (
             <Image
               src={product.main_image_url}
               alt={product.title}
               fill
               sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+              className="object-contain p-2"
             />
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -97,18 +97,16 @@ function ProductCard({ product, isNew = false }: { product: Product; isNew?: boo
               NEW
             </div>
           )}
-
-          <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </div>
 
-        <div className="p-5">
-          <h3 className="text-gray-900 font-semibold text-lg mb-1.5 line-clamp-2 group-hover:text-primary transition-colors duration-200">
+        <div className="p-4">
+          <h3 className="text-gray-900 font-semibold text-base mb-2 line-clamp-2">
             {product.title}
           </h3>
 
           {product.brand && <p className="text-gray-500 text-sm mb-3">{product.brand}</p>}
 
-          <div className="flex items-center justify-between mt-2">
+          <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-gray-900 font-bold text-lg">{formatPrice(product.price)}</span>
               {product.old_price && product.old_price > 0 && (
@@ -397,24 +395,99 @@ async function HomeContent() {
         </section>
       )}
 
-      {/* New Arrivals & Special Offers in Tabs */}
-      <section className="mb-20">
+      {/* Just Arrived Section */}
+      <section className="mb-20 py-20 bg-gradient-to-b from-green-50 to-white">
         <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 relative">
-              <span className="relative z-10">Latest Products</span>
-              <span className="absolute bottom-0 left-0 w-full h-3 bg-green-100 opacity-50 -z-10 transform -rotate-1"></span>
-            </h2>
-
-            <div className="flex space-x-4 mt-4 md:mt-0">
-              <Link
-                href="/products?sort=newest"
-                className="text-primary hover:text-primary/80 font-medium flex items-center"
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium mb-4">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-4 w-4 mr-2"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
               >
-                New Arrivals
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              New Arrivals
+            </div>
+
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Just Arrived</h2>
+
+            <p className="text-gray-600 text-lg max-w-2xl mx-auto mb-8">
+              Discover our latest collection of cutting-edge products and innovative solutions
+            </p>
+
+            <Link
+              href="/products?sort=newest"
+              className="inline-flex items-center px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors duration-200"
+            >
+              View All New Arrivals
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 ml-2"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            {newArrivals.map(product => (
+              <ProductCard key={product.id} product={product} isNew={true} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Hot Deals Section */}
+      {discountedProducts.length > 0 && (
+        <section className="mb-20 py-20 bg-gradient-to-b from-red-50 to-white">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center px-4 py-2 bg-red-100 text-red-700 rounded-full text-sm font-medium mb-4">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 ml-1"
+                  className="h-4 w-4 mr-2"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+                Special Offers
+              </div>
+
+              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">Hot Deals</h2>
+
+              <p className="text-gray-600 text-lg max-w-2xl mx-auto mb-8">
+                Don&apos;t miss out on these amazing limited-time discounts and exclusive offers
+              </p>
+
+              <Link
+                href="/products?discount=true"
+                className="inline-flex items-center px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition-colors duration-200"
+              >
+                View All Special Offers
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 ml-2"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -425,95 +498,16 @@ async function HomeContent() {
                   />
                 </svg>
               </Link>
-
-              {discountedProducts.length > 0 && (
-                <Link
-                  href="/products?discount=true"
-                  className="text-red-500 hover:text-red-600 font-medium flex items-center"
-                >
-                  Special Offers
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 ml-1"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-2.293-2.293a1 1 0 010-1.414z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* New Arrivals Column */}
-            <div>
-              <div className="bg-gradient-to-br from-green-50 to-blue-50 p-6 rounded-xl mb-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-6 w-6 mr-2 text-green-500"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  Just Arrived
-                </h3>
-                <p className="text-gray-600 mb-2">Check out our newest products</p>
-              </div>
-
-              <div className="space-y-6">
-                {newArrivals.map(product => (
-                  <ProductCard key={product.id} product={product} isNew={true} />
-                ))}
-              </div>
             </div>
 
-            {/* Special Offers Column */}
-            {discountedProducts.length > 0 && (
-              <div>
-                <div className="bg-gradient-to-br from-red-50 to-orange-50 p-6 rounded-xl mb-6">
-                  <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-6 w-6 mr-2 text-red-500"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                    Hot Deals
-                  </h3>
-                  <p className="text-gray-600 mb-2">Limited-time discounts on popular items</p>
-                </div>
-
-                <div className="space-y-6">
-                  {discountedProducts.map(product => (
-                    <ProductCard key={product.id} product={product} />
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+              {discountedProducts.map(product => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Trust Indicators */}
       {trustIndicators && trustIndicators.length > 0 && (

@@ -21,6 +21,7 @@ const sortOptions = [
   { label: 'Price: Low to High', value: 'price-asc' },
   { label: 'Price: High to Low', value: 'price-desc' },
   { label: 'Rating', value: 'rating' },
+  { label: 'Discount: High to Low', value: 'discount-desc' },
 ];
 
 export default function ProductsContent() {
@@ -36,6 +37,7 @@ export default function ProductsContent() {
   const maxPrice = searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : 2000;
   const sortBy = searchParams.get('sort') || 'newest';
   const inStockOnly = searchParams.get('inStock') === 'true';
+  const discountOnly = searchParams.get('discount') === 'true';
   const viewMode = (searchParams.get('view') || 'grid') as 'grid' | 'list';
 
   // Get specification filters from URL
@@ -53,7 +55,7 @@ export default function ProductsContent() {
   // Load saved filters from localStorage on initial render
   useEffect(() => {
     // Only load saved filters if there are no URL parameters
-    if (!searchParams.has('category') && !searchParams.has('q')) {
+    if (searchParams.toString() === '') {
       try {
         const savedFilters = localStorage.getItem('productFilters');
         if (savedFilters) {
@@ -199,7 +201,31 @@ export default function ProductsContent() {
         if (productsError) {
           console.error('Error fetching products:', productsError);
         } else {
-          setProducts(productsData || []);
+          let filteredProducts = productsData || [];
+
+          // Filter products with discounts if discount parameter is true
+          if (discountOnly) {
+            filteredProducts = filteredProducts.filter(
+              product => product.old_price && product.old_price > product.price
+            );
+          }
+
+          // Apply client-side sorting for discount sorting
+          if (sortBy === 'discount-desc') {
+            filteredProducts = filteredProducts.sort((a, b) => {
+              const discountA =
+                a.old_price && a.old_price > a.price
+                  ? Math.round(((a.old_price - a.price) / a.old_price) * 100)
+                  : 0;
+              const discountB =
+                b.old_price && b.old_price > b.price
+                  ? Math.round(((b.old_price - b.price) / b.old_price) * 100)
+                  : 0;
+              return discountB - discountA;
+            });
+          }
+
+          setProducts(filteredProducts);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -222,6 +248,7 @@ export default function ProductsContent() {
     maxPrice,
     sortBy,
     inStockOnly,
+    discountOnly,
     specFiltersParam,
   ]);
 
