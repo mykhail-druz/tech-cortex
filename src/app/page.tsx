@@ -618,7 +618,7 @@ export default function Home() {
     <main className="min-h-screen bg-white">
       <Suspense fallback={<LoadingSpinner message="Loading amazing deals..." />}>
         {/* Hero Section Only */}
-        <section className="relative overflow-hidden mb-16 min-h-[40vh] md:min-h-[50vh] flex items-center rounded-3xl mt-8">
+        <section className="relative overflow-hidden mb-16 h-[55vh] flex items-center rounded-3xl mt-8">
           {/* Animated Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900"></div>
           <div className="absolute inset-0 bg-gradient-to-tr from-blue-600/20 via-purple-600/20 to-pink-600/20"></div>
@@ -646,10 +646,10 @@ export default function Home() {
             <div className="flex flex-col md:flex-row items-center justify-between">
               <div className="md:w-1/2 text-center md:text-left mb-10 md:mb-0">
                 {/* Badge */}
-                <div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white text-sm font-medium mb-6 animate-fade-in">
-                  <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                  New Products Available
-                </div>
+                {/*<div className="inline-flex items-center px-4 py-2 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white text-sm font-medium mb-6 animate-fade-in">*/}
+                {/*  <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>*/}
+                {/*  New Products Available*/}
+                {/*</div>*/}
 
                 <h1 className="text-4xl md:text-5xl lg:text-7xl font-extrabold text-white mb-6 leading-tight animate-fade-in-up">
                   <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -712,22 +712,22 @@ export default function Home() {
                 <div className="absolute -bottom-4 -right-4 w-16 h-16 bg-gradient-to-br from-purple-400/20 to-pink-400/20 rounded-xl backdrop-blur-sm border border-white/10 animate-float delay-1000"></div>
                 <div className="absolute top-1/2 -left-8 w-12 h-12 bg-gradient-to-br from-cyan-400/20 to-blue-400/20 rounded-full backdrop-blur-sm border border-white/10 animate-float delay-500"></div>
 
-                <div className="relative hidden md:block w-full h-64 md:h-96 lg:h-[500px]">
-                  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl"></div>
-                  <Image
-                    src="/hero-computer.png"
-                    alt="High-performance computer hardware"
-                    fill
-                    className="object-contain drop-shadow-2xl relative z-10 filter brightness-110"
-                    priority
-                  />
-                </div>
+                {/*<div className="relative hidden md:block w-full h-64 md:h-96 lg:h-[500px]">*/}
+                {/*  <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-3xl blur-2xl"></div>*/}
+                {/*  <Image*/}
+                {/*    src="/hero-computer.png"*/}
+                {/*    alt="High-performance computer hardware"*/}
+                {/*    fill*/}
+                {/*    className="object-contain drop-shadow-2xl relative z-10 filter brightness-110"*/}
+                {/*    priority*/}
+                {/*  />*/}
+                {/*</div>*/}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Main Content (without hero) */}
+        {/* Main Content (without a hero) */}
         <HomeContent />
 
         {/* Floating "Back to Top" button */}
