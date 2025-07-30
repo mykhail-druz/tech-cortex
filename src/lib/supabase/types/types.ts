@@ -182,7 +182,10 @@ export interface UserProfile {
 // Order type
 export interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null; // Nullable for guest orders
+  guest_email?: string | null; // Email for guest orders
+  guest_phone?: string | null; // Phone for guest orders
+  guest_name?: string | null; // Name for guest orders
   status: OrderStatus;
   total_amount: number;
   tax_amount: number | null; // Tax amount calculated for the order

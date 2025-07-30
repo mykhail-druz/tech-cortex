@@ -5,38 +5,63 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/contexts/CartContext';
-import { useAuth } from '@/contexts/AuthContext';
 import { Spinner } from '@/components/ui/Spinner';
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 export default function CartPage() {
-  const { items, itemCount, subtotal, updateItemQuantity, removeItem, clearCart, isLoading } = useCart();
-  const { user } = useAuth();
+  const { items, itemCount, subtotal, updateItemQuantity, removeItem, clearCart, isLoading } =
+    useCart();
   const [isProcessing] = useState(false); // setIsProcessing is not used
   const router = useRouter();
 
+  // Modal states
+  const [showClearCartModal, setShowClearCartModal] = useState(false);
+  const [showRemoveItemModal, setShowRemoveItemModal] = useState(false);
+  const [itemToRemove, setItemToRemove] = useState<string | null>(null);
+  const [isClearing, setIsClearing] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+
   const handleQuantityChange = async (itemId: string, newQuantity: number) => {
-    if (newQuantity < 1) return;
+    if (newQuantity < 1 || newQuantity > 100) return;
     await updateItemQuantity(itemId, newQuantity);
   };
 
-  const handleRemoveItem = async (itemId: string) => {
-    await removeItem(itemId);
+  const handleQuantityInputChange = async (itemId: string, value: string) => {
+    const newQuantity = parseInt(value);
+    if (isNaN(newQuantity) || newQuantity < 1 || newQuantity > 100) return;
+    await updateItemQuantity(itemId, newQuantity);
   };
 
-  const handleClearCart = async () => {
-    if (window.confirm('Are you sure you want to clear your cart?')) {
-      await clearCart();
+  const handleRemoveItem = (itemId: string) => {
+    setItemToRemove(itemId);
+    setShowRemoveItemModal(true);
+  };
+
+  const confirmRemoveItem = async () => {
+    if (itemToRemove) {
+      setIsRemoving(true);
+      await removeItem(itemToRemove);
+      setIsRemoving(false);
+      setShowRemoveItemModal(false);
+      setItemToRemove(null);
     }
+  };
+
+  const handleClearCart = () => {
+    setShowClearCartModal(true);
+  };
+
+  const confirmClearCart = async () => {
+    setIsClearing(true);
+    await clearCart();
+    setIsClearing(false);
+    setShowClearCartModal(false);
   };
 
   const handleCheckout = () => {
-    if (!user) {
-      // Redirect to login if not authenticated
-      router.push('/auth/login?redirect=/checkout');
-    } else {
-      // Proceed to checkout
-      router.push('/checkout');
-    }
+    // Allow both authenticated users and guests to proceed to checkout
+    // The checkout page will handle the choice between login and guest checkout
+    router.push('/checkout');
   };
 
   // Format price with currency
@@ -65,7 +90,7 @@ export default function CartPage() {
       <div className="container mx-auto px-4 py-12">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-2xl font-bold mb-8">Your Cart</h1>
-          <div className="bg-white rounded-lg shadow-md p-8 text-center">
+          <div className="bg-white rounded-lg shadow-md p-8 text-center border">
             <svg
               className="mx-auto h-16 w-16 text-gray-400 mb-4"
               fill="none"
@@ -80,7 +105,9 @@ export default function CartPage() {
               />
             </svg>
             <h2 className="text-xl font-medium text-gray-900 mb-2">Your cart is empty</h2>
-            <p className="text-gray-500 mb-6">Looks like you haven&apos;t added any products to your cart yet.</p>
+            <p className="text-gray-500 mb-6">
+              Looks like you haven&apos;t added any products to your cart yet.
+            </p>
             <Link
               href="/products"
               className="inline-block bg-primary text-white py-2 px-6 rounded-md hover:bg-primary/90 transition-colors"
@@ -101,7 +128,7 @@ export default function CartPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Cart items */}
           <div className="lg:w-2/3">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-white rounded-lg shadow-md border overflow-hidden">
               <div className="p-4 border-b border-gray-200">
                 <div className="flex justify-between items-center">
                   <h2 className="text-lg font-medium">
@@ -109,7 +136,7 @@ export default function CartPage() {
                   </h2>
                   <button
                     onClick={handleClearCart}
-                    className="text-sm text-red-600 hover:text-red-800"
+                    className="px-4 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                   >
                     Clear Cart
                   </button>
@@ -117,7 +144,7 @@ export default function CartPage() {
               </div>
 
               <ul className="divide-y divide-gray-200">
-                {items.map((item) => (
+                {items.map(item => (
                   <li key={item.id} className="p-4 sm:p-6">
                     <div className="flex flex-col sm:flex-row">
                       {/* Product image */}
@@ -138,7 +165,10 @@ export default function CartPage() {
                         <div className="flex flex-col sm:flex-row justify-between">
                           <div>
                             <h3 className="text-base font-medium text-gray-900">
-                              <Link href={`/products/${item.product?.slug || item.product_id}`} className="hover:text-primary">
+                              <Link
+                                href={`/products/${item.product?.slug || item.product_id}`}
+                                className="hover:text-primary"
+                              >
                                 {item.product?.title || 'Product'}
                               </Link>
                             </h3>
@@ -167,7 +197,14 @@ export default function CartPage() {
                             >
                               -
                             </button>
-                            <span className="px-3 py-1 border-x border-gray-300">{item.quantity}</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={item.quantity}
+                              onChange={e => handleQuantityInputChange(item.id, e.target.value)}
+                              className="w-16 px-3 py-1 border-x border-gray-300 text-center focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                            />
                             <button
                               onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
                               className="flex-shrink-0 px-3 py-1 text-gray-600 hover:bg-gray-100 focus:outline-none"
@@ -179,7 +216,7 @@ export default function CartPage() {
                           {/* Remove button */}
                           <button
                             onClick={() => handleRemoveItem(item.id)}
-                            className="text-sm text-gray-500 hover:text-red-600"
+                            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-red-100 hover:text-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
                           >
                             Remove
                           </button>
@@ -216,7 +253,7 @@ export default function CartPage() {
 
           {/* Order summary */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-20">
+            <div className="bg-white rounded-lg shadow-md border p-6 sticky top-20">
               <h2 className="text-lg font-medium mb-6">Order Summary</h2>
 
               <div className="space-y-4">
@@ -249,15 +286,43 @@ export default function CartPage() {
                 {isProcessing ? 'Processing...' : 'Proceed to Checkout'}
               </button>
 
-              {!user && (
-                <p className="mt-4 text-sm text-gray-500 text-center">
-                  You&apos;ll need to sign in to complete your purchase
-                </p>
-              )}
+              {/*{!user && (*/}
+              {/*  <p className="mt-4 text-sm text-gray-500 text-center">*/}
+              {/*    You&apos;ll need to sign in to complete your purchase*/}
+              {/*  </p>*/}
+              {/*)}*/}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modals */}
+      <ConfirmationModal
+        isOpen={showClearCartModal}
+        onClose={() => setShowClearCartModal(false)}
+        onConfirm={confirmClearCart}
+        title="Clear Cart"
+        message="Are you sure you want to clear your cart? This action cannot be undone and all items will be removed."
+        confirmText="Clear Cart"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-500 hover:bg-red-600 text-white"
+        isLoading={isClearing}
+      />
+
+      <ConfirmationModal
+        isOpen={showRemoveItemModal}
+        onClose={() => {
+          setShowRemoveItemModal(false);
+          setItemToRemove(null);
+        }}
+        onConfirm={confirmRemoveItem}
+        title="Remove Item"
+        message={`Are you sure you want to remove this item from your cart?`}
+        confirmText="Remove"
+        cancelText="Cancel"
+        confirmButtonClass="bg-red-500 hover:bg-red-600 text-white"
+        isLoading={isRemoving}
+      />
     </div>
   );
 }

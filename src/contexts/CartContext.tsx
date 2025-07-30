@@ -267,28 +267,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return removeItem(itemId);
       }
 
-      // Cancel any previous requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
       if (user) {
         // Logged in user: update in database
         const { error } = await dbService.updateCartItemQuantity(itemId, quantity);
         if (error) return { error };
 
-        // Reload cart
-        const { data } = await dbService.getCartItems(user.id, { signal });
-        setItems(data || []);
+        // Update items in place to maintain order (instead of reloading entire cart)
+        setItems(prevItems => 
+          prevItems.map(item => 
+            item.id === itemId 
+              ? { ...item, quantity }
+              : item
+          )
+        );
 
-        // Update cache
+        // Update cache with the modified items
         const cacheKey = `cart_items_${user.id}`;
-        sessionStorage.setItem(cacheKey, JSON.stringify({
-          data: data || [],
-          timestamp: Date.now()
-        }));
+        setItems(prevItems => {
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            data: prevItems,
+            timestamp: Date.now()
+          }));
+          return prevItems;
+        });
       } else {
         // Guest user: update in local storage
         const guestCart = loadGuestCart();
@@ -313,28 +314,23 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Remove item from cart
   const removeItem = async (itemId: string) => {
     try {
-      // Cancel any previous requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
-
       if (user) {
         // Logged in user: remove from database
         const { error } = await dbService.removeFromCart(itemId);
         if (error) return { error };
 
-        // Reload cart
-        const { data } = await dbService.getCartItems(user.id, { signal });
-        setItems(data || []);
+        // Remove item in place to maintain order (instead of reloading entire cart)
+        setItems(prevItems => prevItems.filter(item => item.id !== itemId));
 
-        // Update cache
+        // Update cache with the modified items
         const cacheKey = `cart_items_${user.id}`;
-        sessionStorage.setItem(cacheKey, JSON.stringify({
-          data: data || [],
-          timestamp: Date.now()
-        }));
+        setItems(prevItems => {
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            data: prevItems,
+            timestamp: Date.now()
+          }));
+          return prevItems;
+        });
       } else {
         // Guest user: remove from local storage
         const guestCart = loadGuestCart();
@@ -356,13 +352,6 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const clearCart = async () => {
     try {
       console.log('Clearing cart...');
-
-      // Cancel any previous requests
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
 
       if (user) {
         // Logged in user: clear in database

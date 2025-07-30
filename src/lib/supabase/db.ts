@@ -766,9 +766,9 @@ export const createOrder = async (
   try {
     console.log('Creating order with data:', JSON.stringify(order, null, 2));
 
-    // Validate required fields
-    if (!order.user_id) {
-      const error = new Error('user_id is required');
+    // Validate required fields - either user_id or guest_email must be provided
+    if (!order.user_id && !order.guest_email) {
+      const error = new Error('Either user_id or guest_email is required');
       console.error('Order validation error:', error);
       return { data: null, error };
     }
@@ -999,6 +999,115 @@ export const updateOrderByPaymentIntent = async (
     return { data, error: null };
   } catch (error) {
     console.error('Unexpected error in updateOrderByPaymentIntent:', error);
+    return { data: null, error: error as Error };
+  }
+};
+
+// Guest Orders
+export const getGuestOrderByEmail = async (
+  email: string,
+  orderId: string
+): Promise<{ data: OrderWithItems | null; error: Error | null }> => {
+  try {
+    // Get the order
+    const orderResponse = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', orderId)
+      .eq('guest_email', email)
+      .single();
+
+    if (orderResponse.error) {
+      return { data: null, error: orderResponse.error };
+    }
+
+    // Get the order items
+    const itemsResponse = await supabase
+      .from('order_items')
+      .select(
+        `
+        *,
+        product:product_id (*)
+      `
+      )
+      .eq('order_id', orderId);
+
+    if (itemsResponse.error) {
+      return { data: null, error: itemsResponse.error };
+    }
+
+    const orderWithItems: OrderWithItems = {
+      ...orderResponse.data,
+      items: itemsResponse.data || [],
+    };
+
+    return { data: orderWithItems, error: null };
+  } catch (error) {
+    console.error('Error getting guest order:', error);
+    return { data: null, error: error as Error };
+  }
+};
+
+export const getGuestOrdersByEmail = async (
+  email: string
+): Promise<SelectResponse<Order>> => {
+  const response = await supabase
+    .from('orders')
+    .select('*')
+    .eq('guest_email', email)
+    .order('created_at', { ascending: false });
+
+  return { data: response.data, error: response.error };
+};
+
+export const updateGuestOrderByPaymentIntent = async (
+  paymentIntentId: string,
+  updates: Partial<Order>
+): Promise<{ data: Order | null; error: Error | null }> => {
+  try {
+    if (!paymentIntentId) {
+      const error = new Error('Payment intent ID is required');
+      console.error(error.message);
+      return { data: null, error };
+    }
+
+    console.log('Updating guest order by payment intent ID:', paymentIntentId);
+
+    // Find the order by payment_intent_id (for guest orders)
+    const { data: existingOrder, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('payment_intent_id', paymentIntentId)
+      .is('user_id', null) // Only guest orders
+      .single();
+
+    if (findError) {
+      console.error('Error finding guest order by payment intent:', findError);
+      return { data: null, error: findError };
+    }
+
+    if (!existingOrder) {
+      const error = new Error(`No guest order found with payment intent ID: ${paymentIntentId}`);
+      console.error(error.message);
+      return { data: null, error };
+    }
+
+    // Update the order
+    const { data, error: updateError } = await supabase
+      .from('orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', existingOrder.id)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('Error updating guest order:', updateError);
+      return { data: null, error: updateError };
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error in updateGuestOrderByPaymentIntent:', error);
     return { data: null, error: error as Error };
   }
 };

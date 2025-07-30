@@ -20,6 +20,7 @@ type CheckoutFormData = {
   firstName: string;
   lastName: string;
   email: string;
+  confirmEmail: string;
   phone: string;
   address: string;
   apartment: string;
@@ -55,6 +56,7 @@ export default function CheckoutPage() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrors>({});
   const [totalWithTax, setTotalWithTax] = useState(subtotal);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [isGuestCheckout, setIsGuestCheckout] = useState(false);
 
   // Initialize tax calculation hook
   const {
@@ -72,6 +74,7 @@ export default function CheckoutPage() {
     firstName: '',
     lastName: '',
     email: '',
+    confirmEmail: '',
     phone: '',
     address: '',
     apartment: '',
@@ -98,14 +101,11 @@ export default function CheckoutPage() {
     }
   }, [cartLoading, items, router, paymentCompleted]);
 
-  // Redirect to log in if not authenticated
+  // Handle authentication and guest checkout
   useEffect(() => {
-    if (!authLoading && !user) {
-      // Save cart items to session storage before redirecting
-      if (items.length > 0) {
-        sessionStorage.setItem('pending_cart_items', JSON.stringify(items));
-      }
-      router.push('/auth/login?redirect=/checkout');
+    if (!authLoading && !user && !isGuestCheckout) {
+      // Don't redirect immediately, let user choose between login and guest checkout
+      return;
     } else if (user && !authLoading) {
       // Check if there are pending cart items in session storage
       const pendingCartItems = sessionStorage.getItem('pending_cart_items');
@@ -134,11 +134,13 @@ export default function CheckoutPage() {
   // Manual autofill function for user profile data
   const handleAutofill = () => {
     if (profile) {
+      const email = user?.email || '';
       setFormData(prev => ({
         ...prev,
         firstName: profile.first_name || '',
         lastName: profile.last_name || '',
-        email: user?.email || '',
+        email: email,
+        confirmEmail: email,
         phone: profile.phone || '',
         address: profile.address_line1 || '',
         apartment: profile.address_line2 || '',
@@ -317,17 +319,71 @@ export default function CheckoutPage() {
     createPaymentIntent();
   }, [cartLoading, items, totalWithTax, taxAmount, clientSecret, user]);
 
+  // Common email domain typos and their corrections
+  const emailDomainCorrections: { [key: string]: string } = {
+    'gmail.co': 'gmail.com',
+    'gmail.cm': 'gmail.com',
+    'gmai.com': 'gmail.com',
+    'gmial.com': 'gmail.com',
+    'yahoo.co': 'yahoo.com',
+    'yahoo.cm': 'yahoo.com',
+    'hotmail.co': 'hotmail.com',
+    'hotmail.cm': 'hotmail.com',
+    'outlook.co': 'outlook.com',
+    'outlook.cm': 'outlook.com',
+  };
+
+  // Get email suggestion for common typos
+  const getEmailSuggestion = (email: string): string | null => {
+    if (typeof email !== 'string' || !email.includes('@')) return null;
+
+    const [localPart, domain] = email.split('@');
+    const correction = emailDomainCorrections[domain?.toLowerCase()];
+
+    return correction ? `${localPart}@${correction}` : null;
+  };
+
   // Real-time validation
-  const validateField = (name: string, value: string | boolean): string => {
+  const validateField = (
+    name: string,
+    value: string | boolean,
+    updatedFormData?: CheckoutFormData
+  ): string => {
+    const currentFormData = updatedFormData || formData;
     switch (name) {
       case 'firstName':
       case 'lastName':
         return typeof value === 'string' && !value.trim() ? 'This field is required' : '';
       case 'email':
+        if (typeof value !== 'string') return 'Please enter a valid email address';
+        if (!value.trim()) return 'Email is required';
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return typeof value === 'string' && !emailRegex.test(value)
-          ? 'Please enter a valid email address'
-          : '';
+        if (!emailRegex.test(value)) {
+          return 'Please enter a valid email address';
+        }
+
+        // Check for common typos
+        const suggestion = getEmailSuggestion(value);
+        if (suggestion) {
+          return `Did you mean ${suggestion}?`;
+        }
+
+        return '';
+      case 'confirmEmail':
+        if (typeof value !== 'string') return 'Please confirm your email address';
+        if (!value.trim()) return 'Email confirmation is required';
+
+        const confirmEmailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!confirmEmailRegex.test(value)) {
+          return 'Please enter a valid email address';
+        }
+
+        if (value !== currentFormData.email) {
+          return 'Email addresses do not match';
+        }
+
+        return '';
       case 'phone':
         const phoneRegex = /^\+?[\d\s\-\(\)]{10,}$/;
         return typeof value === 'string' && !phoneRegex.test(value)
@@ -373,11 +429,22 @@ export default function CheckoutPage() {
       return;
     }
 
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const updatedFormData = { ...formData, [name]: value };
+    setFormData(updatedFormData);
 
     // Real-time validation for text fields
-    const error = validateField(name, value);
+    const error = validateField(name, value, updatedFormData);
     setValidationErrors(prev => ({ ...prev, [name]: error }));
+
+    // If the email field changes, also re-validate confirmEmail field
+    if (name === 'email' && updatedFormData.confirmEmail) {
+      const confirmEmailError = validateField(
+        'confirmEmail',
+        updatedFormData.confirmEmail,
+        updatedFormData
+      );
+      setValidationErrors(prev => ({ ...prev, confirmEmail: confirmEmailError }));
+    }
   };
 
   const validateForm = (): boolean => {
@@ -388,6 +455,7 @@ export default function CheckoutPage() {
       'firstName',
       'lastName',
       'email',
+      'confirmEmail',
       'phone',
       'address',
       'city',
@@ -436,10 +504,6 @@ export default function CheckoutPage() {
     setIsSubmitting(true);
 
     try {
-      if (!user) {
-        throw new Error('You must be logged in to complete checkout');
-      }
-
       // Format shipping address
       const shippingAddress = `${formData.firstName} ${formData.lastName}\n${formData.address}${
         formData.apartment ? `, ${formData.apartment}` : ''
@@ -459,7 +523,10 @@ export default function CheckoutPage() {
 
       // Create order with all required fields including tax information
       const order = {
-        user_id: user.id,
+        user_id: user?.id || null,
+        guest_email: !user ? formData.email : undefined,
+        guest_phone: !user ? formData.phone : undefined,
+        guest_name: !user ? `${formData.firstName} ${formData.lastName}` : undefined,
         status: OrderStatus.PENDING,
         total_amount: totalWithTax,
         tax_amount: taxAmount,
@@ -521,29 +588,40 @@ export default function CheckoutPage() {
       setPaymentCompleted(true);
       console.log('Payment successful, updating order status for payment intent:', paymentIntentId);
 
-      // Log all orders to see what's in the database
-      const { data: allOrders, error: ordersError } = await dbService.getUserOrders(user?.id || '');
-      if (ordersError) {
-        console.error('Error fetching user orders:', ordersError);
-      } else {
-        console.log('All user orders:', allOrders);
-        if (allOrders) {
-          console.log(
-            'Orders with matching payment_intent_id:',
-            allOrders.filter(order => order.payment_intent_id === paymentIntentId)
-          );
-        }
-      }
-
       // Update the order payment status to PAID
-      const { data: updatedOrder, error: updateError } = await dbService.updateOrderByPaymentIntent(
-        paymentIntentId,
-        {
+      let updatedOrder, updateError;
+
+      if (user) {
+        // For authenticated users
+        const { data: allOrders, error: ordersError } = await dbService.getUserOrders(user.id);
+        if (ordersError) {
+          console.error('Error fetching user orders:', ordersError);
+        } else {
+          console.log('All user orders:', allOrders);
+          if (allOrders) {
+            console.log(
+              'Orders with matching payment_intent_id:',
+              allOrders.filter(order => order.payment_intent_id === paymentIntentId)
+            );
+          }
+        }
+
+        const result = await dbService.updateOrderByPaymentIntent(paymentIntentId, {
           payment_status: PaymentStatus.PAID,
           status: OrderStatus.PROCESSING,
-          user_id: user?.id,
-        }
-      );
+          user_id: user.id,
+        });
+        updatedOrder = result.data;
+        updateError = result.error;
+      } else {
+        // For guest users
+        const result = await dbService.updateGuestOrderByPaymentIntent(paymentIntentId, {
+          payment_status: PaymentStatus.PAID,
+          status: OrderStatus.PROCESSING,
+        });
+        updatedOrder = result.data;
+        updateError = result.error;
+      }
 
       if (updateError) {
         console.error('Error updating order status:', updateError);
@@ -626,11 +704,44 @@ export default function CheckoutPage() {
     );
   }
 
+  // Show login/guest choice if user is not authenticated and hasn't chosen guest checkout
+  if (!user && !isGuestCheckout) {
+    return (
+      <div className="container mx-auto px-4 py-12">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-2xl font-bold mb-8 text-center">Checkout</h1>
+          <div className="bg-white rounded-lg shadow-md p-8">
+            <h2 className="text-xl font-semibold mb-6 text-center">
+              How would you like to checkout?
+            </h2>
+            <div className="space-y-4">
+              <Link href="/auth/login?redirect=/checkout">
+                <button className="w-full bg-primary text-white py-3 px-6 rounded-lg hover:bg-primary-dark transition-colors font-medium">
+                  Sign In to Your Account
+                </button>
+              </Link>
+              <div className="text-center text-gray-500">or</div>
+              <button
+                onClick={() => setIsGuestCheckout(true)}
+                className="w-full bg-gray-100 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors font-medium border border-gray-300"
+              >
+                Continue as Guest
+              </button>
+            </div>
+            <p className="text-sm text-gray-600 mt-4 text-center">
+              Guest checkout allows you to place an order without creating an account. You&apos;ll
+              receive an order confirmation email to track your purchase.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 pt-6 pb-12">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold mb-8">Checkout</h1>
+        <h1 className="text-2xl font-bold mb-4">Checkout</h1>
 
         {(error || taxError) && (
           <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-md mb-6 flex items-center">
@@ -642,7 +753,10 @@ export default function CheckoutPage() {
         <div className="flex flex-col lg:flex-row gap-8">
           {/* Checkout form */}
           <div className="lg:w-2/3">
-            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <form
+              onSubmit={handleSubmit}
+              className="bg-white rounded-lg shadow-md border overflow-hidden"
+            >
               {/* Contact information */}
               <div className="p-6 border-b border-gray-200">
                 <div className="flex justify-between items-center mb-4">
@@ -736,7 +850,41 @@ export default function CheckoutPage() {
                       )}
                     </div>
                     {validationErrors.email && (
-                      <p className="mt-1 text-xs text-red-500">{validationErrors.email}</p>
+                      <p
+                        className={`mt-1 text-xs ${validationErrors.email.includes('Did you mean') ? 'text-amber-600' : 'text-red-500'}`}
+                      >
+                        {validationErrors.email}
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="confirmEmail"
+                      className="block text-sm font-medium text-gray-700 mb-1"
+                    >
+                      Confirm Email Address *
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        id="confirmEmail"
+                        name="confirmEmail"
+                        value={formData.confirmEmail}
+                        onChange={handleInputChange}
+                        required
+                        className={getFieldClasses(
+                          'confirmEmail',
+                          'w-full px-3 py-2 border rounded-md focus:outline-none'
+                        )}
+                      />
+                      {formData.confirmEmail &&
+                        !validationErrors.confirmEmail &&
+                        formData.email === formData.confirmEmail && (
+                          <FaCheck className="absolute right-3 top-3 text-green-500" />
+                        )}
+                    </div>
+                    {validationErrors.confirmEmail && (
+                      <p className="mt-1 text-xs text-red-500">{validationErrors.confirmEmail}</p>
                     )}
                   </div>
                   <div>
@@ -1232,10 +1380,10 @@ export default function CheckoutPage() {
 
           {/* Order summary */}
           <div className="lg:w-1/3">
-            <div className="bg-white rounded-lg shadow-md p-6 sticky top-20">
+            <div className="bg-white rounded-lg shadow-md border p-6 sticky top-20">
               <h2 className="text-lg font-medium mb-4">Order Summary</h2>
 
-              <div className="max-h-80 overflow-y-auto mb-4">
+              <div className="max-h-[450px] overflow-y-auto mb-4">
                 <ul className="divide-y divide-gray-200">
                   {items.map(item => (
                     <li key={item.id} className="py-4 flex">
