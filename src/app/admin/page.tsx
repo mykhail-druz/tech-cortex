@@ -68,7 +68,7 @@ const RecentOrders = ({ orders }: { orders: Order[] }) => (
                   {new Date(order.created_at).toLocaleDateString()}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {order.user_id.substring(0, 8)}...
+                  {order.user_id && order.user_id.substring(0, 8)}...
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   ${order.total_amount.toFixed(2)}
