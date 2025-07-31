@@ -11,6 +11,7 @@ import { CompareProvider } from '@/contexts/CompareContext';
 import { StripeProvider } from '@/contexts/StripeContext';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
+import { CategoriesProvider } from '@/contexts/CategoriesContext';
 import { OrganizationStructuredData, WebsiteStructuredData } from '@/components/seo/StructuredData';
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next"
@@ -95,19 +96,21 @@ export default function RootLayout({
         <AuthProvider>
           <CartProvider>
             <ToastProvider>
-              <WishlistProvider>
-                <CompareProvider>
-                  <StripeProvider>
-                    <SidebarProvider>
-                      <Header />
-                      <div className="flex flex-grow">
-                        <MainContent>{children}</MainContent>
-                      </div>
-                      <Footer />
-                    </SidebarProvider>
-                  </StripeProvider>
-                </CompareProvider>
-              </WishlistProvider>
+              <CategoriesProvider>
+                <WishlistProvider>
+                  <CompareProvider>
+                    <StripeProvider>
+                      <SidebarProvider>
+                        <Header />
+                        <div className="flex flex-grow">
+                          <MainContent>{children}</MainContent>
+                        </div>
+                        <Footer />
+                      </SidebarProvider>
+                    </StripeProvider>
+                  </CompareProvider>
+                </WishlistProvider>
+              </CategoriesProvider>
             </ToastProvider>
           </CartProvider>
         </AuthProvider>

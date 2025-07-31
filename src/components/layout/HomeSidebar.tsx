@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { getCategories } from '@/lib/supabase/db';
 import { Category } from '@/lib/supabase/types/types';
+import { useCategories } from '@/contexts/CategoriesContext';
 import { Layers } from 'lucide-react';
 import Image from 'next/image';
 
@@ -159,7 +159,7 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
       {/* Subcategories on hover - stays visible when hovering over dropdown */}
       {isHovered && category.subcategories && category.subcategories.length > 0 && (
         <div
-          className="fixed bg-white shadow-xl rounded-md border border-primary-200 min-w-[280px] max-w-[350px] max-h-[90vh] overflow-y-auto z-[100] animate-fadeIn"
+          className="fixed bg-white shadow-xl rounded-md border border-primary-200 min-w-[280px] max-w-[350px] max-h-[90vh] overflow-y-auto z-[9999] animate-fadeIn"
           style={{
             top: `${dropdownPosition.top}px`,
             left: `${dropdownPosition.left}px`,
@@ -168,9 +168,7 @@ const CategoryItem = ({ category, onCategoryClick }: CategoryItemProps) => {
           onMouseLeave={hideDropdown}
         >
           <div className="p-4">
-            <h4 className="font-semibold  mb-3 border-b pb-2 bg-white">
-              {category.name}
-            </h4>
+            <h4 className="font-semibold  mb-3 border-b pb-2 bg-white">{category.name}</h4>
             <ul className="space-y-1.5">
               {category.subcategories.map(subcategory => (
                 <li key={subcategory.id}>
@@ -216,30 +214,8 @@ const CategoriesList = ({ categories, onCategoryClick }: CategoriesListProps) =>
 
 // Main HomeSidebar component
 export default function HomeSidebar() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const { categories, isLoading } = useCategories();
   const router = useRouter();
-
-  // Fetch categories on the component mount
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        setIsLoading(true);
-        const { data, error } = await getCategories();
-        if (error) {
-          console.error('Error fetching categories:', error);
-        } else {
-          setCategories(data || []);
-        }
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCategories();
-  }, []);
 
   // Handle navigation to products page with category filter
   const handleCategoryClick = (categorySlug: string, subcategorySlug?: string) => {
@@ -260,9 +236,9 @@ export default function HomeSidebar() {
   };
 
   return (
-    <div className="bg-white shadow-md rounded-lg border border-primary-200 w-full h-auto overflow-visible">
+    <div className="bg-white shadow-md rounded-xl border border-primary-200 w-full h-auto overflow-visible">
       {/* Sidebar header */}
-      <div className="bg-gradient-to-r from-primary-600 to-secondary-600 z-20">
+      <div className="bg-gradient-to-r from-primary-600 to-secondary-600 z-20 rounded-t-xl ">
         <div className="flex items-center p-4">
           <h2 className="text-lg font-bold text-white">Shop By Category</h2>
         </div>
@@ -278,7 +254,7 @@ export default function HomeSidebar() {
       </div>
 
       {/* View all categories button */}
-      <div className="p-4 border-t border-primary-200 bg-primary-50 z-10">
+      <div className="p-4 border-t border-primary-200 bg-primary-50 z-10 rounded-b-xl">
         <button
           onClick={() => router.push('/products')}
           className="w-full py-2.5 px-4 bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700 text-white font-medium rounded-md transition-all duration-300 flex items-center justify-center shadow-sm hover:shadow-md"
