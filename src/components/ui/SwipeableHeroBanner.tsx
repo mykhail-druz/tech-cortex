@@ -32,7 +32,7 @@ interface HeroBannerProps {
 export default function SwipeableHeroBanner({
   images = ['/hero-banner.png', '/hero-banner-promo.png'],
   autoSlide = true,
-  slideInterval = 5000,
+  slideInterval = 7500,
 }: HeroBannerProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
