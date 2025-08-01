@@ -31,7 +31,6 @@ function normalizeCountryCode(country: string): string {
     AUSTRALIA: 'AU',
     BRAZIL: 'BR',
     INDIA: 'IN',
-    // Add more mappings as needed
   };
 
   // Try to find the country in our map (case-insensitive)

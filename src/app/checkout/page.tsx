@@ -57,6 +57,9 @@ export default function CheckoutPage() {
   const [totalWithTax, setTotalWithTax] = useState(subtotal);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [isGuestCheckout, setIsGuestCheckout] = useState(false);
+  const [previousTotalWithTax, setPreviousTotalWithTax] = useState(subtotal);
+  const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+  const [paymentIntentReady, setPaymentIntentReady] = useState(false);
 
   // Initialize tax calculation hook
   const {
@@ -253,71 +256,245 @@ export default function CheckoutPage() {
     resetTaxCalculation,
   ]);
 
-  // Create a payment intent when the component mounts and cart items are loaded
+  // Create PaymentIntent only after tax calculation is complete
   useEffect(() => {
     const createPaymentIntent = async () => {
-      if (!cartLoading && items.length > 0 && !clientSecret) {
-        try {
-          // Calculate the total amount in cents including tax
-          // Ensure amount is positive - use subtotal as fallback if totalWithTax is invalid
-          const calculatedAmount = totalWithTax > 0 ? totalWithTax : subtotal;
-          const amount = Math.round(calculatedAmount * 100);
+      // Only create PaymentIntent if:
+      // 1. Cart is loaded and has items
+      // 2. No existing PaymentIntent
+      // 3. Tax calculation is complete (not calculating)
+      // 4. Address is complete (required for tax calculation)
+      // 5. Tax amount is calculated (>= 0) or no tax required
+      const shouldCreatePaymentIntent = 
+        !cartLoading &&
+        items.length > 0 &&
+        !clientSecret &&
+        !isCalculating &&
+        formData.address &&
+        formData.city &&
+        formData.zipCode &&
+        (
+          // Tax calculated for US addresses with state
+          (formData.country === 'US' && formData.state && taxAmount >= 0) ||
+          // No tax required for non-US or addresses without state
+          (formData.country !== 'US' || !formData.state) && taxAmount === 0
+        );
 
-          // Validate amount before proceeding
-          if (amount <= 0) {
-            console.error('Invalid payment amount:', amount, {
-              totalWithTax,
-              subtotal,
-              taxAmount,
-              items: items.map(item => ({
-                id: item.product_id,
-                price: item.product?.price,
-                quantity: item.quantity,
-              })),
-            });
-            setError('Cannot process payment: total amount must be greater than zero');
-            return;
-          }
+      if (!shouldCreatePaymentIntent) {
+        console.log('PaymentIntent creation skipped. Conditions:', {
+          cartLoading,
+          itemsLength: items.length,
+          hasClientSecret: !!clientSecret,
+          isCalculating,
+          hasCompleteAddress: !!(formData.address && formData.city && formData.zipCode),
+          country: formData.country,
+          hasState: !!formData.state,
+          taxAmount,
+          reason: !cartLoading ? 
+            (items.length === 0 ? 'No items' :
+             clientSecret ? 'PaymentIntent exists' :
+             isCalculating ? 'Tax calculating' :
+             !formData.address ? 'No address' :
+             !formData.city ? 'No city' :
+             !formData.zipCode ? 'No zip code' :
+             'Tax conditions not met') : 'Cart loading'
+        });
+        return;
+      }
 
-          console.log('Creating payment intent:', {
-            amount,
-            calculatedAmount,
-            taxAmount: Math.round(taxAmount * 100),
-            itemCount: items.length,
+      try {
+        const amount = Math.round(totalWithTax * 100);
+
+        // Validate amount
+        if (amount <= 0) {
+          console.error('Invalid payment amount:', amount, {
+            totalWithTax,
+            subtotal,
+            taxAmount,
           });
-
-          const response = await fetch('/api/stripe/create-payment-intent', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              amount,
-              currency: 'usd',
-              metadata: {
-                user_id: user?.id || 'guest',
-                tax_amount: Math.round(taxAmount * 100), // Tax amount in cents
-              },
-            }),
-          });
-
-          const data = await response.json();
-
-          if (response.ok) {
-            setClientSecret(data.clientSecret);
-            setPaymentIntentId(data.paymentIntentId);
-          } else {
-            setError(data.error || 'Failed to create payment intent');
-          }
-        } catch (err) {
-          console.error('Error creating payment intent:', err);
-          setError('Failed to initialize payment. Please try again.');
+          setError('Cannot process payment: total amount must be greater than zero');
+          return;
         }
+
+        console.log('Creating PaymentIntent:', {
+          subtotal,
+          taxAmount,
+          totalWithTax,
+          amountInCents: amount,
+          itemCount: items.length,
+        });
+
+        const response = await fetch('/api/stripe/create-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({
+            amount,
+            currency: 'usd',
+            metadata: {
+              user_id: user?.id || 'guest',
+              tax_amount: Math.round(taxAmount * 100),
+              subtotal: Math.round(subtotal * 100),
+              total_with_tax: amount,
+              created_at: new Date().toISOString(),
+            },
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setClientSecret(data.clientSecret);
+          setPaymentIntentId(data.paymentIntentId);
+          setPreviousTotalWithTax(totalWithTax);
+          setPaymentIntentReady(true);
+          
+          console.log('PaymentIntent created successfully:', {
+            paymentIntentId: data.paymentIntentId,
+            amount,
+            taxAmount: Math.round(taxAmount * 100),
+          });
+        } else {
+          console.error('Failed to create PaymentIntent:', data.error);
+          setError(data.error || 'Failed to create payment intent');
+        }
+      } catch (err) {
+        console.error('Error creating PaymentIntent:', err);
+        setError('Failed to initialize payment. Please try again.');
       }
     };
 
     createPaymentIntent();
-  }, [cartLoading, items, totalWithTax, taxAmount, clientSecret, user]);
+  }, [
+    cartLoading,
+    items,
+    clientSecret,
+    isCalculating,
+    formData.address,
+    formData.city,
+    formData.zipCode,
+    formData.state,
+    formData.country,
+    taxAmount,
+    totalWithTax,
+    subtotal,
+    user,
+  ]);
+
+  // Reset PaymentIntent when cart items change (edge case handling)
+  useEffect(() => {
+    // If cart items change significantly, reset PaymentIntent to ensure accuracy
+    if (clientSecret && paymentIntentId && items.length > 0) {
+      const currentSubtotal = items.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+      
+      // If subtotal changed significantly (more than 1 cent), reset PaymentIntent
+      if (Math.abs(currentSubtotal - subtotal) > 0.01) {
+        console.log('Cart items changed significantly, resetting PaymentIntent:', {
+          currentSubtotal,
+          previousSubtotal: subtotal,
+          difference: Math.abs(currentSubtotal - subtotal),
+        });
+        
+        setClientSecret(null);
+        setPaymentIntentId(null);
+        setPaymentIntentReady(false);
+        setPreviousTotalWithTax(currentSubtotal);
+      }
+    }
+  }, [items, subtotal, clientSecret, paymentIntentId]);
+
+  // Update PaymentIntent when tax amount changes (address change scenario)
+  useEffect(() => {
+    const updatePaymentIntent = async () => {
+      // Only update if:
+      // 1. PaymentIntent already exists
+      // 2. Tax calculation is complete
+      // 3. Total amount has changed significantly (more than 1 cent)
+      // 4. Not currently updating to avoid race conditions
+      const shouldUpdatePaymentIntent = 
+        clientSecret &&
+        paymentIntentId &&
+        paymentIntentReady &&
+        !isCalculating &&
+        !isUpdatingPayment &&
+        !isSubmitting &&
+        Math.abs(totalWithTax - previousTotalWithTax) > 0.01;
+
+      if (!shouldUpdatePaymentIntent) {
+        console.log('PaymentIntent update skipped. Conditions:', {
+          hasClientSecret: !!clientSecret,
+          hasPaymentIntentId: !!paymentIntentId,
+          paymentIntentReady,
+          isCalculating,
+          isUpdatingPayment,
+          isSubmitting,
+          totalWithTax,
+          previousTotalWithTax,
+          amountDifference: Math.abs(totalWithTax - previousTotalWithTax),
+        });
+        return;
+      }
+
+      setIsUpdatingPayment(true);
+
+      try {
+        const newAmount = Math.round(totalWithTax * 100);
+
+        console.log('Updating PaymentIntent due to tax change:', {
+          paymentIntentId,
+          oldAmount: Math.round(previousTotalWithTax * 100),
+          newAmount,
+          taxAmount: Math.round(taxAmount * 100),
+        });
+
+        const response = await fetch('/api/stripe/update-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({
+            paymentIntentId,
+            amount: newAmount,
+            metadata: {
+              user_id: user?.id || 'guest',
+              tax_amount: Math.round(taxAmount * 100),
+              subtotal: Math.round(subtotal * 100),
+              total_with_tax: newAmount,
+              updated_at: new Date().toISOString(),
+            },
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setPreviousTotalWithTax(totalWithTax);
+          console.log('PaymentIntent updated successfully:', {
+            paymentIntentId,
+            newAmount,
+            taxAmount: Math.round(taxAmount * 100),
+          });
+        } else {
+          console.error('Failed to update PaymentIntent:', data.error);
+          setError('Failed to update payment amount. Please refresh the page.');
+        }
+      } catch (err) {
+        console.error('Error updating PaymentIntent:', err);
+        setError('Failed to update payment amount. Please refresh the page.');
+      } finally {
+        setIsUpdatingPayment(false);
+      }
+    };
+
+    updatePaymentIntent();
+  }, [
+    totalWithTax,
+    previousTotalWithTax,
+    clientSecret,
+    paymentIntentId,
+    paymentIntentReady,
+    isCalculating,
+    isUpdatingPayment,
+    isSubmitting,
+    taxAmount,
+    subtotal,
+    user,
+  ]);
 
   // Common email domain typos and their corrections
   const emailDomainCorrections: { [key: string]: string } = {
@@ -1456,6 +1633,41 @@ export default function CheckoutPage() {
                     )}
                   </span>
                 </div>
+              </div>
+
+              {/* Payment status indicators */}
+              <div className="mt-4 space-y-2">
+                {isCalculating && (
+                  <div className="flex items-center justify-center text-sm text-blue-600 bg-blue-50 rounded-md py-2 px-3">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                    Calculating taxes...
+                  </div>
+                )}
+                
+                {isUpdatingPayment && (
+                  <div className="flex items-center justify-center text-sm text-orange-600 bg-orange-50 rounded-md py-2 px-3">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
+                    Updating payment amount...
+                  </div>
+                )}
+                
+                {!isCalculating && !isUpdatingPayment && clientSecret && paymentIntentReady && (
+                  <div className="flex items-center justify-center text-sm text-green-600 bg-green-50 rounded-md py-2 px-3">
+                    <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Payment ready
+                  </div>
+                )}
+                
+                {!isCalculating && !clientSecret && items.length > 0 && (
+                  <div className="flex items-center justify-center text-sm text-gray-600 bg-gray-50 rounded-md py-2 px-3">
+                    <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                    Please complete your address to continue
+                  </div>
+                )}
               </div>
 
               <div className="mt-6">

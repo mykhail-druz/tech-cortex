@@ -17,18 +17,18 @@ export default stripe;
 export async function createPaymentIntent(
   amount: number,
   currency: string = 'usd',
-  metadata: Record<string, string> = {}
+  metadata: Record<string, string> = {},
+  shippingAddress?: any
 ) {
   try {
     const paymentIntent = await stripe.paymentIntents.create({
       amount,
       currency,
       metadata,
-      // In a production environment, you might want to capture the payment later
-      // capture_method: 'manual',
       automatic_payment_methods: {
         enabled: true,
       },
+      shipping: shippingAddress,
     });
 
     return { paymentIntent, error: null };
