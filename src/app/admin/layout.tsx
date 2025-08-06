@@ -4,6 +4,9 @@ import React from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
+import { FaChartBar, FaMoneyBillWave, FaRegUser } from 'react-icons/fa';
+import { AiOutlineProduct } from 'react-icons/ai';
+import { MdOutlineCategory } from 'react-icons/md';
 
 // Admin layout component
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -45,8 +48,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <ul className="space-y-2">
             <li>
               <Link href="/admin" className="flex items-center p-2 rounded hover:bg-gray-100">
-                <span className="mr-3">📊</span>
-                Dashboard
+                <FaChartBar className="h-6 w-6 mr-3 text-blue-600" />
+
+                <p>Dashboard</p>
               </Link>
             </li>
             <li>
@@ -54,8 +58,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href="/admin/products"
                 className="flex items-center p-2 rounded hover:bg-gray-100"
               >
-                <span className="mr-3">📦</span>
-                Products
+                <AiOutlineProduct className="h-6 w-6 mr-3 text-blue-600" />
+
+                <p>Products</p>
               </Link>
             </li>
             <li>
@@ -63,8 +68,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href="/admin/categories"
                 className="flex items-center p-2 rounded hover:bg-gray-100"
               >
-                <span className="mr-3">🗂️</span>
-                Categories
+                <MdOutlineCategory className="h-6 w-6 mr-3 text-blue-600" />
+
+                <p>Categories</p>
               </Link>
             </li>
             <li>
@@ -72,23 +78,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 href="/admin/orders"
                 className="flex items-center p-2 rounded hover:bg-gray-100"
               >
-                <span className="mr-3">🛒</span>
-                Orders
+                <FaMoneyBillWave className="h-6 w-6 mr-3 text-blue-600" />
+
+                <p>Orders</p>
               </Link>
             </li>
             <li>
               <Link href="/admin/users" className="flex items-center p-2 rounded hover:bg-gray-100">
-                <span className="mr-3">👥</span>
-                Users
-              </Link>
-            </li>
-            <li>
-              <Link
-                href="/admin/pc-configurator"
-                className="flex items-center p-2 rounded hover:bg-gray-100"
-              >
-                <span className="mr-3">🖥️</span>
-                PC Configurator
+                <FaRegUser className="h-6 w-6 mr-3 text-blue-600" />
+
+                <p>Users</p>
               </Link>
             </li>
           </ul>

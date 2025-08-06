@@ -8,13 +8,11 @@ import * as dbService from '@/lib/supabase/db';
 import * as adminDbService from '@/lib/supabase/adminDb';
 import * as storageService from '@/lib/supabase/storageService';
 import { supabase } from '@/lib/supabaseClient';
-import { Category, CategorySpecificationTemplate } from '@/lib/supabase/types/types';
+import { Category } from '@/lib/supabase/types/types';
 import Link from 'next/link';
 import Spinner from '@/components/ui/Spinner';
-import SmartProductSpecificationForm from '@/components/admin/SmartProductSpecificationForm';
-
-// IMPORTS for the specification system
-import { CategoryTemplateService } from '@/lib/supabase/services/categoryTemplateService';
+import SimpleProductSpecificationForm from '@/components/admin/SimpleProductSpecificationForm';
+import { SimpleSpecificationService } from '@/lib/specifications/SimpleSpecificationService';
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -52,19 +50,11 @@ export default function AddProductPage() {
   const [imagesPreviews, setImagesPreviews] = useState<string[]>([]);
   const [uploadingImages, setUploadingImages] = useState(false);
 
-  // STATE for the specification system
-  const [useNewSpecSystem, setUseNewSpecSystem] = useState(false);
-  const [newSpecTemplates, setNewSpecTemplates] = useState<CategorySpecificationTemplate[]>([]);
-  const [newSpecifications, setNewSpecifications] = useState<{ [key: string]: any }>({});
-  const [loadingNewTemplates, setLoadingNewTemplates] = useState(false);
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-
   // Smart specification form state
-  const [smartSpecifications, setSmartSpecifications] = useState<any[]>([]);
+  const [smartSpecifications, setSmartSpecifications] = useState<
+    Array<{ name: string; value: string; display_order: number }>
+  >([]);
   const [isSpecificationFormValid, setIsSpecificationFormValid] = useState(true);
-
-  // We only need the loadingTemplates state for the initialization button
-  const [loadingTemplates, setLoadingTemplates] = useState(false);
 
   // Existing useEffect for categories
   useEffect(() => {
@@ -83,7 +73,7 @@ export default function AddProductPage() {
     fetchCategories();
   }, []);
 
-  // useEffect for loading templates
+  // useEffect for loading subcategories
   useEffect(() => {
     if (formData.category_id) {
       const selectedCategory = categories.find(c => c.id === formData.category_id);
@@ -92,99 +82,11 @@ export default function AddProductPage() {
       if (!selectedCategory?.subcategories?.some(s => s.id === formData.subcategory_id)) {
         setFormData(prev => ({ ...prev, subcategory_id: '' }));
       }
-
-      // Always use the main category for templates, even when a subcategory is selected
-      const targetCategoryId = formData.subcategory_id || formData.category_id;
-
-      // For templates, always use the parent category (selectedCategory), not the subcategory
-      if (selectedCategory?.slug) {
-        loadNewSpecificationSystem(selectedCategory.slug, selectedCategory.id);
-      } else {
-        loadLegacySpecificationSystem(formData.category_id);
-      }
     } else {
       setAvailableSubcategories([]);
       setFormData(prev => ({ ...prev, subcategory_id: '' }));
-      setNewSpecTemplates([]);
-      setUseNewSpecSystem(false);
     }
-  }, [formData.category_id, formData.subcategory_id, categories, toast]);
-
-  // Function for loading the specification system
-  const loadNewSpecificationSystem = async (categorySlug: string, categoryId: string) => {
-    setLoadingNewTemplates(true);
-    try {
-      // Check if there are templates for this category in the system
-      const templates = await CategoryTemplateService.getTemplatesForCategory(categorySlug);
-
-      if (templates.length > 0) {
-        console.log('🔧 Using NEW specification system for', categorySlug);
-        setNewSpecTemplates(templates);
-        setUseNewSpecSystem(true);
-
-        // Initialize empty values
-        const initialSpecs: { [key: string]: any } = {};
-        templates.forEach(template => {
-          initialSpecs[template.name] = template.data_type === 'boolean' ? false : '';
-        });
-        setNewSpecifications(initialSpecs);
-
-        // Clear old data
-      } else {
-        console.log('⚠️ No templates found in NEW system, checking for initialization...');
-        // Suggest initializing the specification system
-        setUseNewSpecSystem(false);
-        loadLegacySpecificationSystem(categoryId);
-      }
-    } catch (error) {
-      console.error('Error loading new specification system:', error);
-      toast.warning('Error loading specification system');
-      setUseNewSpecSystem(false);
-      loadLegacySpecificationSystem(categoryId);
-    } finally {
-      setLoadingNewTemplates(false);
-    }
-  };
-
-  // Function to prompt for initialization when no templates are found
-  const loadLegacySpecificationSystem = async (categoryId: string) => {
-    setLoadingTemplates(true);
-    try {
-      console.log('No templates found for this category');
-      setUseNewSpecSystem(false);
-
-      // Clear any existing templates
-      setNewSpecTemplates([]);
-      setNewSpecifications({});
-    } catch (error) {
-      console.error('Error checking for templates:', error);
-      toast.error('Failed to check for specification templates');
-    } finally {
-      setLoadingTemplates(false);
-    }
-  };
-
-  // Function to initialize the specification template system
-  const handleInitializeNewSystem = async () => {
-    try {
-      const result = await initializeSpecificationTemplates();
-      if (result.success) {
-        toast.success('✅ Specification system successfully initialized!');
-        // Reload templates - always use the main category for templates
-        const mainCategory = categories.find(c => c.id === formData.category_id);
-        const targetCategoryId = formData.subcategory_id || formData.category_id;
-
-        if (mainCategory?.slug) {
-          loadNewSpecificationSystem(mainCategory.slug, targetCategoryId);
-        }
-      } else {
-        toast.error('❌ Initialization error: ' + result.error);
-      }
-    } catch (error) {
-      console.error('Error initializing new system:', error);
-      toast.error('❌ Error initializing specification system');
-    }
-  };
+  }, [formData.category_id, formData.subcategory_id, categories]);
 
   // Existing functions (do not modify)
   const generateSlug = (title: string) => {
@@ -235,14 +137,6 @@ export default function AddProductPage() {
       ...formData,
       [name]: checked,
     });
-  };
-
-  // НОВАЯ функция для обработки новых спецификаций
-  const handleNewSpecificationChange = (templateName: string, value: any) => {
-    setNewSpecifications(prev => ({
-      ...prev,
-      [templateName]: value,
-    }));
   };
 
   // Keep existing functions for images (do not modify)
@@ -324,7 +218,6 @@ export default function AddProductPage() {
     e.preventDefault();
     setSubmitting(true);
     setFormErrors({});
-    setValidationErrors([]);
 
     try {
       // Validation
@@ -339,9 +232,6 @@ export default function AddProductPage() {
         setSubmitting(false);
         return;
       }
-
-      // Определяем final category ID для продукта
-      const finalCategoryId = formData.subcategory_id || formData.category_id;
 
       // Upload main image if selected
       let mainImageUrl = formData.main_image_url;
@@ -452,39 +342,32 @@ export default function AddProductPage() {
 
       console.log('Product created successfully:', product);
 
-      // Добавляем спецификации из Smart Tag-Based системы
-      if (smartSpecifications.length > 0) {
-        const specInserts = smartSpecifications
-          .filter(spec => spec.value && spec.value.trim() !== '')
-          .map((spec, index) => ({
-            product_id: product.id,
-            template_id: null, // Для Smart Tag-Based спецификаций template_id не используется
-            name: spec.name,
-            value: spec.value,
-            display_order: index + 1,
-          }));
+      // Добавляем спецификации из новой простой системы
+      if (smartSpecifications.length > 0 && formData.category_id) {
+        const specValues: Record<string, string> = {};
+        smartSpecifications.forEach(spec => {
+          if (spec.value && spec.value.trim() !== '') {
+            specValues[spec.name] = spec.value;
+          }
+        });
 
-        if (specInserts.length > 0) {
-          const { error: specsError } = await supabase
-            .from('product_specifications')
-            .insert(specInserts);
+        if (Object.keys(specValues).length > 0) {
+          const result = await SimpleSpecificationService.createProductSpecificationsFromTemplates(
+            product.id,
+            formData.category_id,
+            specValues
+          );
 
-          if (specsError) {
+          if (!result.success) {
             // Откатываем создание продукта
             await supabase.from('products').delete().eq('id', product.id);
-            throw new Error('Ошибка добавления спецификаций: ' + specsError.message);
+            throw new Error('Ошибка добавления спецификаций: ' + result.errors?.join(', '));
           }
-          console.log('Smart specifications added successfully');
+          console.log('Specifications added successfully');
         }
       }
 
       const result = { data: product, error: null };
-
-      if (result.validationErrors && result.validationErrors.length > 0) {
-        setValidationErrors(result.validationErrors);
-        setSubmitting(false);
-        return;
-      }
 
       if (result.error) {
         throw result.error;
@@ -676,75 +559,13 @@ export default function AddProductPage() {
     }
   };
 
-  // Function to render specification field input
-  const renderNewSpecificationInput = (template: CategorySpecificationTemplate) => {
-    const value = newSpecifications[template.name] || '';
-
-    switch (template.data_type) {
-      case 'number':
-        return (
-          <input
-            type="number"
-            value={value}
-            onChange={e => handleNewSpecificationChange(template.name, Number(e.target.value))}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            step={template.units === 'GHz' ? '0.1' : '1'}
-            min={template.min_value || undefined}
-            max={template.max_value || undefined}
-            required={template.is_required}
-          />
-        );
-
-      case 'boolean':
-        return (
-          <input
-            type="checkbox"
-            checked={Boolean(value)}
-            onChange={e => handleNewSpecificationChange(template.name, e.target.checked)}
-            className="w-4 h-4"
-          />
-        );
-
-      case 'enum':
-      case 'socket':
-      case 'memory_type':
-      case 'power_connector':
-        return (
-          <select
-            value={value}
-            onChange={e => handleNewSpecificationChange(template.name, e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            required={template.is_required}
-          >
-            <option value="">Select {template.display_name.toLowerCase()}</option>
-            {template.enum_values?.map(enumValue => (
-              <option key={enumValue} value={enumValue}>
-                {enumValue}
-              </option>
-            ))}
-          </select>
-        );
-
-      default:
-        return (
-          <input
-            type="text"
-            value={value}
-            onChange={e => handleNewSpecificationChange(template.name, e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
-            required={template.is_required}
-          />
-        );
-    }
-  };
-
   // Authorization check
   if (!user || (!isAdmin && !isManager)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Access Denied</h1>
-          <p className="text-gray-600 mb-4">You don't have permission to access this page.</p>
+          <p className="text-gray-600 mb-4">You don&apos;t have permission to access this page.</p>
           <Link
             href="/auth/login"
             className="inline-block bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
@@ -781,18 +602,6 @@ export default function AddProductPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Validation errors for the specification system */}
-            {validationErrors.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded p-4">
-                <h4 className="font-medium text-red-800 mb-2">Validation Errors:</h4>
-                <ul className="list-disc list-inside text-red-700">
-                  {validationErrors.map((error, index) => (
-                    <li key={index}>{error}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
             {/* Basic Product Information */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -985,23 +794,13 @@ export default function AddProductPage() {
               </label>
             </div>
 
-            {/* Specification system loading indicator */}
-            {(loadingNewTemplates || loadingTemplates) && (
-              <div className="bg-blue-50 border border-blue-200 rounded p-4">
-                <div className="flex items-center">
-                  <Spinner size="small" />
-                  <span className="ml-2 text-blue-800">Loading specification templates...</span>
-                </div>
-              </div>
-            )}
-
-            {/* SMART SPECIFICATION SYSTEM */}
+            {/* SIMPLE SPECIFICATION SYSTEM */}
             {formData.category_id && (
-              <SmartProductSpecificationForm
+              <SimpleProductSpecificationForm
                 categoryId={formData.category_id}
                 onSpecificationsChange={specifications => {
                   setSmartSpecifications(specifications);
-                  console.log('Smart specifications updated:', specifications);
+                  console.log('Specifications updated:', specifications);
                 }}
                 onValidationChange={isValid => {
                   setIsSpecificationFormValid(isValid);

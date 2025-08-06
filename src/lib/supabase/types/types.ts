@@ -1,9 +1,3 @@
-import {
-  SpecificationDataType,
-  SpecificationValidationRule,
-  SPECIFICATION_ENUMS,
-} from './specifications';
-import { SemanticTag, StandardSpecification } from './semanticTags';
 
 // TypeScript types for Supabase database tables
 
@@ -52,19 +46,9 @@ export interface Category {
 
   // New fields for PC configurator
   is_pc_component?: boolean | null; // Whether this category should be included in PC Configurator
-  pc_component_type?: string | null;
   pc_icon?: string | null; // Deprecated: Use icon_url instead
-  pc_required?: boolean | null;
-  pc_supports_multiple?: boolean | null;
   pc_display_order?: number | null;
 
-  // Smart Tag-Based Specification System fields
-  specification_tags?: SemanticTag[]; // Semantic tags that describe component functionality
-  suggested_profiles?: string[]; // Suggested component profile IDs based on automatic detection
-  auto_generated_specs?: StandardSpecification[]; // Auto-generated specifications based on semantic tags
-  custom_specs?: StandardSpecification[]; // Custom specifications added by admin
-  smart_detection_enabled?: boolean; // Whether smart specification detection is enabled
-  last_profile_detection?: string; // Timestamp of last automatic profile detection run
 
   subcategories?: Category[];
 }
@@ -101,9 +85,7 @@ export interface ProductWithDetails extends Product {
   category?: Category;
   subcategory?: Category;
   images?: ProductImage[];
-  specifications?: (ProductSpecification & {
-    template?: CategorySpecificationTemplate;
-  })[];
+  specifications?: ProductSpecification[];
   reviews?: Review[];
 }
 
@@ -118,34 +100,11 @@ export interface ProductImage {
   created_at: string;
 }
 
-// Category Specification Template type
-export interface CategorySpecificationTemplate {
-  id: string;
-  category_id: string;
-  name: string;
-  display_name: string;
-  description?: string;
-  data_type: SpecificationDataType;
-
-  // КРИТИЧЕСКИ ВАЖНО - строгая типизация!
-  enum_values: string[];
-  enum_source?: keyof typeof SPECIFICATION_ENUMS; // Указывает источник enum'а
-
-  validation_rules: SpecificationValidationRule;
-  is_required: boolean;
-  is_filterable: boolean;
-  is_compatibility_key: boolean; // Влияет на совместимость!
-
-  display_order?: number;
-  filter_order?: number;
-  filter_type?: 'checkbox' | 'dropdown' | 'range' | 'search';
-}
 
 // Product Specification type
 export interface ProductSpecification {
   id: string;
   product_id: string;
-  template_id: string | null;
   name: string;
   value: string;
   display_order: number;
