@@ -3,9 +3,6 @@ import {
   Product,
   ProductWithDetails,
   Category,
-  ProductImage,
-  ProductSpecification,
-  CategorySpecificationTemplate,
   CartItem,
   Order,
   OrderItem,
@@ -13,7 +10,6 @@ import {
   UserProfile,
   UserRole,
   WishlistItem,
-  HomepageContent,
   NavigationLink,
   SelectResponse,
   InsertResponse,
@@ -22,7 +18,6 @@ import {
   OrderWithItems,
   CategoryWithGoods,
 } from './types/types';
-import { SpecificationFilter } from './types/specifications';
 
 // Products
 export const getProducts = async (
@@ -231,15 +226,10 @@ export const getProductBySlug = async (
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
-  // Get the specifications with template information
+  // Get the specifications (new simple system)
   const specificationsResponse = await supabase
     .from('product_specifications')
-    .select(
-      `
-      *,
-      template:template_id (*)
-    `
-    )
+    .select('*')
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
@@ -318,15 +308,10 @@ export const getProductById = async (
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
-  // Get the specifications with template information
+  // Get the specifications (new simple system)
   const specificationsResponse = await supabase
     .from('product_specifications')
-    .select(
-      `
-      *,
-      template:template_id (*)
-    `
-    )
+    .select('*')
     .eq('product_id', product.id)
     .order('display_order', { ascending: true });
 
@@ -380,8 +365,7 @@ export const searchProducts = async (
   minPrice?: number,
   maxPrice?: number,
   sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
-  inStockOnly?: boolean,
-  specificationFilters?: Record<string, any>
+  inStockOnly?: boolean
 ): Promise<SelectResponse<Product>> => {
   let dbQuery = supabase
     .from('products')
@@ -603,81 +587,6 @@ export const getCategoryWithGoods = async (
   }
 };
 
-// Category Specification Templates
-export const createCategorySpecificationTemplate = async (
-  template: Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>
-): Promise<InsertResponse<CategorySpecificationTemplate>> => {
-  const response = await supabase
-    .from('category_specification_templates')
-    .insert(template)
-    .select()
-    .single();
-
-  return { data: response.data, error: response.error };
-};
-
-export const updateCategorySpecificationTemplate = async (
-  id: string,
-  template: Partial<Omit<CategorySpecificationTemplate, 'id' | 'created_at' | 'updated_at'>>
-): Promise<UpdateResponse<CategorySpecificationTemplate>> => {
-  const response = await supabase
-    .from('category_specification_templates')
-    .update({ ...template, updated_at: new Date().toISOString() })
-    .eq('id', id)
-    .select()
-    .single();
-
-  return { data: response.data, error: response.error };
-};
-
-export const deleteCategorySpecificationTemplate = async (id: string): Promise<DeleteResponse> => {
-  // Check if any product specifications are using this template
-  const { data: specs, error: checkError } = await supabase
-    .from('product_specifications')
-    .select('id')
-    .eq('template_id', id);
-
-  if (checkError) {
-    return { error: checkError };
-  }
-
-  // If specifications are using this template, return an error
-  if (specs && specs.length > 0) {
-    return {
-      error: new Error(
-        `Cannot delete template because it is being used by ${specs.length} product specifications`
-      ),
-    };
-  }
-
-  // If no specifications are using this template, delete it
-  const response = await supabase.from('category_specification_templates').delete().eq('id', id);
-  return { error: response.error };
-};
-
-export const getCategorySpecificationTemplates = async (
-  categoryId: string
-): Promise<SelectResponse<CategorySpecificationTemplate>> => {
-  const response = await supabase
-    .from('category_specification_templates')
-    .select('*')
-    .eq('category_id', categoryId)
-    .order('display_order', { ascending: true });
-
-  return { data: response.data, error: response.error };
-};
-
-export const getCategorySpecificationTemplateById = async (
-  id: string
-): Promise<{ data: CategorySpecificationTemplate | null; error: Error | null }> => {
-  const response = await supabase
-    .from('category_specification_templates')
-    .select('*')
-    .eq('id', id)
-    .single();
-
-  return { data: response.data, error: response.error };
-};
 
 // Cart
 export const getCartItems = async (userId: string): Promise<SelectResponse<CartItem>> => {
@@ -1401,277 +1310,11 @@ export const getNavigationLinks = async (
   return { data: response.data, error: response.error };
 };
 
-/**
- * Получение продуктов с фильтрацией по спецификациям
- */
-export const getProductsWithSpecificationFilters = async (
-  categorySlug?: string,
-  specificationFilters?: Record<string, any>,
-  minPrice?: number,
-  maxPrice?: number,
-  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
-  inStockOnly?: boolean
-): Promise<SelectResponse<Product>> => {
-  try {
-    // Start with basic query - simplified to avoid join issues
-    let dbQuery = supabase.from('products').select('*');
+// TODO: Implement product filtering with new specification system
+// This method was removed as it used the old specification system
 
-    // Apply category filter
-    if (categorySlug && categorySlug !== 'all') {
-      // First get the category/subcategory ID
-      const { data: category } = await supabase
-        .from('categories')
-        .select('id, is_subcategory')
-        .eq('slug', categorySlug)
-        .single();
-
-      if (category) {
-        if (category.is_subcategory) {
-          dbQuery = dbQuery.eq('subcategory_id', category.id);
-        } else {
-          // Get subcategories for this main category
-          const { data: subcategories } = await supabase
-            .from('categories')
-            .select('id')
-            .eq('parent_id', category.id);
-
-          if (subcategories && subcategories.length > 0) {
-            const subcategoryIds = subcategories.map(sub => sub.id);
-            dbQuery = dbQuery.in('subcategory_id', subcategoryIds);
-          }
-        }
-      }
-    }
-
-    // Apply price filters
-    if (minPrice !== undefined) {
-      dbQuery = dbQuery.gte('price', minPrice);
-    }
-    if (maxPrice !== undefined) {
-      dbQuery = dbQuery.lte('price', maxPrice);
-    }
-
-    // Apply stock filter
-    if (inStockOnly) {
-      dbQuery = dbQuery.eq('in_stock', true);
-    }
-
-    // Apply sorting
-    switch (sortBy) {
-      case 'newest':
-        dbQuery = dbQuery.order('created_at', { ascending: false });
-        break;
-      case 'price-asc':
-        dbQuery = dbQuery.order('price', { ascending: true });
-        break;
-      case 'price-desc':
-        dbQuery = dbQuery.order('price', { ascending: false });
-        break;
-      case 'rating':
-        dbQuery = dbQuery.order('rating', { ascending: false });
-        break;
-      default:
-        dbQuery = dbQuery.order('created_at', { ascending: false });
-    }
-
-    const response = await dbQuery;
-
-    if (response.error) {
-      console.error('Error fetching products with specification filters:', response.error);
-      return { data: null, error: response.error };
-    }
-
-    let filteredData = response.data || [];
-
-    // Apply specification filters
-    if (specificationFilters && Object.keys(specificationFilters).length > 0) {
-      // Get product IDs from the initial query
-      const productIds = filteredData.map(product => product.id);
-
-      // For each specification filter, filter the products
-      for (const [specName, specValue] of Object.entries(specificationFilters)) {
-        // Get the specification template ID for this specification name
-        const { data: template } = await supabase
-          .from('category_specification_templates')
-          .select('id')
-          .eq('name', specName)
-          .single();
-
-        if (!template) continue;
-
-        // Create a query to get products that match this specification
-        let specQuery = supabase.from('product_specifications').select('product_id');
-
-        // Add the template ID filter
-        specQuery = specQuery.eq('template_id', template.id);
-
-        // Apply different filters based on the type of specification value
-        if (Array.isArray(specValue)) {
-          // For array values (checkbox filters), use IN operator
-          if (specValue.length > 0) {
-            specQuery = specQuery.in('value', specValue);
-          }
-        } else if (
-          typeof specValue === 'object' &&
-          (specValue.min !== undefined || specValue.max !== undefined)
-        ) {
-          // For range values, use gte/lte operators
-          if (specValue.min !== undefined) {
-            specQuery = specQuery.gte('value_number', specValue.min);
-          }
-          if (specValue.max !== undefined) {
-            specQuery = specQuery.lte('value_number', specValue.max);
-          }
-        } else {
-          // For single values, use eq operator
-          specQuery = specQuery.eq('value', specValue);
-        }
-
-        // Execute the query
-        const { data: matchingSpecs } = await specQuery;
-
-        if (matchingSpecs && matchingSpecs.length > 0) {
-          // Get the product IDs that match this specification
-          const matchingProductIds = matchingSpecs.map(spec => spec.product_id);
-
-          // Filter the product IDs to only include those that match this specification
-          const filteredProductIds = productIds.filter(id => matchingProductIds.includes(id));
-
-          // Update the product IDs for the next iteration
-          productIds.length = 0;
-          productIds.push(...filteredProductIds);
-
-          // If no products match this specification, we can stop early
-          if (productIds.length === 0) break;
-        } else {
-          // If no products match this specification, we can stop early
-          productIds.length = 0;
-          break;
-        }
-      }
-
-      // Filter the products to only include those that match all specifications
-      filteredData = filteredData.filter(product => productIds.includes(product.id));
-    }
-
-    return { data: filteredData, error: null };
-  } catch (error) {
-    console.error('Error in getProductsWithSpecificationFilters:', error);
-    return { data: null, error: error instanceof Error ? error : new Error('Unknown error') };
-  }
-};
-
-/**
- * Search products with specification filters
- */
-export const searchProductsWithSpecifications = async (
-  query: string,
-  categorySlug?: string,
-  subcategorySlug?: string,
-  minPrice?: number,
-  maxPrice?: number,
-  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating',
-  inStockOnly?: boolean,
-  specificationFilters?: Record<string, any>
-): Promise<SelectResponse<Product>> => {
-  // First, search products without specification filters
-  const searchResult = await searchProducts(
-    query,
-    categorySlug,
-    subcategorySlug,
-    minPrice,
-    maxPrice,
-    sortBy,
-    inStockOnly
-  );
-
-  // If there's an error or no specification filters, return the results as is
-  if (
-    searchResult.error ||
-    !specificationFilters ||
-    Object.keys(specificationFilters).length === 0
-  ) {
-    return searchResult;
-  }
-
-  // Apply specification filters
-  try {
-    let filteredData = searchResult.data || [];
-
-    // Get product IDs from the initial query
-    const productIds = filteredData.map(product => product.id);
-
-    // For each specification filter, filter the products
-    for (const [specName, specValue] of Object.entries(specificationFilters)) {
-      // Get the specification template ID for this specification name
-      const { data: template } = await supabase
-        .from('category_specification_templates')
-        .select('id')
-        .eq('name', specName)
-        .single();
-
-      if (!template) continue;
-
-      // Create a query to get products that match this specification
-      let specQuery = supabase.from('product_specifications').select('product_id');
-
-      // Add the template ID filter
-      specQuery = specQuery.eq('template_id', template.id);
-
-      // Apply different filters based on the type of specification value
-      if (Array.isArray(specValue)) {
-        // For array values (checkbox filters), use IN operator
-        if (specValue.length > 0) {
-          specQuery = specQuery.in('value', specValue);
-        }
-      } else if (
-        typeof specValue === 'object' &&
-        (specValue.min !== undefined || specValue.max !== undefined)
-      ) {
-        // For range values, use gte/lte operators
-        if (specValue.min !== undefined) {
-          specQuery = specQuery.gte('value_number', specValue.min);
-        }
-        if (specValue.max !== undefined) {
-          specQuery = specQuery.lte('value_number', specValue.max);
-        }
-      } else {
-        // For single values, use eq operator
-        specQuery = specQuery.eq('value', specValue);
-      }
-
-      // Execute the query
-      const { data: matchingSpecs } = await specQuery;
-
-      if (matchingSpecs && matchingSpecs.length > 0) {
-        // Get the product IDs that match this specification
-        const matchingProductIds = matchingSpecs.map(spec => spec.product_id);
-
-        // Filter the product IDs to only include those that match this specification
-        const filteredProductIds = productIds.filter(id => matchingProductIds.includes(id));
-
-        // Update the product IDs for the next iteration
-        productIds.length = 0;
-        productIds.push(...filteredProductIds);
-
-        // If no products match this specification, we can stop early
-        if (productIds.length === 0) break;
-      } else {
-        // If no products match this specification, we can stop early
-        productIds.length = 0;
-        break;
-      }
-    }
-
-    // Filter the products to only include those that match all specifications
-    filteredData = filteredData.filter(product => productIds.includes(product.id));
-
-    return { data: filteredData, error: null };
-  } catch (error) {
-    console.error('Error applying specification filters to search results:', error);
-    return searchResult;
-  }
-};
+// TODO: Implement search with specification filters using new specification system
+// This method was removed as it used the old specification system
 
 export const getProductWithSpecs = async (productId: string): Promise<SelectResponse<Product>> => {
   try {
@@ -1697,80 +1340,8 @@ export const getProductWithSpecs = async (productId: string): Promise<SelectResp
   }
 };
 
-/**
- * Getting available filters for a category
- */
-export const getAvailableFilters = async (categorySlug: string): Promise<SpecificationFilter[]> => {
-  try {
-    // First, get the category ID
-    const { data: category } = await supabase
-      .from('categories')
-      .select('id')
-      .eq('slug', categorySlug)
-      .single();
-
-    if (!category) return [];
-
-    // Получаем шаблоны спецификаций для фильтрации
-    const { data: templates } = await supabase
-      .from('category_specification_templates')
-      .select('*')
-      .eq('category_id', category.id)
-      .order('display_order', { ascending: true });
-
-    if (!templates) return [];
-
-    const filters: SpecificationFilter[] = [];
-
-    for (const template of templates) {
-      const filter: SpecificationFilter = {
-        templateId: template.id,
-        templateName: template.name,
-        displayName: template.display_name || template.name,
-        filterType: template.filter_type || 'checkbox',
-      };
-
-      if (template.data_type === 'enum' && template.enum_values) {
-        filter.values = template.enum_values;
-      } else if (template.data_type === 'number') {
-        // Получаем диапазон значений
-        const { data: specs } = await supabase
-          .from('product_specifications')
-          .select('value_number')
-          .eq('template_id', template.id)
-          .not('value_number', 'is', null)
-          .order('value_number');
-
-        if (specs && specs.length > 0) {
-          filter.min = specs[0].value_number;
-          filter.max = specs[specs.length - 1].value_number;
-        }
-      } else {
-        // Получаем уникальные значения
-        const { data: specs } = await supabase
-          .from('product_specifications')
-          .select('value_enum, value_text')
-          .eq('template_id', template.id);
-
-        if (specs) {
-          const values = new Set<string>();
-          specs.forEach(spec => {
-            if (spec.value_enum) values.add(spec.value_enum);
-            if (spec.value_text) values.add(spec.value_text);
-          });
-          filter.values = Array.from(values).sort();
-        }
-      }
-
-      filters.push(filter);
-    }
-
-    return filters;
-  } catch (error) {
-    console.error('Error getting available filters:', error);
-    return [];
-  }
-};
+// TODO: Implement available filters using new specification system
+// This method was removed as it used the old specification system
 
 /**
  * Getting compatible products for PC configurator
@@ -1912,54 +1483,9 @@ export const getCompatibleProducts = async (
 
     console.log('📋 Selected products map:', Object.keys(selectedProductsMap));
 
-    // Динамически импортируем CompatibilityEngine
-    try {
-      const { CompatibilityEngine } = await import('@/lib/compatibility/engine');
-
-      // Фильтруем продукты по совместимости асинхронно
-      const compatibilityChecks = await Promise.all(
-        products.map(async product => {
-          try {
-            // Создаем временную конфигурацию для тестирования
-            const testConfiguration = {
-              ...selectedProductsMap,
-              [categorySlug]: product as Product,
-            };
-
-            // Проверяем совместимость (await для асинхронного метода)
-            const validationResult =
-              await CompatibilityEngine.validateConfiguration(testConfiguration);
-
-            // Продукт совместим если нет критических ошибок
-            const hasCriticalIssues = validationResult.issues.some(
-              issue => issue.severity === 'critical'
-            );
-
-            if (hasCriticalIssues) {
-              console.log(`❌ Product ${product.title} has compatibility issues`);
-            }
-
-            return { product, isCompatible: !hasCriticalIssues };
-          } catch (error) {
-            console.error('Error checking compatibility for product:', product.title, error);
-            return { product, isCompatible: true }; // В случае ошибки включаем продукт
-          }
-        })
-      );
-
-      // Фильтруем только совместимые продукты
-      const compatibleProducts = compatibilityChecks
-        .filter(result => result.isCompatible)
-        .map(result => result.product);
-
-      console.log(`✅ Found ${compatibleProducts.length}/${products.length} compatible products`);
-
-      return { data: compatibleProducts as Product[], error: null };
-    } catch (importError) {
-      console.error('Error importing CompatibilityEngine:', importError);
-      // Fallback: return all products if unable to import the engine
-      return { data: products as Product[], error: null };
-    }
+    // Compatibility engine is not available, returning all products
+    console.log(`📦 Returning all ${products.length} products (compatibility checking disabled)`);
+    return { data: products as Product[], error: null };
   } catch (error) {
     console.error('Error in getCompatibleProducts:', error);
 

@@ -44,17 +44,17 @@ export const usePCCategories = () => {
   // Create name mapping for localization
   const getCategoryDisplayName = (category: Category): string => {
     const nameMap: Record<string, string> = {
-      'processor': 'Processor',
-      'motherboard': 'Motherboard', 
+      'processors': 'Processor',
+      'motherboards': 'Motherboard', 
       'memory': 'Memory',
-      'graphics-card': 'Graphics Card',
+      'graphics-cards': 'Graphics Card',
       'storage': 'Storage',
-      'power-supply': 'Power Supply',
-      'case': 'Case',
+      'power-supplies': 'Power Supply',
+      'cases': 'Case',
       'cooling': 'Cooling',
     };
 
-    return nameMap[category.pc_component_type || ''] || category.name;
+    return nameMap[category.slug] || category.name;
   };
 
   return {

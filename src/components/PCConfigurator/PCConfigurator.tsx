@@ -9,7 +9,7 @@ import {
   ValidationResult,
   CompatibilityIssue,
 } from '@/lib/supabase/types/specifications';
-import { SmartCompatibilityEngine } from '@/lib/compatibility/SmartCompatibilityEngine';
+// SmartCompatibilityEngine removed - using basic compatibility stubs
 import { usePCCategories } from '@/hooks/usePCCategories';
 import {
   getConfigurationForBuilder,
@@ -274,11 +274,27 @@ export default function PCConfigurator() {
       let recommendedPsuPower = undefined;
 
       try {
-        const result = await SmartCompatibilityEngine.validateConfiguration(products);
-        powerConsumption = result.actualPowerConsumption || result.powerConsumption || 0;
-        // Only use PSU recommendation if GPU with recommended_psu_power is selected
-        recommendedPsuPower =
-          result.recommendedPsuPower > 0 ? result.recommendedPsuPower : undefined;
+        // Basic compatibility stub - calculate power consumption from components
+        powerConsumption = Object.values(products).reduce((total, product) => {
+          const categoryPower: Record<string, number> = {
+            cpu: 65,
+            gpu: 150,
+            ram: 5,
+            storage: 10,
+            motherboard: 25,
+            psu: 0,
+            case: 0,
+            cooling: 15,
+          };
+
+          const category = Object.keys(configuration.components).find(
+            cat => configuration.components[cat] === product.id
+          );
+          return total + (categoryPower[category || ''] || 0);
+        }, 0);
+        
+        // Basic PSU recommendation - no specific logic for now
+        recommendedPsuPower = undefined;
       } catch {
         // Fallback power calculation if smart engine fails
         powerConsumption = Object.values(products).reduce((total, product) => {
@@ -313,7 +329,7 @@ export default function PCConfigurator() {
         totalPrice,
         powerConsumption,
         actualPowerConsumption: powerConsumption,
-        // Preserve original recommendedPsuPower from loaded configuration if SmartCompatibilityEngine can't calculate it
+        // Preserve original recommendedPsuPower from loaded configuration
         // Also preserve it when loading a configuration to prevent overwriting loaded values
         recommendedPsuPower:
           recommendedPsuPower !== undefined ? recommendedPsuPower : prev.recommendedPsuPower,
@@ -336,8 +352,33 @@ export default function PCConfigurator() {
         }
       });
 
-      // Check compatibility using SmartCompatibilityEngine
-      const result = await SmartCompatibilityEngine.validateConfiguration(products);
+      // Basic compatibility stub - no complex validation for now
+      const powerConsumption = Object.values(products).reduce((total, product) => {
+        const categoryPower: Record<string, number> = {
+          cpu: 65,
+          gpu: 150,
+          ram: 5,
+          storage: 10,
+          motherboard: 25,
+          psu: 0,
+          case: 0,
+          cooling: 15,
+        };
+
+        const category = Object.keys(configuration.components).find(
+          cat => configuration.components[cat] === product.id
+        );
+        return total + (categoryPower[category || ''] || 0);
+      }, 0);
+
+      const result: ValidationResult = {
+        isValid: true,
+        issues: [], // No compatibility issues for now
+        warnings: [], // No warnings for now
+        powerConsumption,
+        actualPowerConsumption: powerConsumption,
+        recommendedPsuPower: undefined,
+      };
 
       setValidationResult(result);
 
@@ -355,7 +396,7 @@ export default function PCConfigurator() {
         totalPrice: calculateTotalPrice(),
         powerConsumption: result.powerConsumption, // Keep for backward compatibility
         actualPowerConsumption: result.actualPowerConsumption,
-        // Preserve original recommendedPsuPower from loaded configuration if SmartCompatibilityEngine can't calculate it
+        // Preserve original recommendedPsuPower from loaded configuration
         recommendedPsuPower:
           result.recommendedPsuPower !== undefined
             ? result.recommendedPsuPower
@@ -577,14 +618,12 @@ export default function PCConfigurator() {
                             />
                           </span>
                         ) : (
-                          <span className="text-lg">
-                            {category.pc_icon || <FaWrench className="w-5 h-5 text-gray-600" />}
-                          </span>
+                          <FaWrench className="w-5 h-5 text-gray-600 mr-2" />
                         )}
                         <div>
                           <div className="font-medium text-gray-900">
                             {getCategoryDisplayName(category)}
-                            {category.pc_required && <span className="text-red-500 ml-1">*</span>}
+                            {['processors', 'motherboards', 'memory', 'power-supplies'].includes(category.slug) && <span className="text-red-500 ml-1">*</span>}
                           </div>
                           <div className="text-xs text-gray-500">
                             {category.is_subcategory &&

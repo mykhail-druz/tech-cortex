@@ -81,28 +81,47 @@ CREATE TABLE product_images (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Category Specification Templates Table
-CREATE TABLE category_specification_templates (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+-- =====================================================
+-- � ��� ��� �
+-- =====================================================
+
+-- 1. ������� ���������� ������������ ��� ���������
+CREATE TABLE category_spec_templates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
   name VARCHAR(100) NOT NULL,
-  display_name VARCHAR(100) NOT NULL,
-  description TEXT,
-  is_required BOOLEAN DEFAULT FALSE,
-  data_type VARCHAR(50) DEFAULT 'text',
-  display_order INT DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  display_name VARCHAR(200) NOT NULL,
+  data_type VARCHAR(20) NOT NULL CHECK (data_type IN ('text', 'number', 'boolean', 'enum')),
+  is_required BOOLEAN DEFAULT false,
+  is_filter BOOLEAN DEFAULT true,
+  display_order INTEGER DEFAULT 0,
+  enum_values TEXT[],
+  unit VARCHAR(20),
+  placeholder TEXT,
+  help_text TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  UNIQUE(category_id, name)
 );
 
--- Product Specifications Table
+-- 2. ������� ������������ ���������
 CREATE TABLE product_specifications (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID REFERENCES products(id) ON DELETE CASCADE,
-  template_id UUID REFERENCES category_specification_templates(id),
   name VARCHAR(100) NOT NULL,
-  value TEXT NOT NULL,
-  display_order INT DEFAULT 0
+  display_name VARCHAR(200) NOT NULL,
+  value TEXT,
+  data_type VARCHAR(20) NOT NULL CHECK (data_type IN ('text', 'number', 'boolean', 'enum')),
+  is_required BOOLEAN DEFAULT false,
+  is_filter BOOLEAN DEFAULT true,
+  display_order INTEGER DEFAULT 0,
+  enum_values TEXT[],
+  unit VARCHAR(20),
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  UNIQUE(product_id, name)
 );
 
 -- User Roles Table
@@ -215,7 +234,6 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_images ENABLE ROW LEVEL SECURITY;
 ALTER TABLE product_specifications ENABLE ROW LEVEL SECURITY;
-ALTER TABLE category_specification_templates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
@@ -281,19 +299,7 @@ ON product_specifications FOR UPDATE USING (is_admin_or_manager());
 CREATE POLICY "Product specifications can be deleted by admins and managers" 
 ON product_specifications FOR DELETE USING (is_admin_or_manager());
 
-CREATE POLICY "Category specification templates are viewable by everyone" 
-ON category_specification_templates FOR SELECT USING (true);
-
-CREATE POLICY "Category specification templates can be modified by admins and managers" 
-ON category_specification_templates FOR INSERT WITH CHECK (is_admin_or_manager());
-
-CREATE POLICY "Category specification templates can be updated by admins and managers" 
-ON category_specification_templates FOR UPDATE USING (is_admin_or_manager());
-
-CREATE POLICY "Category specification templates can be deleted by admins and managers" 
-ON category_specification_templates FOR DELETE USING (is_admin_or_manager());
-
-CREATE POLICY "Reviews are viewable by everyone" 
+CREATE POLICY "Reviews are viewable by everyone"
 ON reviews FOR SELECT USING (is_approved = true);
 
 -- User can only see and modify their own cart
