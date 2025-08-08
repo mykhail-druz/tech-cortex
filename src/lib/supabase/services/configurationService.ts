@@ -416,7 +416,7 @@ export async function getConfigurationForBuilder(configId: string): Promise<{
       };
     }
 
-    // Convert components to the format expected by PCConfigurator
+    // Convert components to the format expected by PC Builder
     const components: Record<string, string | string[]> = {};
     configuration.pc_configuration_components.forEach((comp: { category_slug: string; product_id: string }) => {
       if (components[comp.category_slug]) {
@@ -565,7 +565,7 @@ export async function getPublicConfigurationForBuilder(configId: string): Promis
       };
     }
 
-    // Convert components to the format expected by PCConfigurator
+    // Convert components to the format expected by PC Builder
     const components: Record<string, string | string[]> = {};
     configuration.pc_configuration_components.forEach((comp: { category_slug: string; product_id: string }) => {
       if (components[comp.category_slug]) {
