@@ -1,14 +1,45 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   PCBuilderProduct,
   PCBuilderWorkspaceState,
   ConfigurationSummaryData,
   CategoryBlockState,
+  SelectedComponent,
 } from '@/types/pc-builder';
 import { PC_BUILDER_CATEGORIES, MOCK_PRODUCTS } from '@/data/pc-builder-mock-data';
 import { CategoryBlock } from './CategoryBlock';
 import { ConfigurationSummary } from './ConfigurationSummary';
 import { FilterService } from '@/lib/filters/FilterService';
+
+const LS_KEY = 'pc_builder_configuration_v1';
+
+type SavedConfiguration = {
+  components: Record<string, SelectedComponent>;
+};
+
+const loadSavedComponents = (): Record<string, SelectedComponent> | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SavedConfiguration> | Record<string, SelectedComponent>;
+    if (parsed && typeof parsed === 'object' && 'components' in (parsed as object)) {
+      return (parsed as SavedConfiguration).components || null;
+    }
+    return (parsed as Record<string, SelectedComponent>) || null;
+  } catch {
+    return null;
+  }
+};
+
+const saveComponents = (components: Record<string, SelectedComponent>) => {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage.setItem(LS_KEY, JSON.stringify({ components }));
+  } catch {
+    // ignore storage errors (quota, privacy, etc.)
+  }
+};
 
 export const PCBuilderWorkspace: React.FC = () => {
   // Initialize workspace state
@@ -39,6 +70,80 @@ export const PCBuilderWorkspace: React.FC = () => {
       error: null,
     };
   });
+
+  // Hydration: load saved configuration from localStorage
+  const hasHydratedRef = useRef(false);
+  useEffect(() => {
+    const saved = loadSavedComponents();
+    if (saved && Object.keys(saved).length > 0) {
+      setWorkspaceState(prev => {
+        const updatedCategories = { ...prev.categories };
+        Object.keys(saved).forEach(slug => {
+          if (updatedCategories[slug]) {
+            updatedCategories[slug] = {
+              ...updatedCategories[slug],
+              selectedProduct: saved[slug].product,
+              isExpanded: false,
+            };
+          }
+        });
+        const newTotalPrice = Object.values(saved).reduce(
+          (total, comp) => total + comp.product.price * comp.quantity,
+          0
+        );
+        return {
+          ...prev,
+          categories: updatedCategories,
+          configuration: {
+            ...prev.configuration,
+            components: saved,
+            totalPrice: newTotalPrice,
+          },
+        };
+      });
+    }
+    hasHydratedRef.current = true;
+  }, []);
+
+  // Persistence: save configuration to localStorage when components change
+  useEffect(() => {
+    if (!hasHydratedRef.current) return;
+    saveComponents(workspaceState.configuration.components);
+  }, [workspaceState.configuration.components]);
+
+  // Cross-tab sync via storage events
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LS_KEY) return;
+      const saved = loadSavedComponents();
+      if (!saved) return;
+      setWorkspaceState(prev => {
+        const updatedCategories = { ...prev.categories };
+        Object.keys(updatedCategories).forEach(slug => {
+          updatedCategories[slug] = {
+            ...updatedCategories[slug],
+            selectedProduct: saved[slug]?.product || null,
+            isExpanded: false,
+          };
+        });
+        const newTotalPrice = Object.values(saved).reduce(
+          (total, comp) => total + comp.product.price * comp.quantity,
+          0
+        );
+        return {
+          ...prev,
+          categories: updatedCategories,
+          configuration: {
+            ...prev.configuration,
+            components: saved,
+            totalPrice: newTotalPrice,
+          },
+        };
+      });
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   // Calculate configuration summary data
   const configurationSummaryData: ConfigurationSummaryData = useMemo(() => {
@@ -248,6 +353,7 @@ export const PCBuilderWorkspace: React.FC = () => {
                   category={category}
                   availableProducts={categoryState.availableProducts}
                   selectedComponent={selectedComponent}
+                  buildComponents={workspaceState.configuration.components}
                   isExpanded={categoryState.isExpanded}
                   isLoading={categoryState.isLoading}
                   filterState={categoryState.filterState}

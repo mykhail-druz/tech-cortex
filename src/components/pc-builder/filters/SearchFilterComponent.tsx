@@ -25,6 +25,7 @@ export const SearchFilterComponent: React.FC<SearchFilterComponentProps> = ({
         value={filter.value}
         onChange={handleChange}
         placeholder={filter.placeholder}
+        aria-label={filter.displayName || 'Search'}
         className={`px-4 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm ${
           filter.value 
             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 w-48 shadow-md' 

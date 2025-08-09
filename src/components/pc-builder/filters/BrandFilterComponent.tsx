@@ -49,14 +49,14 @@ export const BrandFilterComponent: React.FC<BrandFilterComponentProps> = ({
     onChange([]);
   };
 
-  const getDisplayText = () => {
+  const getSelectionText = () => {
     if (filter.value.length === 0) {
-      return 'Any brand';
+      return '';
     } else if (filter.value.length === 1) {
       const selectedOption = filter.options.find(opt => opt.value === filter.value[0]);
       return selectedOption?.label || filter.value[0];
     } else {
-      return `${filter.value.length} brands`;
+      return `${filter.value.length} selected`;
     }
   };
 
@@ -75,17 +75,18 @@ export const BrandFilterComponent: React.FC<BrandFilterComponentProps> = ({
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
+        aria-label={`${filter.displayName || 'Brand'} filter`}
         className={`px-4 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm ${
           filter.isActive
             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 shadow-md'
             : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md'
         }`}
       >
-        <div className="flex items-center gap-1">
-          <span className="truncate max-w-24 font-medium">{getDisplayText()}</span>
-          {filter.value.length > 0 && (
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              {filter.value.length}
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{filter.displayName || 'Brand'}</span>
+          {getSelectionText() && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-32">
+              {getSelectionText()}
             </span>
           )}
           <span className={`text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}>

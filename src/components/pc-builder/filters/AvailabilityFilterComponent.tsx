@@ -20,6 +20,7 @@ export const AvailabilityFilterComponent: React.FC<AvailabilityFilterComponentPr
     <select
       value={filter.value}
       onChange={(e) => onChange(e.target.value as 'all' | 'in_stock' | 'out_of_stock')}
+      aria-label={filter.displayName || 'Availability'}
       className={`px-4 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium shadow-sm ${
         filter.isActive
           ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 shadow-md'

@@ -5,6 +5,8 @@ import { ProductSpecificationsModal } from './ProductSpecificationsModal';
 import { FilterPanel } from './filters/FilterPanel';
 import { FilterService } from '@/lib/filters/FilterService';
 import { CategoryFilterState } from '@/types/filters';
+import { CompatibilityService } from '@/lib/compatibility/CompatibilityService';
+import { FiFrown } from 'react-icons/fi';
 
 type SortOption = 'name' | 'rating' | 'price' | 'stock';
 type SortDirection = 'asc' | 'desc';
@@ -13,6 +15,7 @@ interface CategoryBlockProps {
   category: PCBuilderCategory;
   availableProducts: PCBuilderProduct[];
   selectedComponent: SelectedComponent | null;
+  buildComponents: Record<string, SelectedComponent>;
   isExpanded: boolean;
   isLoading: boolean;
   filterState: CategoryFilterState;
@@ -39,6 +42,7 @@ export const CategoryBlock: React.FC<CategoryBlockProps> = ({
   category,
   availableProducts,
   selectedComponent,
+  buildComponents,
   isExpanded,
   isLoading,
   filterState,
@@ -55,13 +59,20 @@ export const CategoryBlock: React.FC<CategoryBlockProps> = ({
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Apply filters first, then sort
+  // Apply derived compatibility filtering first, then UI filters, then sort
   const filteredAndSortedProducts = useMemo(() => {
-    // Apply filters
-    const filterResult = FilterService.applyFilters(availableProducts, filterState.filters);
+    // 1) Derived compatibility pre-filtering
+    const derivedFiltered = CompatibilityService.filterByDerived(
+      availableProducts,
+      buildComponents,
+      category.slug
+    );
+
+    // 2) Apply UI filters
+    const filterResult = FilterService.applyFilters(derivedFiltered, filterState.filters);
     const filteredProducts = filterResult.filteredProducts;
 
-    // Then sort the filtered products
+    // 3) Then sort the filtered products
     const sorted = [...filteredProducts].sort((a, b) => {
       let comparison = 0;
 
@@ -87,13 +98,23 @@ export const CategoryBlock: React.FC<CategoryBlockProps> = ({
     });
 
     return sorted;
-  }, [availableProducts, filterState.filters, sortBy, sortDirection]);
+  }, [availableProducts, buildComponents, category.slug, filterState.filters, sortBy, sortDirection]);
 
   // Pagination calculations
   const totalPages = Math.ceil(filteredAndSortedProducts.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedProducts = filteredAndSortedProducts.slice(startIndex, endIndex);
+
+  // Compute compatibility for visible products
+  const productCompatibility = useMemo(() => {
+    const res: Record<string, { ok: boolean; reasons: string[] }> = {};
+    for (const p of paginatedProducts) {
+      const r = CompatibilityService.isCompatible(buildComponents, p);
+      res[p.id] = { ok: r.ok, reasons: CompatibilityService.explainConflicts(r.reasons) };
+    }
+    return res;
+  }, [paginatedProducts, buildComponents]);
 
   const handleToggleExpand = () => {
     onToggleExpand(category.slug);
@@ -297,6 +318,8 @@ export const CategoryBlock: React.FC<CategoryBlockProps> = ({
                         key={product.id}
                         product={product}
                         isSelected={selectedComponent?.product.id === product.id}
+                        isCompatible={productCompatibility[product.id]?.ok ?? true}
+                        incompatibilityReasons={productCompatibility[product.id]?.reasons ?? []}
                         onSelect={handleSelectProduct}
                         onRemove={handleRemoveProduct}
                         onShowSpecifications={handleShowSpecifications}
@@ -356,19 +379,7 @@ export const CategoryBlock: React.FC<CategoryBlockProps> = ({
               ) : (
                 <div className="text-center py-8">
                   <div className="text-gray-400 mb-2">
-                    <svg
-                      className="w-12 h-12 mx-auto"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1}
-                        d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3"
-                      />
-                    </svg>
+                    <FiFrown className="w-12 h-12 mx-auto text-gray-400" />
                   </div>
                   <p className="text-gray-500">No products found</p>
                   {filterState.activeFiltersCount > 0 && (

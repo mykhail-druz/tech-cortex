@@ -27,7 +27,7 @@ export const NumberRangeFilterComponent: React.FC<NumberRangeFilterComponentProp
     return value.toString();
   };
 
-  const getDisplayText = () => {
+  const getSelectionText = () => {
     if (filter.value.min !== null && filter.value.max !== null) {
       return `${formatValue(filter.value.min)} - ${formatValue(filter.value.max)}`;
     } else if (filter.value.min !== null) {
@@ -35,7 +35,7 @@ export const NumberRangeFilterComponent: React.FC<NumberRangeFilterComponentProp
     } else if (filter.value.max !== null) {
       return `Up to ${formatValue(filter.value.max)}`;
     }
-    return `Any ${filter.displayName.toLowerCase()}`;
+    return '';
   };
 
   const handleApply = () => {
@@ -98,14 +98,20 @@ export const NumberRangeFilterComponent: React.FC<NumberRangeFilterComponentProp
     <div className="relative">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
+        aria-label={`${filter.displayName} filter`}
         className={`px-4 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm ${
           filter.isActive
             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 shadow-md'
             : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md'
         }`}
       >
-        <div className="flex items-center gap-1">
-          <span className="font-medium">{getDisplayText()}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{filter.displayName}</span>
+          {getSelectionText() && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-32">
+              {getSelectionText()}
+            </span>
+          )}
           <span
             className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
           >

@@ -5,6 +5,8 @@ import { PCBuilderProduct } from '@/types/pc-builder';
 interface ProductCardProps {
   product: PCBuilderProduct;
   isSelected?: boolean;
+  isCompatible?: boolean;
+  incompatibilityReasons?: string[];
   onSelect: (product: PCBuilderProduct) => void;
   onRemove?: (product: PCBuilderProduct) => void;
   onShowSpecifications?: (product: PCBuilderProduct) => void;
@@ -13,6 +15,8 @@ interface ProductCardProps {
 export const ProductCard: React.FC<ProductCardProps> = ({
   product,
   isSelected = false,
+  isCompatible = true,
+  incompatibilityReasons = [],
   onSelect,
   onRemove,
   onShowSpecifications,
@@ -117,13 +121,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         {/* In Stock Status - 2 column */}
         <div className="col-span-2 flex justify-center">
-          <span
-            className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
-              product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}
-          >
-            {product.in_stock ? 'In Stock' : 'Out of Stock'}
-          </span>
+          <div className="flex flex-col items-center gap-1">
+            <span
+              className={`text-xs px-2 py-1 rounded-full whitespace-nowrap ${
+                product.in_stock ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+              }`}
+            >
+              {product.in_stock ? 'In Stock' : 'Out of Stock'}
+            </span>
+            {!isSelected && (
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full whitespace-nowrap ${
+                  isCompatible ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                }`}
+                title={incompatibilityReasons?.join('; ')}
+              >
+                {isCompatible ? 'Compatible' : 'Not compatible'}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Price - 12 columns */}
@@ -135,11 +151,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <div className="col-span-2 flex justify-end">
           <button
             onClick={handleActionClick}
-            disabled={!product.in_stock && !isSelected}
+            disabled={!isSelected && (!product.in_stock || !isCompatible)}
+            title={!isSelected && !isCompatible ? incompatibilityReasons?.join('; ') : undefined}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200 ${
               isSelected
                 ? 'bg-red-600 hover:bg-red-700 text-white'
-                : product.in_stock
+                : product.in_stock && isCompatible
                   ? 'bg-blue-600 hover:bg-blue-700 text-white'
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}

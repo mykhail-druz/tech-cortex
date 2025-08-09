@@ -41,7 +41,7 @@ export class FilterService {
       {
         id: 'price_range',
         name: 'price_range',
-        displayName: 'Price Range',
+        displayName: 'Price',
         type: 'price_range',
       },
       {

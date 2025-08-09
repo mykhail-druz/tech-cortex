@@ -22,7 +22,7 @@ export const PriceRangeFilterComponent: React.FC<PriceRangeFilterComponentProps>
     }).format(price);
   };
 
-  const getDisplayText = () => {
+  const getSelectionText = () => {
     if (filter.value.min !== null && filter.value.max !== null) {
       return `${formatPrice(filter.value.min)} - ${formatPrice(filter.value.max)}`;
     } else if (filter.value.min !== null) {
@@ -30,7 +30,7 @@ export const PriceRangeFilterComponent: React.FC<PriceRangeFilterComponentProps>
     } else if (filter.value.max !== null) {
       return `Up to ${formatPrice(filter.value.max)}`;
     }
-    return 'Any price';
+    return '';
   };
 
   const handleOpenModal = () => {
@@ -122,14 +122,20 @@ export const PriceRangeFilterComponent: React.FC<PriceRangeFilterComponentProps>
       `}</style>
       <button
         onClick={handleOpenModal}
+        aria-label={`${filter.displayName || 'Price'} filter`}
         className={`px-4 py-2 text-sm border rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-sm ${
           filter.isActive
             ? 'border-blue-500 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-900 shadow-md'
             : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-md'
         }`}
       >
-        <div className="flex items-center gap-1">
-          <span className="font-medium">{getDisplayText()}</span>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">{filter.displayName || 'Price'}</span>
+          {getSelectionText() && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {getSelectionText()}
+            </span>
+          )}
           <span className="text-gray-400">▼</span>
         </div>
       </button>

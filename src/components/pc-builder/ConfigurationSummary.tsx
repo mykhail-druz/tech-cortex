@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConfigurationSummaryData } from '@/types/pc-builder';
+import { createPortal } from 'react-dom';
 
 interface ConfigurationSummaryProps {
   data: ConfigurationSummaryData;
@@ -14,6 +15,15 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
   onSaveConfiguration,
   onClearConfiguration,
 }) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  // Lock body scroll while modal is open
+  useEffect(() => {
+    if (!showConfirm) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, [showConfirm]);
   const formatPrice = (price: number): string => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
@@ -163,13 +173,54 @@ export const ConfigurationSummary: React.FC<ConfigurationSummaryProps> = ({
 
         {onClearConfiguration && data.selectedComponents.length > 0 && (
           <button
-            onClick={onClearConfiguration}
+            onClick={() => setShowConfirm(true)}
             className="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-colors duration-200"
           >
             Clear All
           </button>
         )}
       </div>
+
+      {/* Confirmation Modal (via Portal over entire app) */}
+      {showConfirm && typeof window !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clear-all-title"
+          onClick={() => setShowConfirm(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg w-full max-w-sm p-5"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id="clear-all-title" className="text-lg font-semibold text-gray-900">Clear all components?</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              This will remove all selected components from your configuration.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (onClearConfiguration) {
+                    onClearConfiguration();
+                  }
+                  setShowConfirm(false);
+                }}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 };
